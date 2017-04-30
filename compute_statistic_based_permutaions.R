@@ -57,6 +57,9 @@ compute_permutations_marginal_table <- function(PermutationsTable, perm_weights)
 # data - data set (matrix of size nX2)
 # Q - matrix of marginal probabilities 
 # X - pivots points which seperates plane into 4 quartiles 
+# 
+# Output: 
+# P_expected - matrix of size 4*n with P_expected[i,j] giving probability of point falling in qualrtile j defined by pivot i
 #
 compute_statistic_based_permutaions_quartiles <- function(data, Q, X)
 {
@@ -79,5 +82,9 @@ compute_statistic_based_permutaions_quartiles <- function(data, Q, X)
 }
 
 
+
+
+# New: compute valid permutations 
+enumerate_valide_
 
 

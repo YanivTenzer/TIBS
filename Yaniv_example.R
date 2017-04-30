@@ -50,23 +50,23 @@ for(i in seq(1,dim(Sample)[1],1))
 }
 
 #5. Sample valid permutations:
-TargetSampleSize = 3000
-Permutations<-MCMC_Permutations(NULL,Weights_Matrix_1,TargetSampleSize,dim(Weights_Matrix_1)[1])
-Permutations_independent<-MCMC_Permutations(NULL,Weights_Matrix_independent,TargetSampleSize,dim(Weights_Matrix_independent)[1])
+num_perms = 3000
+Permutations<-MCMC_Permutations(Weights_Matrix_1,num_perms)
+Permutations_independent<-MCMC_Permutations(NULL,Weights_Matrix_independent,num_perms,dim(Weights_Matrix_independent)[1])
 #6. We are set:
-temp<-matrix(0,TargetSampleSize,1)
-temp_independent<-matrix(0,TargetSampleSize,1)
+temp<-matrix(0,num_perms,1)
+temp_independent<-matrix(0,num_perms,1)
 ####################################
 p_test<-c(1,0)#c(1,1)#c(2,2)#c(2,0)
 
-for(i in seq(1,TargetSampleSize,1))
+for(i in seq(1,num_perms,1))
 {
   permuted_data<-cbind(Sample[,1], Sample[Permutations[,i],2])
   temp[i]<-length(which(permuted_data[,1]==p_test[1] & permuted_data[,2]==p_test[2] ))/dim(permuted_data)[1]
 }
 cat('Sampling with the induced distribution: ', toString(mean(temp)))
 
-for(i in seq(1,TargetSampleSize,1))
+for(i in seq(1,num_perms,1))
 {
   permuted_data<-cbind(Sample[,1], Sample[Permutations_independent[,i],2])
   temp_independent[i]<-length(which(permuted_data[,1]==p_test[1] & permuted_data[,2]==p_test[2] ))/dim(permuted_data)[1]

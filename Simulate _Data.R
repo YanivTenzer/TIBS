@@ -28,12 +28,20 @@ simulate_data <- function(n, dependence_type, prms)
   return (data)  
 }
 ##########################
+# Simulate data with biased sampling
+# Input: 
+# Data - n*2 matrix 
+# biased_method - type of truncation/biased sampling 
+# bias_params - parameters for truncation function
+# Output: 
+# truncated_data - only parts of data which passed the biased sampling 
+#
 Create_Bias <- function(Data,biased_method, bias_params)
 {
   n=dim(Data)[1]
   if(biased_method == 'SOFT_CENS') 
   {
-    th = bias_params$L2_th
+    th = bias_params$L2_th  # This isn't used? 
     L2_Norms<-apply(Data,1,function(x) sqrt(x[1]^2+x[2]^2) )
     Probs<-min(1,1/L2_Norms)
     Toss_Coin = runif(n,0,1)
@@ -51,7 +59,16 @@ Create_Bias <- function(Data,biased_method, bias_params)
   return (truncated_data);
 }
 ###############################
-# Compute the N*N matrix of samplig weights (add more methods in the future )
+# Compute the N*N matrix of sampling weights (add more methods in the future )
+# 
+# Input: 
+# Data - 
+# N - number of points (Why needed? can be read from data)
+# biased_method - type of truncation/biased sampling 
+# bias_params - parameters for truncation function
+# Output: 
+# W <- Matrix of size N*N with weights 
+#
 get.biased.sampling.weights <- function(Data, N, biased_method, bias_params)
 {
   W = matrix(0,N,N);

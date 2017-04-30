@@ -1,14 +1,24 @@
-MCMC_Permutations<-function(Dat,W,TargetSampleSize,N)
+# Draw permutations at random accoring to distirubtion determined by matrix W 
+# Input: 
+# W - an N*N weight matrix 
+# num_perms <- number of permtuations to sample
+# 
+# Output: 
+# PermutationsTable - table of sampled permutations
+#
+MCMC_Permutations<-function(W,num_perms)
 {  
-  BurningTime = 1500;
+
+  N <- dim(W)[1]
+  BurningTime = 1500; # Set default parameters 
   Cycle = 100;
 
   Counter = 1;
   Idx = 1;
-  PermutationsTable = matrix(0,N,TargetSampleSize);
+  PermutationsTable = matrix(0,N,num_perms);
   Perm = 1:N; # init with ID permutation 
 
-  while(Idx<=TargetSampleSize)
+  while(Idx<=num_perms)
   {
     #Here we implement a MHS algorithm with target stationary distribution \pi
     #Choose the two indices to be switched

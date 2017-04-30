@@ -12,7 +12,7 @@ compute.mcmc.permutation.power <- function(n, num_datasets, alpha,dependce_type,
     True_T<-compute.dependence.statistic(BiasedData, statistic_type,new_n)
     
     W=get.biased.sampling.weights(BiasedData, new_n, bias_method, bias_params)
-    Permutations=MCMC_Permutations(W,num_permutations,new_n)
+    Permutations=MCMC_Permutations(W,num_permutations)
     
     #Compute statistic for each permutation:
     T = matrix(0,num_permutations,1);

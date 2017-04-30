@@ -74,7 +74,7 @@ RUNNER_real_data<-function(data, Hyperplane_prms)
         #Towards MCMC - get W matrix:
         W=get.biased.sampling.weights(BiasedData, n_biased, biased_method, bias_params) 
         #Sample permutations:
-        Permutations=MCMC_Permutations(BiasedData,W,TargetSampleSize,n_biased)
+        Permutations=MCMC_Permutations(W, TargetSampleSize)
         #Now test for independency using the permutations/LRT tests:
         if(statistic_type == 'HHG')
         {

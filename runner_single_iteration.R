@@ -83,7 +83,7 @@ runner_single_iteration<-function(data, dependence_type, bias_method, bias_param
            bEstimate_Marginals <- 1; # 1 - estimate expected, 0 - take analytic expectation   
            
            number_of_permutations <- TargetSampleSize #   100 # why do we need a new variable here? 
-           Permutations=MCMC_Permutations(data, W, number_of_permutations, dim(data)[1])
+           Permutations=MCMC_Permutations(W, number_of_permutations)
            if(file.exists('resources/permutations_test_mass_table.Rdata'))
            {
              load('resources/permutations_test_mass_table.Rdata')
