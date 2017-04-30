@@ -1,7 +1,7 @@
 cat("\014")
 path = 'D:/cond_ind_local'
 setwd(path)
-source('Simulate _Data.R')
+source('Simulate_Data.R')
 source('runner_single_iteration.R')
 library(foreach)
 library(doSNOW)

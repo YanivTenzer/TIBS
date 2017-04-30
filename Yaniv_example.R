@@ -52,7 +52,7 @@ for(i in seq(1,dim(Sample)[1],1))
 #5. Sample valid permutations:
 num_perms = 3000
 Permutations<-MCMC_Permutations(Weights_Matrix_1,num_perms)
-Permutations_independent<-MCMC_Permutations(NULL,Weights_Matrix_independent,num_perms,dim(Weights_Matrix_independent)[1])
+Permutations_independent<-MCMC_Permutations(Weights_Matrix_independent,num_perms)
 #6. We are set:
 temp<-matrix(0,num_perms,1)
 temp_independent<-matrix(0,num_perms,1)

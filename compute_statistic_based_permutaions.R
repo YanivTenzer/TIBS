@@ -30,6 +30,10 @@ compute_statistic_based_permutaions <- function(data, statistic_type, num_of_obs
 
 
 # New: Compute expected statistics using all permutations 
+# 
+# Input: 
+# PermutationsTable <- list of permutations
+# perm_weights <- weights (probabilities) for each permutation
 # Output: 
 # Q - an nXn matrix such that Q[i,j] is the probability for a random permutation P to have P[i] = j. 
 # 
@@ -84,7 +88,35 @@ compute_statistic_based_permutaions_quartiles <- function(data, Q, X)
 
 
 
-# New: compute valid permutations 
-enumerate_valide_
+# Compute all valid permutations 
+# 
+# W - an N*N weight matrix 
+# 
+# Output: 
+# PermutationsTable - table of permutations with non-zero weights
+# PermutationsWeights - vector of their weights 
+Enumerate_Permutations <- function(W)
+{
+  library(partitions)
+  N <- dim(W)[1]
+  num_perms <- factorial(N)
 
+  if(num_perms>10){
+    print("Error! N too large. Can't enumerate all N! permutations")
+    return(NULL)
+  } # Too much 
+  
+  PermutationsTable <- perms(N);
+  PermutationsWeights <- matrix(1, 1, num_perms); # get weights for each permutation
 
+  for(i in 1:num_perms) {
+    for(j in 1:N) {
+      PermutationsWeights[i] <- PermutationsWeights[i] * W[j,PermutationsTable[j,i]];
+    }
+  }  
+  PermutationsTable <- PermutationsTable[,which(PermutationsWeights>0)]
+  PermutationsWeights <- PermutationsWeights[which(PermutationsWeights>0)];
+  
+  return(list(PermutationsTable, PermutationsWeights))
+  
+}
