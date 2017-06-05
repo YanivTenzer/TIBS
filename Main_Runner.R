@@ -1,7 +1,7 @@
 cat("\014")
 path = 'D:/cond_ind_local'
 setwd(path)
-source('Simulate_Data.R')
+source('Simulate _Data.R')
 source('runner_single_iteration.R')
 library(foreach)
 library(doSNOW)
@@ -14,12 +14,13 @@ cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
 registerDoParallel(cl) 
 
-test_type = 'permutations' #'bootstrap' 
-statistic_type = 'HHG'#kendall
+test_type = 'bootstrap'#'permutations' 
+statistic_type = 'HHG'
 margins = 'unknown'
 str<-paste(test_type, '_', statistic_type,'_',margins, sep='')
 switch(str,
        'bootstrap_HHG_known'={output_dir<-'results_bootstrap_known_margins'},
+       'bootstrap_HHG_unknown'={output_dir<-'results_bootstrap_unknown_margins'},
        'bootstrap_kendall_known'={output_dir<-'results_bootstrap_kendall_known_margins'},
        'permutations_HHG_known'={output_dir<-'results_permutations_known_margins'},
        'permutations_HHG_unknown'={output_dir<-'results_permutations_unknown_margins'})
@@ -29,16 +30,15 @@ if(!dir.exists(output_dir))
 }
 
 #The size of the original sample (i.e., before truncation)
-sample_size=700
-dependence_type='Gaussian' #Exponential
+sample_size=500
+dependence_type='Gaussian'
 Hyperplane_prms<-c(-1,1,0)
 bias_params<-list(Hyperplane_prms)
 names(bias_params)<-c("Hyperplane_prms")
 bias_method = 'Hyperplane_Truncation'  
-bEstimate_Marginals = 0
 num_of_iterations = 200
 #How many permutations to use/how many bootstrap samples to use:
-num_of_repetitions_per_iterations = 300
+num_of_repetitions_per_iterations = 200
 
 for(iter in seq(1,9,1))
 {
@@ -53,13 +53,10 @@ for(iter in seq(1,9,1))
   results_table<- foreach(i=1:num_of_iterations, .combine=rbind) %dopar%{ 
                   data<-simulate_data(sample_size, dependence_type, prms) 
                   truncated_data<-Create_Bias(data, bias_method, bias_params)
-                  results<-runner_single_iteration(truncated_data, 'Other', bias_method, bias_params,num_of_repetitions_per_iterations, 
-                                                    path, prms, test_type,statistic_type)
-   switch(test_type,
-   'bootstrap'={temp<-c(results$True_T, results$statistics_bootstrap)},
-   'permutations'={temp<-c(results$True_T, results$statistics_permutations)})
-    
-    temp
+                  results<-runner_single_iteration(truncated_data, bias_method, bias_params,num_of_repetitions_per_iterations, 
+                                                    path, test_type,statistic_type)
+   temp<-c(results$True_T, results$statistics_under_null)
+   temp
   }
   
   str<-paste(test_type, '_', statistic_type, sep='')
@@ -76,8 +73,8 @@ stopCluster(cl)
 #################################################################################################################################
 source('runner_single_iteration.R')
 num_of_iterations = 200
-num_of_repetitions_per_iterations = 300
-sample_size=300
+num_of_repetitions_per_iterations = 200
+sample_size=500
 statistic_type = 'HHG'
 test_type = 'bootstrap'#'permutations'
 
@@ -92,12 +89,9 @@ dependence_type='Sin'
 results_table<- foreach(i=1:num_of_iterations, .combine=rbind) %dopar%{ 
                   data<-simulate_data(sample_size, dependence_type, prms) 
                   truncated_data<-Create_Bias(data, bias_method, bias_params)
-                  results<-runner_single_iteration(truncated_data, 'Other', bias_method, bias_params,num_of_repetitions_per_iterations, 
-                                                    path, prms, test_type,statistic_type)
-                  switch(test_type,
-                         'bootstrap'={temp<-c(results$True_T, results$statistics_bootstrap)},
-                         'permutations'={temp<-c(results$True_T, results$statistics_permutations)})
-                  
+                  results<-runner_single_iteration(truncated_data, bias_method, bias_params,num_of_repetitions_per_iterations, 
+                                                    path, test_type,statistic_type)
+                  temp<-c(results$True_T, results$statistics_under_null)
                   temp }
   
 Pvalues<-apply(results_table, 1, function(x) length(which(x[-1]>x[1]))/length(x))
@@ -105,29 +99,28 @@ save(Pvalues,results_table, file=outfile)
 stopCluster(cl)
 #####################################################################
 source('runner_single_iteration.R')
+source('Tsai_test.R')
 cores=detectCores()
 cl<-makeCluster(cores[1]-1) 
 registerDoParallel(cl) 
 
 num_of_iterations = 200
-sample_size=300
+sample_size=500
 statistic_type = 'HHG'
 test_type = 'permutations'
 bEstimate_Marginals = 1
 prms<-list(bEstimate_Marginals)
 names(prms)<-c('bEstimate_Marginals')
-dependence_type='Sin'
+dependence_type='Mixture'#Sin'
 
-results_table<- foreach(i=1:num_of_iterations, .combine=rbind) %dopar%{ 
-  data<-simulate_data(sample_size, dependence_type, NULL) 
+Pvalues<- foreach(i=1:num_of_iterations, .combine=rbind) %dopar%{ 
+  data<-simulate_data(sample_size,dependence_type, NULL) 
   truncated_data<-Create_Bias(data, bias_method, bias_params)
-  results<-runner_single_iteration(truncated_data, 'Other', bias_method, bias_params,num_of_repetitions_per_iterations, 
-                                   path, prms, test_type,statistic_type)
-  switch(test_type,
-         'bootstrap'={temp<-c(results$True_T, results$statistics_bootstrap)},
-         'permutations'={temp<-c(results$True_T, results$statistics_permutations)})
+  result<-tsai.test.ties(truncated_data[,1], truncated_data[,2])
+  temp<-result[2]
   
-  temp }
+  temp
+}
 
 Pvalues<-apply(results_table, 1, function(x) length(which(x[-1]>x[1]))/length(x))
 outfile<-'Permutations_vs_Tsai_sin_example.Rdata'

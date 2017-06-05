@@ -1,20 +1,11 @@
 Compute_Statistic<- function(data, statistic_type, grid_points, null_data, null_distribution)
 {
-  #library(mecdf, warn=FALSE)
   source('Get_Quarter_Approximated_Mass.R')
   num_of_samples=dim(data)[1]
   P<-matrix(0,4,1)
  
   if(statistic_type == 'HHG') #compute the HHG test statistic
   {
-    #browser()
-    #max_x<-max(grid_points[,1])
-    #min_x<-min(grid_points[,1])
-    #max_y<-max(grid_points[,2])
-    #min_y<-min(grid_points[,2])
-    #exclude_idx<-c(which(grid_points[,1]==max_x),which(grid_points[,1]==min_x),which(grid_points[,2]==max_y),which(grid_points[,2]==min_y))
-    #test_idx<-setdiff(seq(1, dim(grid_points)[1],1), exclude_idx)
-    
     test_idx<-seq(1, dim(grid_points)[1],1)
     Statistic = matrix(0,length(test_idx),1)
     counter = 0
@@ -54,6 +45,7 @@ Compute_Statistic<- function(data, statistic_type, grid_points, null_data, null_
     T = sum(Statistic[idx1])
   
   }
+  
   if(identical(statistic_type,'kendall')) #compute the HHG test statistic
   {
     T=cor(data, method='kendall')[1,2]

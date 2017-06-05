@@ -26,17 +26,14 @@ get_null_distribution<-function(data,pdfs,W)
   #################################
   #compute the normalizing factor under the null:
   Z=0
-  #browser()
   temp<-dim(pdfs)[1]
   for(i in 1:temp)
   {
-    null_distribution[i,]<-W[i,]*pdfs[i,1]*pdfs[,2]#*dx[i]*dy
-    #Z<-0.5
-    Z<-Z+sum(W[i,]*pdfs[i,1]*pdfs[,2])#*dx[i]*dy)
+    null_distribution[i,]<-W[i,]*pdfs[i,1]*pdfs[,2]
+    Z<-Z+sum(W[i,]*pdfs[i,1]*pdfs[,2])
   }
   null_distribution<-null_distribution/Z
   output<-list(null_distribution,Z)
   names(output)<-c("null_distribution", "normalizing_factor")
-  #browser()
   return(output)
 }

@@ -13,14 +13,34 @@ simulate_data <- function(n, dependence_type, prms)
                     Sigma=matrix(c(1, rho, rho,1),2,2)
                     data<-rmvnorm(n, mu, Sigma)
                            },
+         'Gumbel'={library('copula')
+                   gumbel.cop <- gumbelCopula(1.2)
+                   u<- rCopula(n, gumbel.cop)
+                   data<-cbind(qnorm(u[,1]),qnorm(u[,2]))},
+         'Clayton'={library('copula')
+                    clayton.cop <- claytonCopula(20)
+                   u<- rCopula(n, clayton.cop)
+                   data<-cbind(qnorm(u[,1]),qnorm(u[,2]))},
+         'Mixture'={
+                    library('copula')
+                    temp<-sample(c(0,1), n, replace=TRUE)
+                    
+                    clayton.cop_1<- claytonCopula(0.5)
+                    clayton.cop_2 <- claytonCopula(-0.5)
+                    
+                    n_1<-length(which(temp==1))
+                    n_2<-length(which(temp==0))
+                    
+                    u_1<- rCopula(n_1, clayton.cop_1)
+                    u_2<- rCopula(n_2, clayton.cop_2)
+                    data<-rbind(u_1,u_2)
+                    },
+                    
         'Linear' = cbind(x, y=x+ prms$noise*rnorm(n)),
-        'abs' = {x=rnorm(n)
-                 y<-rnorm(n)+abs(x)
-                 data<-cbind(x,y)},
         'Parabolic' = {x=rnorm(n) 
                        data<-cbind(x, y=4*(x-.5)^2)+rnorm(n)},
         'Sin' =       {x=rnorm(n) 
-                       data<-cbind(x, y=sin(2*abs(x))+1*rnorm(n))},
+                       data<-cbind(x, y=sin(abs(x))+1*rnorm(n))},
         'Cubic' = cbind(x, 128*(x-1/3)^3-48*(x-1/3)^3-12*(x-1/3)+10*  prms$noise*rnorm(n)),
         'Exponential'={data<-cbind(0.6-rexp(n,prms$lambda),rexp(n,prms$lambda))}) 
   
@@ -28,20 +48,12 @@ simulate_data <- function(n, dependence_type, prms)
   return (data)  
 }
 ##########################
-# Simulate data with biased sampling
-# Input: 
-# Data - n*2 matrix 
-# biased_method - type of truncation/biased sampling 
-# bias_params - parameters for truncation function
-# Output: 
-# truncated_data - only parts of data which passed the biased sampling 
-#
 Create_Bias <- function(Data,biased_method, bias_params)
 {
   n=dim(Data)[1]
   if(biased_method == 'SOFT_CENS') 
   {
-    th = bias_params$L2_th  # This isn't used? 
+    th = bias_params$L2_th
     L2_Norms<-apply(Data,1,function(x) sqrt(x[1]^2+x[2]^2) )
     Probs<-min(1,1/L2_Norms)
     Toss_Coin = runif(n,0,1)
@@ -59,16 +71,7 @@ Create_Bias <- function(Data,biased_method, bias_params)
   return (truncated_data);
 }
 ###############################
-# Compute the N*N matrix of sampling weights (add more methods in the future )
-# 
-# Input: 
-# Data - 
-# N - number of points (Why needed? can be read from data)
-# biased_method - type of truncation/biased sampling 
-# bias_params - parameters for truncation function
-# Output: 
-# W <- Matrix of size N*N with weights 
-#
+# Compute the N*N matrix of samplig weights (add more methods in the future )
 get.biased.sampling.weights <- function(Data, N, biased_method, bias_params)
 {
   W = matrix(0,N,N);

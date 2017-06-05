@@ -1,122 +1,33 @@
-compute_statistic_based_permutaions <- function(data, statistic_type, num_of_observation, bias_method, dependence_type, grid, mass_table)
+compute_statistic_based_permutaions <- function(data, statistic_type, num_of_observation,bias_method, grid, mass_table)
 {
+  epsilon = 0.000001
   if(statistic_type == 'HHG') #compute the HHG test statistic
   {
     d=dim(mass_table)
-    Statistic <- matrix(0,d[1],1);
-    P_expected <- matrix(0, 4, 1); 
+    Statistic = matrix(0,d[1],1);
     
-    for (i in 1:d[1] ) # loop on data points 
+    for (i in 1:d[1] ) 
     {
-      switch(dependence_type,
-             "Gaussian"={
-               for (j in 1:4)
-                 P_expected[j] <- mass_table[i, j]; 
-             })
-      
-      P_empiric <- matrix(0, 4, 1);
-      for (j in 1:4)
-      {
-        j1 <- (-1)^ceil(j/2); j2 <- (-1)^round(abs((j-2.5)/2)); # use to flip sign
-        P_empiric[j] <- length(which(j1*data[,1]<=j1*grid[i,1] & j2*data[,2]<=j2*grid[i,2]));
-        Statistic[i] <- Statistic[i] + (P_empiric[j] - num_of_observation*P_expected[j])^2 / (num_of_observation*P_expected[j]); 
-      }
+      #UP right
+      P1 = mass_table[i,1]
+      #Down right  
+      P2 = mass_table[i,2]
+      #Down left  
+      P3 = mass_table[i,3]
+      #Up left  
+      P4 = ifelse(mass_table[i,4] >0,mass_table[i,4], epsilon) 
+               
+      #Up right quarter
+      EmpP1 = length(which(data[,1]>=grid[i,1] & data[,2]>=grid[i,2]));
+      #Down right quarter
+      EmpP2 = length(which(data[,1]>=grid[i,1] & data[,2]<=grid[i,2]));
+      #Down left quarter
+      EmpP3 = length(which(data[,1]<=grid[i,1] & data[,2]<=grid[i,2]));
+      #Up left quarter
+      EmpP4 = length(which(data[,1]<=grid[i,1] & data[,2]>=grid[i,2]));
+      Statistic[i] = (EmpP1-P1)^2/(P1) + (EmpP2-P2)^2/(P2)+(EmpP3-P3)^2/(P3) + (EmpP4-P4)^2/(P4)
     }
-    
   }
   T = sum(Statistic)
   return(T)
-}
-
-
-# New: Compute expected statistics using all permutations 
-# 
-# Input: 
-# PermutationsTable <- list of permutations
-# perm_weights <- weights (probabilities) for each permutation
-# Output: 
-# Q - an nXn matrix such that Q[i,j] is the probability for a random permutation P to have P[i] = j. 
-# 
-compute_permutations_marginal_table <- function(PermutationsTable, perm_weights)
-{
-  n <- dim(PermutationsTable)[1]; # get number of data points 
-  num_perms <- dim(PermutationsTable)[2]; # get number of permutations
-  Q <- matrix(0, n, n); 
-
-    # loop over all permutations and compute marginals 
-  for (p in 1:num_perms)
-    for (i in 1:n ) 
-    {
-      Q[i,PermutationsTable[i,p]] = Q[i,PermutationsTable[i,p]] + perm_weights[p];  # update marginal probabilities 
-    }
-  Q <- Q/rowSums(Q); # divide each row by its sum. 
-  
-  return(Q); 
-}
-
-
-# Compute the expected marginal in each quartile 
-# 
-# Input: 
-# data - data set (matrix of size nX2)
-# Q - matrix of marginal probabilities 
-# X - pivots points which seperates plane into 4 quartiles 
-# 
-# Output: 
-# P_expected - matrix of size 4*n with P_expected[i,j] giving probability of point falling in qualrtile j defined by pivot i
-#
-compute_statistic_based_permutaions_quartiles <- function(data, Q, X)
-{
-  n_grid <- dim(X)[1]; 
-  n <- dim(data[1]);
-  
-  P_expected <- matrix(0, n_grid, 4); 
-  for (i in 1:n_grid)
-    for(j in 1:4)
-    {
-      j1 <- (-1)^ceil(j/2); j2 <- mod(j,2); # use to flip sign
-      Quartile_indices1 <- which(j1*data[,1]<=j1*X[i,1]); # find indices in quartile 
-      Quartile_indices2 <- which(j2*data[,2]<=j2*X[i,2]); 
-      
-      for( i1 in Quartile_indices1)
-        for (i2 in Quartile_indices2)
-          P_expected[i,j] <- P_expected[i,j] + Q[Quartile_indices1[i1], Quartile_indices2[i2]]; 
-    }
-  return(P_expected / n); # Normalize to get total expectation 1 (not n)
-}
-
-
-
-
-# Compute all valid permutations 
-# 
-# W - an N*N weight matrix 
-# 
-# Output: 
-# PermutationsTable - table of permutations with non-zero weights
-# PermutationsWeights - vector of their weights 
-Enumerate_Permutations <- function(W)
-{
-  library(partitions)
-  N <- dim(W)[1]
-  num_perms <- factorial(N)
-
-  if(num_perms>10){
-    print("Error! N too large. Can't enumerate all N! permutations")
-    return(NULL)
-  } # Too much 
-  
-  PermutationsTable <- perms(N);
-  PermutationsWeights <- matrix(1, 1, num_perms); # get weights for each permutation
-
-  for(i in 1:num_perms) {
-    for(j in 1:N) {
-      PermutationsWeights[i] <- PermutationsWeights[i] * W[j,PermutationsTable[j,i]];
-    }
-  }  
-  PermutationsTable <- PermutationsTable[,which(PermutationsWeights>0)]
-  PermutationsWeights <- PermutationsWeights[which(PermutationsWeights>0)];
-  
-  return(list(PermutationsTable, PermutationsWeights))
-  
 }
