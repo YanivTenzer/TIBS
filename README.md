@@ -15,8 +15,8 @@ Clone the repository into a directory of your choice.
 Change the path in the function 'simulations.R' into the directory you've used. 
 
 The file 'TIBS.R' contains the main function 'TIBS' which produces a test for your dataset. 
-For example, to run a TIBS permutation test with B=100 permutations for biased sample W(x,y)=x+y, use: 
-test_results<-TIBS(biased_data, 'sum', '', 100, 'permutations', prms)
+For example, to run a TIBS permutation test with B=100 permutations for biased sample W(x,y)=x+y, use: <br>
+test_results<-TIBS(biased_data, 'sum', '', 100, 'permutations', prms) <br>
 where biased_data is a n*2 array containing your (x_i,y_i) sample from F_XY*W
 
 
