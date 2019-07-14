@@ -4,13 +4,13 @@ TIBS (Testing Independence with Biased Sampling) is a repository of R functions 
 More formally, for (x_1,y_1), ..., (x_n, y_n) ~ F_XY * W with known W,  TIBS tests the null hypothesis
 H_0: F_XY = F_X * F_Y
 
-Tests: 
+## Tests: 
 The repository implements TIBS - this is a new test based on multiple data-dependent partitions of the (x,y) plane, 
 with modified expectation computed based on W. 
 In addition, the repository also enables the user to run Tsai's test and the minP2 test - both tests are 
 applicable for the special case of W(x,y) = 1_{y>x}. 
 
-Getting started: 
+## Getting started: 
 Clone the repository into a directory of your choice. 
 Change the path in the function 'simulations.R' into the directory you've used. 
 
@@ -26,7 +26,7 @@ Warning: running time is quite high for this script. to get started, you may wan
 simulate and test only one dataset, with a small number of iterations and permutations/bootstrap samples (B). 
 
 
-Datasets: 
+## Datasets: 
 There are currently 4 datasets analyzed by TIBS: 
 The huji and AIDS datasets are part of the repository. 
 Additional datasets (ICU and Infection) are available upon request. 
@@ -34,7 +34,7 @@ Additional datasets (ICU and Infection) are available upon request.
 
 The script 'real_life_datasets.R'  runs the TIBS tests on the real datasets.
 
-Contacts: 
-For any questions, bug-reports etc. please contact: 
-Yaniv Tenzer   yaniv.tenzer@gmail.com
+## Contacts: 
+For any questions, bug-reports etc. please contact: <br>
+Yaniv Tenzer   yaniv.tenzer@gmail.com <br>
 Or Zuk  or.zuk@mail.huji.ac.il
