@@ -7,12 +7,12 @@
 # B - number of bootstrap/permutation samples to perform 
 # test_type - test to perform 
 # prms - additional parameters (needed for bootstrap)
+#
 TIBS <- function(data, bias_method, bias_params, B, test_type, prms)
 {  
   library(pracma)
   source('utilities.R')
   source('Tsai_test.R')
-  #source('marginal_estimation.R')
   #################################################################
   #1. Compute weights matrix W:  
   W=get.biased.sampling.weights(data, dim(data)[1], bias_method, bias_params)
