@@ -11,7 +11,9 @@ simulate_biased_sample <- function(n, dependence_type, bias_type, prms)
 {
   # rejection sampling   
   data <- matrix(0, n, 2)
-  prms$W_max <- 1.0 # temp. Should be input    
+
+  if(!('W_max' %in% names(prms)))
+    prms$W_max <- 1.0 # temp. W_max should be input    
   k = 1
   while(k<=n)
   {
@@ -37,8 +39,11 @@ simulate_biased_sample <- function(n, dependence_type, bias_type, prms)
              xy<-exp(rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2)))         
            },
            'UniformStrip'={
-             while((xy<-abs(runif(2)))>pems$rho)
+             xy_abs_diff <- 2
+             while(xy_abs_diff>prms$rho)
              {
+               xy <- runif(2)
+               xy_abs_diff <- abs(xy[2]-xy[1])
              }
            }
     ) # end switch 

@@ -1,11 +1,15 @@
+# Set path to your working directory: 
+# The script contains real data analysis 
+# Due to privacy issues, the data files for the ICU datasets are not part of the released package. 
+# Please contact the authors if you are interested in them. 
 path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code' # modify to your path  # path = 'D:/cond_ind_2019'
 setwd(path)
 
-source('runner_single_iteration.R')
+source('TIBS.R')
 source('simulate_biased_sample.R')
 source('marginal_estimation.R')
 source('Tsai_test.R')
-source('utilities.R')
+source('utilities.R') 
 library(lubridate)
 library(permDep)
 library(tictoc)
@@ -29,9 +33,11 @@ bias_params<-list(NA, list(Hyperplane_prms=Hyperplane_prms), list(Hyperplane_prm
 test_Pvalue <- matrix(-1, n_datasets, n_tests) # -1 denotes test wasn't performed
 test_time <- matrix(-1, n_datasets, n_tests) # -1 denotes test wasn't performed
 
-for(d in 4:n_datasets) # loop on datasets
+for(d in 1:n_datasets) # loop on datasets.
 {
-  switch(datasets[d],  # read dataset 
+    if(datasets[d] %in% c('ICU', 'Infection'))  # datasets available by request. Remove this line if you have them 
+      next
+    switch(datasets[d],  # read dataset 
          'huji'={
            load('../data/APage_APtime.RData')
            input_data <- HUJI.dat
@@ -41,11 +47,10 @@ for(d in 4:n_datasets) # loop on datasets
            data("AIDS")
            input_data <- AIDS[,2:3]
          },
-         'ICU'={
+         'ICU'={  # this dataset is not part of the released package
            input_data <- read.table("../data/ICU_data.txt", header = TRUE)
-           input_data[input_data$delta==0,] # censoring is always at 30
          }, 
-         'Infection'={
+         'Infection'={ # this dataset is not part of the released package
            load('../data/ICU_INF.Rdata')
            input_data <- cbind(X,Y)
            W_max[d] <- max(X)+max(Y)
@@ -56,24 +61,22 @@ for(d in 4:n_datasets) # loop on datasets
   prms$W_max <- W_max[d] 
   for(t in 1:n_tests) # run all tests 
   {
-    if(!(bias_method[d] %in% c('truncation', 'Hyperplane_Truncation')) & (test_type[t] %in% c("tsai", 'minP2')))
+    if((!(bias_method[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test_type[t] %in% c("tsai", 'minP2')))
       next  # these tests run only for truncation 
-    if((test_type[t] == 'bootstrap') & (bias_method %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
+    if((test_type[t] == 'bootstrap') & (bias_method[d] %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
       next # can't run bootstrap because w can be zero 
     
     set.seed(1)
-    tic(paste(datasets[d], ", ", test_type[t], ":"))
-    results_test<-runner_single_iteration(input_data, bias_method[d], bias_params[[d]], num_of_statistics, 
-                                          path, test_type[t], prms)
-    test_time[d,t] <- toc()
+    
+    print(paste0(datasets[d], ", ", test_type[t], ":"))
+    start_time <- Sys.time()
+    results_test<-TIBS(input_data, bias_method[d], bias_params[[d]], num_of_statistics,                                       
+                       test_type[t], prms)
+    test_time[d,t] <- Sys.time() - start_time
     test_Pvalue[d,t] <- length(which(results_test$statistics_under_null>=results_test$True_T))/num_of_statistics
     cat(datasets[d], ', ', test_type[t], ', Pvalue:', test_Pvalue[d,t], '\n')
     if(plot_flag & (t==2)) # permutations
     {
-      #      pdf(paste(path, '/../Figures/real_data/', datasets[t], '.pdf', sep=''), 
-      #          units="in", width=5, height=5, res=300)      # save image 
-      #      tiff(paste(path, '/../Figures/real_data/', datasets[t], '.tiff', sep=''),
-      #           units="in", width=5, height=5, res=300)
       bmp(paste(path, '/../Figures/real_data/', datasets[d], '.bmp', sep=''),
           units="in", width=5, height=5, res=300)
       plot(input_data[,1], input_data[,2], main=datasets[d], xlab='x', ylab='y')
@@ -95,8 +98,9 @@ colnames(test_Pvalue) <- test_type
 colnames(test_time) <- test_type
 
 rownames(results_table) <- datasets
-colnames(results_table) <- test_type
-#save(test_Pvalue, test_time, test_type, file=paste0(path ,'/../docs/Tables/real_datasets.Rdata'))
+# colnames(results_table) <- test_type
+save(test_Pvalue, test_time, test_type, 
+     file=paste0(path ,'/../docs/Tables/real_datasets_B_', num_of_statistics, '.Rdata'))
 #print(xtable(results_table, type = "latex"), 
 #      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # new! save in latex format 
 

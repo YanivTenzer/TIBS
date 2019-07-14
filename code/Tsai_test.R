@@ -2,21 +2,20 @@
 # test for truncation independent of total time
 # X - truncation time, 
 # Y - lifetime (no censoring)
-# the criterion of truncation is X<=Y
+# The criterion of truncation is X<=Y
 tsai.test.ties <- function(X,Y){
   ii <- order(Y)
   X.sort <- X[ii]
   Y.sort <- Y[ii]
   n <- length(X)
-  S <- NULL
-  R <- NULL
+  S <- rep(0, n)
   V <- rep(0, n)
   for (i in 1:n){
     risk.i <- which(X.sort[i:n]<=Y.sort[i])+i-1
-    R[i] <- length(risk.i)
     S[i] <- sum(X.sort[risk.i]>X.sort[i])-sum(X.sort[risk.i]<X.sort[i])
     t.risk <- table(X.sort[risk.i])
-    V[i] <- (R[i]^2-1)/3-sum(t.risk^3-t.risk)/(3*R[i])
+    R <- length(risk.i)
+    V[i] <- (R^2-1)/3-sum(t.risk^3-t.risk)/(3*R)
   }
   var.H0 <- sum(V[which(is.nan(V)==FALSE)])
   tsai.stat <- sum(S)^2/var.H0
