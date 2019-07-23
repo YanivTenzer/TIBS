@@ -1,61 +1,78 @@
 # Simulate data with truncation X<Y
 # Parameters: 
 # n - sample size 
-# dependence_type - distribution (copula, normal, ..)
+# dependence.type - distribution (copula, normal, ..)
 # prms - parameters of distribution
 #
 # Output: 
 # data - an n*2 array with (x,y) values
 # 
-simulate_biased_sample <- function(n, dependence_type, bias_type, prms)
+SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
 {
+  library('copula')
+  
   # rejection sampling   
   data <- matrix(0, n, 2)
-
+  
   if(!('W_max' %in% names(prms)))
     prms$W_max <- 1.0 # temp. W_max should be input    
   k = 1
   while(k<=n)
   {
-    switch(dependence_type, # First sample from F_XY
+    switch(dependence.type, # First sample from F_XY
            'Gaussian' ={ library(mvtnorm)
              xy<-rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))         
            },
            'LogNormal'={ library(mvtnorm)
              xy<-exp(rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2)))         
            },
+           'LD'={ library(copula)  # y ~ Weibull, x ~ Exponential 
+             GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
+             ranks<- rCopula(1, GaussianCop)
+             xy <- rep(0, 2)
+             xy[2]<-qweibull(ranks[,1], shape = 3, scale = 8.5, lower.tail = TRUE, log.p = FALSE)
+             xy[1]<-qexp(ranks[,2], rate = 0.2)
+           }, 
+           'nonmonotone_nonexchangeable'={ library(copula)  # y ~ weibull, x ~ Gaussian copula 
+             GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
+             ranks<- rCopula(1, GaussianCop)
+             xy <- rep(0, 2)
+             xy[2]<-qweibull(ranks[,1], shape = 0.5, scale = 2, lower.tail = TRUE, log.p = FALSE)
+             xy[1]<-0.5 * (ranks[,2] * sample(c(-1,1), 1)+ 1)
+             # need to set a copula for the dependency between x and y
+           },
            'Gumbel'= { # here rho must be > 1 
-             gumbel.cop <- gumbelCopula(prms$rho)#(1.2)
-             ranks<- rCopula(1, gumbel.cop)
-             xy = c(qnorm(ranks[1]), qnorm(ranks[2]))
+             xy <- qnorm(rCopula(1, gumbelCopula(prms$rho)))
            }, 
            'Clayton'={ library('copula')
-             clayton.cop <- claytonCopula(prms$rho)
-             u<- rCopula(n, clayton.cop)
-             ranks<- rCopula(1, clayton.cop)
-             xy = c(qnorm(ranks[1]), qnorm(ranks[2]))
+             xy <- qnorm(rCopula(1, claytonCopula(prms$rho)))
            }, 
-           'LogNormal'={ library(mvtnorm)
-             xy<-exp(rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2)))         
+           'CLmix'={ library('copula')
+             xy <- rCopula(1, claytonCopula(0.5-rbinom(1, 1, 0.5)))
+           }, 
+           'strictly_positive'={ library('mvtnorm')  # w(x,y) = exp( -(|x|+|y|)/4 ) < 1 
+             Sigma=matrix(c(1, prms$rho, prms$rho,1),2,2)
+             xy <- rmvnorm(1, c(0,0), Sigma)
            },
            'UniformStrip'={
-             xy_abs_diff <- 2
-             while(xy_abs_diff>prms$rho)
+             xy.abs.diff <- 2
+             while(xy.abs.diff>prms$rho)
              {
                xy <- runif(2)
-               xy_abs_diff <- abs(xy[2]-xy[1])
+               xy.abs.diff <- abs(xy[2]-xy[1])
              }
            }
     ) # end switch 
     
-    switch(bias_type, # Next decide if to keep point based on W
-           'truncation' = { # w(x,y)=1_{x<y}
-             keep <- xy[1] <= xy[2]
-           },
-           'strictly_positive' = { # w(x,y)>0 , use rejection sampling 
-             keep <- rbinom(1, 1, biased.sampling.w(xy[1], xy[2], 'bias_type')/prms$W_max)
-           })
-    
+    #    switch(bias.type, # Next decide if to keep point based on W
+    if(bias.type %in% c('truncation'))  # w(x,y)=1_{x<y}
+    {
+      keep <- xy[1] <= xy[2]
+    } else
+    {
+      # w(x,y)>0 , use rejection sampling 
+      keep <- rbinom(1, 1, BiasedSamplingW(xy[1], xy[2], bias.type)/prms$W_max)
+    }
     if(keep) 
     {
       data[k,] <- xy
@@ -68,15 +85,19 @@ simulate_biased_sample <- function(n, dependence_type, bias_type, prms)
 
 #######################################################################
 # Compute bias function used 
-#
+# Input: 
+# x, y - data 
+# bias.type - string indicating W type 
 ########################################################################
-biased.sampling.w <- function(x, y, bias_type)
+BiasedSamplingW <- function(x, y, bias.type)
 {
-  r <- switch(bias_type, 
-              'truncation'={(x<y)},
+  r <- switch(bias.type, 
+              'truncation'={x<y},
               'Hyperplane_Truncation'={(x<y)},
               'exp'= { exp((-abs(x)-abs(y))/4)},
-              'huji'={pmax(pmin(66-x-y,18),0)},  # changed length bias to 66 (from back to 65)
+              'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
+              'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
+              'stritcly_positive'={exp((-abs(x)-abs(y))/4)}, # like exp? 
               'sum'={x+y}
   )
   return(r)
@@ -89,18 +110,14 @@ biased.sampling.w <- function(x, y, bias_type)
 # Parameters: 
 # data - n*2 matrix with (x,y) sample
 # N - sample size 
-# biased_method - method for matrix computation
-# bias_params - parameters
+# biased.method - method for matrix computation
+# bias.params - parameters
 #
 #########################################################################
-get.biased.sampling.weights <- function(data, N, biased_method, bias_params)
+GetBiasedSamplingWeights <- function(data, N, biased.method, bias.params)
 {
   W = matrix(0,N,N)
-  
-  # New: just call function w for each row 
   for(i in 1:N)
-  {
-    W[i,] <- biased.sampling.w(data[i,1], data[,2], biased_method)
-  }
-  return (W); 
+    W[i,] <- BiasedSamplingW(data[i,1], data[,2], biased.method)
+  return (W)
 }

@@ -3,7 +3,7 @@
 # X - truncation time, 
 # Y - lifetime (no censoring)
 # The criterion of truncation is X<=Y
-tsai.test.ties <- function(X,Y){
+TsaiTestTies <- function(X,Y){
   ii <- order(Y)
   X.sort <- X[ii]
   Y.sort <- Y[ii]

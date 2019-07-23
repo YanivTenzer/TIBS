@@ -2,52 +2,52 @@
 # Compute the modified Hoeffding's test statistic, for the permutation test
 # Parameters: 
 # data - n*2 matrix with (x,y) sample
-# grid_points - all possible (x_i,y_j) points  
-# null_distribution - n*n matrix with F_x*F_Y * W estimate OR 4*n mass table with pre-computed mass estimates 
+# grid.points - all possible (x_i,y_j) points  
+# null.distribution - n*n matrix with Fx*Fy * W estimate OR 4*n mass table with pre-computed mass estimates 
 # 
 #  Quardants convension:
 #   4 | 1
 #   ------
 #   3 | 2
 ##################################################################################################
-Compute_Statistic<- function(data, grid_points, null_distribution)
+ComputeStatistic<- function(data, grid.points, null.distribution)
 {
   epsilon = 0.00000001
-  num_samples=dim(data)[1]
+  num.samples=dim(data)[1]
   Obs<-matrix(0,4,1) # observed
   Exp<-matrix(0,4,1) # expected
-  perm_flag <- !(min(dim(null_distribution))==num_samples) # check type of null. Doesn't work for n=4
-  if(!perm_flag)
+  perm.flag <- !(min(dim(null.distribution))==num.samples) # check type of null. Doesn't work for n=4
+  if(!perm.flag)
   { # New! compute CDF for botstrap. Current implementation ignores ties !
-    null_distribution_CDF <- PDF_to_CDF_2d(null_distribution, data)
+    null.distribution.CDF <- PDFToCDF2d(null.distribution, data) # Could be slow !! why depends on data? 
   }
   
-  Statistic <- 0 # = rep(0, dim(grid_points)[1])
-  for (i in 1:dim(grid_points)[1] ) 
+  Statistic <- 0 # = rep(0, dim(grid.points)[1])
+  for (i in 1:dim(grid.points)[1] )  # Slow loop on grid points 
   {
-    if(perm_flag) # here we already computed the null in a 4*n table 
+    if(perm.flag) # here we already computed the null in a 4*n table 
     {
-      Exp = pmax(null_distribution[i,], epsilon)
+      Exp = pmax(null.distribution[i,], epsilon)
     }
     else {        #UP right (Expected)
       for(j in 1:3)
       {
-#        Exp[j] = Get_Quarter_Approximated_Mass(grid_points[i,], j, data, null_distribution) # old version uses PDF 
-        Exp[j] <- Get_Quarter_Approximated_Mass(grid_points[i,], j, data, null_distribution_CDF)
+        #        Exp[j] = GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution) # old version uses PDF 
+        Exp[j] <- GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)
       }
       Exp[4] = max(1-sum(Exp[1:3]), epsilon)
-      Exp <- num_samples*Exp
+      Exp <- num.samples*Exp
     }
     #Up right quarter (Observed) - this is the computationally costly part for permutations test 
-    R_X <- data[,1]>=grid_points[i,1]
-    R_Y <- data[,2]>=grid_points[i,2]
-    Obs[1] <- sum(R_X*R_Y)
-    Obs[2] <- sum(R_X)-Obs[1]
-    Obs[4] <- sum(R_Y)-Obs[1]
-    Obs[3] <- num_samples-sum(Obs[c(1,2,4)])
+    Rx <- data[,1]>=grid.points[i,1]
+    Ry <- data[,2]>=grid.points[i,2]
+    Obs[1] <- sum(Rx*Ry)
+    Obs[2] <- sum(Rx)-Obs[1]
+    Obs[4] <- sum(Ry)-Obs[1]
+    Obs[3] <- num.samples-sum(Obs[c(1,2,4)])
     
-    if(any(is.na(Exp)))
-      print(paste("i=", i, " Exp=", min(Exp), ' Obs=', min(Obs)))
+#    if(any(is.na(Exp)))
+#      print(paste("i=", i, " Exp=", min(Exp), ' Obs=', min(Obs)))
     Statistic <-  Statistic + sum((Obs-Exp)^2 / pmax(Exp, 0.0001)) # set valid statistic when expected is 0 or very small 
   } # end loop on grid points 
   
@@ -62,10 +62,10 @@ Compute_Statistic<- function(data, grid_points, null_distribution)
 # B - number of permutations to draw
 # N - sample size (can be read from data or W?)
 #########################################################################################
-MCMC_Permutations<-function(W, B, N)
+PermutationsMCMC<-function(W, B, N)
 { 
   # Set mcmc sampling parameters 
-  burn_in = 2*N
+  burn.in = 2*N
   Cycle = N
   ctr = 1
   Idx = 1
@@ -80,12 +80,13 @@ MCMC_Permutations<-function(W, B, N)
     j = switchIdx[2];
     ratio = W[i,Perm[j]]*W[j,Perm[i]]/(W[i,Perm[i]]*W[j,Perm[j]]) # New! Big-fix (?) denomerator didn't have parenthesis
     
+    #    print(paste0("ratio=", ratio, ", W=", W[i,Perm[j]], " ", W[j,Perm[i]], " ", W[i,Perm[i]], " ", W[j,Perm[j]]))
     if(rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
     {
       temp <- Perm[i] # SWAP 
       Perm[i] <- Perm[j]
       Perm[j] <- temp
-      if(ctr==burn_in || (ctr%%Cycle==0 && ctr>burn_in))
+      if(ctr==burn.in || (ctr%%Cycle==0 && ctr>burn.in))
       {
         PermutationsTable[,Idx]=Perm;
         Idx = Idx+1;
@@ -99,47 +100,55 @@ MCMC_Permutations<-function(W, B, N)
 }
 
 ###################################################################################
-# Estimate the null distribution f_x*f_y*W (given the estimated PDFs f_x, f_y)
+# Estimate the null distribution fx*fy*W (given the estimated PDFs f_x, f_y)
 # 
 # Parameters: 
-# pdfs - marginal distributions f_x, f_y probabilities 
+# pdfs - marginal distributions fx, fy probabilities 
 # w - n*n matrix with weights W[i,j] = w(x_i, y_j) 
 ###################################################################################
-get_null_distribution <- function(pdfs, W)
+GetNullDistribution <- function(pdfs, W)
 {
   #compute the normalizing factor under the null:
-  null_distribution <- W * (pdfs[,1] %*% t(pdfs[,2]))
-  Z <- sum(null_distribution)
-  null_distribution<-null_distribution/Z
-  return( list(null_distribution=null_distribution, normalizing_factors=Z) )
+  null.distribution <- W * (pdfs[,1] %*% t(pdfs[,2]))
+  Z <- sum(null.distribution)
+  null.distribution<-null.distribution/Z
+  return( list(null.distribution=null.distribution, normalizing.factors=Z) )
 }
 
 ############################################################################################
-# New: draw a bootstrap sample, given the estimated null distribution F_x, F_Y, W
+# New: draw a bootstrap sample, given the estimated null distribution Fx, Fy, W
 # Use rejection sampling. No need for computing n*n table 
 # (Problem: what if prob.(rejection) close to 1?)
 # Parameters: 
 # data - n*2 array with (X,Y) samples
-# pdfs - f_x and f_y  
-# bias_type - W
+# pdfs - fx and fy  
+# bias.type - W
 # prms - for w max 
 ############################################################################################
-Bootstrap <- function(data, pdfs, bias_type, prms)
+Bootstrap <- function(data, pdfs, bias.type, prms)
 {
   n = dim(data)[1]
   boot_sample<-matrix(0,n,2)
   k <- 0
   xy <- c(0,0)  
-  while(k<=n)
+  while(k<n) # could be slow - try to not sample 1-by-1
   {
-    xy[1] <- data[sample(n, 1, prob=pdfs[,1]),1] # Sample X from F_X
-    xy[2] <- data[sample(n, 1, prob=pdfs[,2]),2] # Sample Y sample from F_Y
-    keep <- rbinom(1, 1, biased.sampling.w(xy[1], xy[2], bias_type)/prms$W_max)
-    if(keep) 
-    {
-      boot_sample[k,] <- xy
-      k <- k+1
-    }
+    # New: faster sampling n-k together
+    x <- data[sample(n, n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X from Fx
+    y <- data[sample(n, n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y sample from Fy
+    keep <- which(as.logical(rbinom(n-k, 1, BiasedSamplingW(x, y, bias.type)/prms$W_max)))
+    boot_sample[keep+k,] <- cbind(x[keep],y[keep]) 
+    k <- k+length(keep)
+    
+    # Old: one-by-one    
+    #     xy[1] <- data[sample(n, 1, prob=pdfs[,1]),1] # Sample X from Fx
+    # xy[2] <- data[sample(n, 1, prob=pdfs[,2]),2] # Sample Y sample from Fy
+    # keep <- rbinom(1, 1, BiasedSamplingW(xy[1], xy[2], bias.type)/prms$W_max)
+    # if(keep) 
+    # {
+    #   boot_sample[k,] <- xy
+    #   k <- k+1
+    # }
   }    
   return(boot_sample)
 }
@@ -152,45 +161,45 @@ Bootstrap <- function(data, pdfs, bias_type, prms)
 # Point - (x,y) value defining quadrants 
 # QId - which quadrant 1,2,3,4
 # data - 2*n array of (x,y)
-# null_distribution_CDF - n*n table of 2d cumulative of F_x*F_y*w (problem with ties)
+# null.distribution.CDF - n*n table of 2d cumulative of Fx*Fy*w (problem with ties)
 ###################################################################################################
-Get_Quarter_Approximated_Mass<-function(Point, QId, data, null_distribution_CDF)
+GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 {
   if(QId %in% c(1,2))
   {
-    idx_x <- which(data[,1]>=Point[1])
-    idx_x <- idx_x[which.min(data[idx_x,1])]
+    idx.x <- which(data[,1]>=Point[1])
+    idx.x <- idx.x[which.min(data[idx.x,1])]
   } else
   {
-    idx_x <- which(data[,1]<Point[1])
-    idx_x <- idx_x[which.max(data[idx_x,1])]
+    idx.x <- which(data[,1]<Point[1])
+    idx.x <- idx.x[which.max(data[idx.x,1])]
   }
   if(QId %in% c(1,4))
   {
-    idx_y <- which(data[,2]>=Point[2])
-    idx_y <- idx_y[which.min(data[idx_y,2])]
+    idx.y <- which(data[,2]>=Point[2])
+    idx.y <- idx.y[which.min(data[idx.y,2])]
   } else
   {
-    idx_y <- which(data[,2]<Point[2])
-    idx_y <- idx_y[which.max(data[idx_y,2])]
+    idx.y <- which(data[,2]<Point[2])
+    idx.y <- idx.y[which.max(data[idx.y,2])]
   }
-
-  if(isempty(idx_x) | isempty(idx_y))
+  
+  if(isempty(idx.x) | isempty(idx.y))
     return(0)    
-    
-  m <- which.max(data[,1]) # dim(null_distribution_CDF)[1]
-  n <- which.max(data[,2]) # dim(null_distribution_CDF)[2]
+  
+  m <- which.max(data[,1])
+  n <- which.max(data[,2])
   
   if(QId == 1)
-    S <- null_distribution_CDF[m, n] + null_distribution_CDF[idx_x, idx_y] - 
-      null_distribution_CDF[idx_x, n]  - null_distribution_CDF[m, idx_y]
+    S <- null.distribution.CDF[m, n] + null.distribution.CDF[idx.x, idx.y] - 
+    null.distribution.CDF[idx.x, n]  - null.distribution.CDF[m, idx.y]
   if(QId == 2)
-    S <- null_distribution_CDF[m, idx_y]  - null_distribution_CDF[idx_x, idx_y]  
+    S <- null.distribution.CDF[m, idx.y]  - null.distribution.CDF[idx.x, idx.y]  
   if(QId == 3)    
-    S <- null_distribution_CDF[idx_x, idx_y]  
+    S <- null.distribution.CDF[idx.x, idx.y]  
   if(QId == 4)
-    S <- null_distribution_CDF[idx_x, n]  - null_distribution_CDF[idx_x, idx_y]  
-
+    S <- null.distribution.CDF[idx.x, n]  - null.distribution.CDF[idx.x, idx.y]  
+  
   return(S)       
 }
 
@@ -201,32 +210,31 @@ Get_Quarter_Approximated_Mass<-function(Point, QId, data, null_distribution_CDF)
 # Parameters: 
 # data - 2*n array (X,Y)
 # Permutations - set of permutations
-# grid_points - centers of partitions
+# grid.points - centers of partitions
 #
 # Output: 
-# mass_table - a 4*#grid-points table with quadrants expectation
-evaluate_mass_table_by_permutations <- function(data, Permutations, grid_points)
+# mass.table - a 4*#grid-points table with quadrants expectation
+QuarterProbFromPermutations <- function(data, Permutations, grid.points)
 {
-  num_permutations <- dim(Permutations)[2]
+  num.permutations <- dim(Permutations)[2]
   n <- dim(data)[1]
-  Pij <- matrix(0, n, n) # matrix with P[i]=j estimate
-  for(i in 1:num_permutations)
-    Pij[cbind(1:n, Permutations[,i])] <-  Pij[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
-  Pij <- Pij / num_permutations # normalize 
-
-  #next each point has its probability of being selected we evaluate Expect[Q_i(p_j)] by summation
-  mass_table<-matrix(0, dim(grid_points)[1], 4)
-  for(i in seq(1, dim(grid_points)[1],1))
-  {
-    x<-grid_points[i,]
-    mass_table[i,1]<-sum(Pij[data[,1]>=x[1], data[,2]>=x[2]])
-    mass_table[i,2]<-sum(Pij[data[,1]>=x[1], data[,2]<x[2]])
-    mass_table[i,3]<-sum(Pij[data[,1]<x[1], data[,2]<x[2]])
-    mass_table[i,4]<-sum(Pij[data[,1]<x[1], data[,2]>=x[2]])
-  } 
+  P <- matrix(0, n, n) # matrix with P[i]=j estimate
+  for(i in 1:num.permutations)
+    P[cbind(1:n, Permutations[,i])] <-  P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
+  P <- P / num.permutations # normalize 
   
-  mass_table<-mass_table+0.000001
-  return(mass_table)
+  #next each point has its probability of being selected we evaluate Expect[Q_i(p_j)] by summation
+  mass.table<-matrix(0, dim(grid.points)[1], 4)
+  for(i in seq(1, dim(grid.points)[1],1))
+  {
+    x<-grid.points[i,]
+    mass.table[i,1]<-sum(P[data[,1]>=x[1], data[,2]>=x[2]])
+    mass.table[i,2]<-sum(P[data[,1]>=x[1], data[,2]<x[2]])
+    mass.table[i,3]<-sum(P[data[,1]<x[1], data[,2]<x[2]])
+    mass.table[i,4]<-sum(P[data[,1]<x[1], data[,2]>=x[2]])
+  } 
+  mass.table<-mass.table+0.000001
+  return(mass.table)
 }
 
 
@@ -234,28 +242,41 @@ evaluate_mass_table_by_permutations <- function(data, Permutations, grid_points)
 
 # New: cumulative 2d (for faster calculation of test statistic)
 # When we have ties we need to correct 
-PDF_to_CDF_2d <- function(pdf_2d, data)
+PDFToCDF2d <- function(pdf.2d, data)
 {
-  P_x <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
-  P_y <- sort(data[,2], index.return=TRUE)
+  Px <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
+  Py <- sort(data[,2], index.return=TRUE)
   
-  cdf_2d <- apply(pdf_2d[P_x$ix, P_y$ix], 2, cumsum)
-  cdf_2d <- apply(cdf_2d, 1, cumsum)
+  cdf.2d <- apply(pdf.2d[Px$ix, Py$ix], 2, cumsum)
+  cdf.2d <- apply(cdf.2d, 1, cumsum)
   
-# Deal with ties (not working yet)
-#  ties_x <- which(data[-1,1] == head(data[,1], -1))
-#  ties_y <- which(data[-1,2] == head(data[,2], -1))
-#  print(paste0('ties_x=', ties_x))
-#  print(paste0('ties_y=', ties_y))
-#  for(i in rev(ties_y))
-#    cdf_2d[,i] <- cdf_2d[,i+1]
-#  for(i in rev(ties_x))
-#    cdf_2d[i,] <- cdf_2d[i+1,]
+  # Deal with ties (not working yet)
+  #  ties.x <- which(data[-1,1] == head(data[,1], -1))
+  #  ties.y <- which(data[-1,2] == head(data[,2], -1))
+  #  print(paste0('ties.x=', ties.x))
+  #  print(paste0('ties.y=', ties.y))
+  #  for(i in rev(ties.y))
+  #    cdf.2d[,i] <- cdf.2d[,i+1]
+  #  for(i in rev(ties.x))
+  #    cdf.2d[i,] <- cdf.2d[i+1,]
   
-  
-  return( t(cdf_2d[invPerm(P_y$ix), invPerm(P_x$ix)]))  
-#    return( t(apply(apply(pdf_2d, 2, cumsum), 1, cumsum)) )
-    
+  return( t(cdf.2d[invPerm(Py$ix), invPerm(Px$ix)]))  
+  #    return( t(apply(apply(pdf.2d, 2, cumsum), 1, cumsum)) )
+}
+
+
+# The true marginals (same for x and y) for uniform strip of width a
+UniformStripMarginal <- function(t,a){
+  if (a>0.5 | a<0) stop("a must be in (0,0.5]")
+  c <- a*(2-a)
+  if (t<a){
+    val <- t*(t+2*a)/(2*c)
+  } else if (t<1-a) {
+    val <- 3*a^2/(2*c) + 2*a*(t-a)/c
+  } else {
+    val <- 3*a^2/(2*c) + 2*a*(1-2*a)/c + (1+3*a-t)*(t+a-1)/(2*c)
+  }
+  return(val)
 }
 
 
