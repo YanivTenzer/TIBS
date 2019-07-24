@@ -1,8 +1,8 @@
 # TIBS
 TIBS (Testing Independence with Biased Sampling) is a repository of R functions which implement tests for independence under general  known baised sampling: 
 
-More formally, for (x<sub>1</sub>,y_1), ..., (x_n, y_n) ~ F_XY * W with known W,  TIBS tests the null hypothesis
-H_0: F_XY = F_X * F_Y
+More formally, for (x<sub>1</sub>,y<sub>1</sub>), ..., (x<sub>n</sub>, y<sub>n</sub>) ~ F<sub>XY</sub> * W with known W,  TIBS tests the null hypothesis
+H<sub>0</sub>: F<sub>XY</sub> = F<sub>X</sub> \prod F<sub>Y</sub>
 
 ## Tests: 
 The repository implements TIBS - this is a new test based on multiple data-dependent partitions of the (x,y) plane, 
