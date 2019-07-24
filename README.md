@@ -1,8 +1,8 @@
 # TIBS
 TIBS (Testing Independence with Biased Sampling) is a repository of R functions which implement tests for independence under general  known baised sampling: 
 
-More formally, for (x<sub>1</sub>,y<sub>1</sub>), ..., (x<sub>n</sub>, y<sub>n</sub>) ~ F<sub>XY</sub> $\prod$ W with known W,  TIBS tests the null hypothesis
-H<sub>0</sub>: F<sub>XY</sub> = F<sub>X</sub> $\prod$ F<sub>Y</sub>
+More formally, for (x<sub>1</sub>,y<sub>1</sub>), ..., (x<sub>n</sub>, y<sub>n</sub>) ~ F<sub>XY</sub> W with known W,  TIBS tests the null hypothesis
+H<sub>0</sub>: F<sub>XY</sub> = F<sub>X</sub> F<sub>Y</sub>
 
 ## Tests: 
 The repository implements TIBS - this is a new test based on multiple data-dependent partitions of the (x,y) plane, 
@@ -17,7 +17,7 @@ Change the path in the function 'simulations.R' into the directory you've used.
 The file 'TIBS.R' contains the main function 'TIBS' which produces a test for your dataset. 
 For example, to run a TIBS permutation test with B=100 permutations for biased sample W(x,y)=x+y, use: <br>
 test_results<-TIBS(biased_data, 'sum', '', 100, 'permutations', prms) <br>
-where biased_data is a n*2 array containing your (x<sub>i</sub>,y<sub>i</sub>) sample from F<sub>XY</sub> $\prod$ W
+where biased_data is a n*2 array containing your (x<sub>i</sub>,y<sub>i</sub>) sample from F<sub>XY</sub> W
 
 
 The script 'simulations.R' simulates data under multiple dependency distributions Fsub>XY</sub> and biased sampling functions W.
