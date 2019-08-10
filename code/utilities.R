@@ -3,55 +3,43 @@
 # Parameters: 
 # data - n*2 matrix with (x,y) sample
 # grid.points - all possible (x_i,y_j) points  
-# null.distribution - n*n matrix with Fx*Fy * W estimate OR 4*n mass table with pre-computed mass estimates 
+# null.expectations.table - 4*n mass table with pre-computed mass estimates 
 # 
 #  Quardants convension:
 #   4 | 1
 #   ------
 #   3 | 2
 ##################################################################################################
-ComputeStatistic<- function(data, grid.points, null.distribution)
+ComputeStatistic<- function(data, grid.points, null.expectations.table)
 {
+  obs.table<-matrix(0, dim(grid.points)[1], 4)
   epsilon = 0.00000001
-  num.samples=dim(data)[1]
-  Obs<-matrix(0,4,1) # observed
-  Exp<-matrix(0,4,1) # expected
-  perm.flag <- !(min(dim(null.distribution))==num.samples) # check type of null. Doesn't work for n=4
-  if(!perm.flag)
-  { # New! compute CDF for botstrap. Current implementation ignores ties !
-    null.distribution.CDF <- PDFToCDF2d(null.distribution, data) # Could be slow !! why depends on data? 
-  }
+  Obs<-Exp<-matrix(0,4,1) # observed & expected
+  #  perm.flag <- !(min(dim(null.distribution))==num.samples) # check type of null. Doesn't work for n=4
   
   Statistic <- 0 # = rep(0, dim(grid.points)[1])
-  for (i in 1:dim(grid.points)[1] )  # Slow loop on grid points 
+  for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
-    if(perm.flag) # here we already computed the null in a 4*n table 
-    {
-      Exp = pmax(null.distribution[i,], epsilon)
-    }
-    else {        #UP right (Expected)
-      for(j in 1:3)
-      {
-        #        Exp[j] = GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution) # old version uses PDF 
-        Exp[j] <- GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)
-      }
-      Exp[4] = max(1-sum(Exp[1:3]), epsilon)
-      Exp <- num.samples*Exp
-    }
+    Exp <- pmax(null.expectations.table[i,], epsilon)
+    Exp <- (Exp+1) / (sum(Exp)+4) # New! Add pseudo count !!! 
+    #    print(paste0("expected=", Exp))
+    #    print(paste0("Sum expected=", sum(Exp)))
+    
     #Up right quarter (Observed) - this is the computationally costly part for permutations test 
-    Rx <- data[,1]>=grid.points[i,1]
-    Ry <- data[,2]>=grid.points[i,2]
+    Rx <- data[,1]>grid.points[i,1]
+    Ry <- data[,2]>grid.points[i,2]
     Obs[1] <- sum(Rx*Ry)
     Obs[2] <- sum(Rx)-Obs[1]
     Obs[4] <- sum(Ry)-Obs[1]
-    Obs[3] <- num.samples-sum(Obs[c(1,2,4)])
-    
-#    if(any(is.na(Exp)))
-#      print(paste("i=", i, " Exp=", min(Exp), ' Obs=', min(Obs)))
+    Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)])
+    obs.table[i,] <- Obs
+    #    if(any(is.na(Exp)))
+    #      print(paste("i=", i, " Exp=", min(Exp), ' Obs=', min(Obs)))
     Statistic <-  Statistic + sum((Obs-Exp)^2 / pmax(Exp, 0.0001)) # set valid statistic when expected is 0 or very small 
   } # end loop on grid points 
   
-  return(Statistic) # Excluded Nans #   sum(Statistic[!(is.nan(Statistic) | is.infinite(Statistic))]))
+  return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
+  #  return(Statistic) # Excluded Nans #   sum(Statistic[!(is.nan(Statistic) | is.infinite(Statistic))]))
 }
 
 #########################################################################################
@@ -67,8 +55,7 @@ PermutationsMCMC<-function(W, B, N)
   # Set mcmc sampling parameters 
   burn.in = 2*N
   Cycle = N
-  ctr = 1
-  Idx = 1
+  Idx <- ctr <- 1
   PermutationsTable = matrix(0,N,B)
   Perm = 1:N
   while(Idx<=B)
@@ -76,8 +63,8 @@ PermutationsMCMC<-function(W, B, N)
     #A Metropolis Hastings algorithm with target stationary distribution \pi
     #Choose the two indices to be switched
     switchIdx = sample(1:N, 2, replace = FALSE)  
-    i = switchIdx[1];
-    j = switchIdx[2];
+    i = switchIdx[1]
+    j = switchIdx[2]
     ratio = W[i,Perm[j]]*W[j,Perm[i]]/(W[i,Perm[i]]*W[j,Perm[j]]) # New! Big-fix (?) denomerator didn't have parenthesis
     
     #    print(paste0("ratio=", ratio, ", W=", W[i,Perm[j]], " ", W[j,Perm[i]], " ", W[i,Perm[i]], " ", W[j,Perm[j]]))
@@ -116,7 +103,7 @@ GetNullDistribution <- function(pdfs, W)
 }
 
 ############################################################################################
-# New: draw a bootstrap sample, given the estimated null distribution Fx, Fy, W
+# Draw a bootstrap sample, given the estimated null distribution Fx, Fy, W
 # Use rejection sampling. No need for computing n*n table 
 # (Problem: what if prob.(rejection) close to 1?)
 # Parameters: 
@@ -124,35 +111,26 @@ GetNullDistribution <- function(pdfs, W)
 # pdfs - fx and fy  
 # bias.type - W
 # prms - for w max 
+# n - allow a different sample size 
 ############################################################################################
-Bootstrap <- function(data, pdfs, bias.type, prms)
+Bootstrap <- function(data, pdfs, bias.type, prms, n=NULL)
 {
-  n = dim(data)[1]
-  boot_sample<-matrix(0,n,2)
+  if(is.null(n))
+    n = dim(data)[1]
+  boot.sample<-matrix(-1,n,2)
   k <- 0
-  xy <- c(0,0)  
-  while(k<n) # could be slow - try to not sample 1-by-1
-  {
-    # New: faster sampling n-k together
-    x <- data[sample(n, n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X from Fx
-    y <- data[sample(n, n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y sample from Fy
-    keep <- which(as.logical(rbinom(n-k, 1, BiasedSamplingW(x, y, bias.type)/prms$W_max)))
-    boot_sample[keep+k,] <- cbind(x[keep],y[keep]) 
+  while(k<n) 
+  {   # sampling n-k together
+    x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X from Fx
+    y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y from Fy
+    keep <- which(as.logical(rbinom(n-k, 1, BiasedSamplingW(x, y, bias.type)/prms$W.max)))
+    if(isempty(keep))
+      next
+    boot.sample[1:length(keep)+k,] <- cbind(x[keep],y[keep]) 
     k <- k+length(keep)
-    
-    # Old: one-by-one    
-    #     xy[1] <- data[sample(n, 1, prob=pdfs[,1]),1] # Sample X from Fx
-    # xy[2] <- data[sample(n, 1, prob=pdfs[,2]),2] # Sample Y sample from Fy
-    # keep <- rbinom(1, 1, BiasedSamplingW(xy[1], xy[2], bias.type)/prms$W_max)
-    # if(keep) 
-    # {
-    #   boot_sample[k,] <- xy
-    #   k <- k+1
-    # }
   }    
-  return(boot_sample)
+  return(boot.sample)
 }
-
 
 ###################################################################################################
 # given a quadrant, evaluate the mass function within it
@@ -167,46 +145,40 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 {
   if(QId %in% c(1,2))
   {
-    idx.x <- which(data[,1]>=Point[1])
+    idx.x <- which(data[,1]>Point[1])
     idx.x <- idx.x[which.min(data[idx.x,1])]
   } else
   {
-    idx.x <- which(data[,1]<Point[1])
+    idx.x <- which(data[,1]<=Point[1])
     idx.x <- idx.x[which.max(data[idx.x,1])]
   }
   if(QId %in% c(1,4))
   {
-    idx.y <- which(data[,2]>=Point[2])
+    idx.y <- which(data[,2]>Point[2])
     idx.y <- idx.y[which.min(data[idx.y,2])]
   } else
   {
-    idx.y <- which(data[,2]<Point[2])
+    idx.y <- which(data[,2]<=Point[2])
     idx.y <- idx.y[which.max(data[idx.y,2])]
   }
   
   if(isempty(idx.x) | isempty(idx.y))
     return(0)    
-  
   m <- which.max(data[,1])
   n <- which.max(data[,2])
   
-  if(QId == 1)
-    S <- null.distribution.CDF[m, n] + null.distribution.CDF[idx.x, idx.y] - 
-    null.distribution.CDF[idx.x, n]  - null.distribution.CDF[m, idx.y]
-  if(QId == 2)
-    S <- null.distribution.CDF[m, idx.y]  - null.distribution.CDF[idx.x, idx.y]  
-  if(QId == 3)    
-    S <- null.distribution.CDF[idx.x, idx.y]  
-  if(QId == 4)
-    S <- null.distribution.CDF[idx.x, n]  - null.distribution.CDF[idx.x, idx.y]  
-  
+  switch(QId, # First sample from Fxy
+         {S <- null.distribution.CDF[m, n] + null.distribution.CDF[idx.x, idx.y] - 
+           null.distribution.CDF[idx.x, n] - null.distribution.CDF[m, idx.y]}, # 1
+         {S <- null.distribution.CDF[m, idx.y] - null.distribution.CDF[idx.x, idx.y]}, # 1
+         {S <- null.distribution.CDF[idx.x, idx.y]}, # 3
+         {S <- null.distribution.CDF[idx.x, n] - null.distribution.CDF[idx.x, idx.y]}) # 4
   return(S)       
 }
 
-
-
-#computing Expect[Q_i(p_j)] for 1<=i<=4, and all j, given a grid of points
-# (New, faster implementation)
+###################################################################################################
+# Compute Expect[Qi(p_j)] for 1<=i<=4, and all j, given a grid of points and bootstrap null distribution
+#
 # Parameters: 
 # data - 2*n array (X,Y)
 # Permutations - set of permutations
@@ -214,39 +186,85 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 #
 # Output: 
 # mass.table - a 4*#grid-points table with quadrants expectation
+###################################################################################################
+QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
+{
+  mass.table<-matrix(0, dim(grid.points)[1], 4)
+  null.distribution.CDF <- PDFToCDF2d(null.distribution, data) 
+  
+  for(i in seq(1, dim(grid.points)[1],1))
+  {
+    for(j in 1:3)
+      mass.table[i,j] <- GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)
+    mass.table[i,4] = 1-sum( mass.table[i,1:3]) # , epsilon)
+  }
+  mass.table <- dim(data)[1]*mass.table # normalize to counts 
+}
+
+###################################################################################################
+# compute Expect[Qi(p_j)] for 1<=i<=4, and all j, given a grid of points using permutations
+# Parameters: 
+# data - 2*n array (X,Y)
+# Permutations - set of permutations
+# grid.points - centers of partitions
+#
+# Output: 
+# mass.table - a 4*#grid-points table with quadrants expectation
+###################################################################################################
 QuarterProbFromPermutations <- function(data, Permutations, grid.points)
 {
   num.permutations <- dim(Permutations)[2]
   n <- dim(data)[1]
   P <- matrix(0, n, n) # matrix with P[i]=j estimate
   for(i in 1:num.permutations)
-    P[cbind(1:n, Permutations[,i])] <-  P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
+    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
   P <- P / num.permutations # normalize 
   
-  #next each point has its probability of being selected we evaluate Expect[Q_i(p_j)] by summation
+  #next each point has its probability of being selected we evaluate Expect[Qi(p_j)] by summation
   mass.table<-matrix(0, dim(grid.points)[1], 4)
   for(i in seq(1, dim(grid.points)[1],1))
   {
     x<-grid.points[i,]
-    mass.table[i,1]<-sum(P[data[,1]>=x[1], data[,2]>=x[2]])
-    mass.table[i,2]<-sum(P[data[,1]>=x[1], data[,2]<x[2]])
-    mass.table[i,3]<-sum(P[data[,1]<x[1], data[,2]<x[2]])
-    mass.table[i,4]<-sum(P[data[,1]<x[1], data[,2]>=x[2]])
+    mass.table[i,1]<-sum(P[data[,1]>x[1], data[,2]>x[2]])
+    mass.table[i,2]<-sum(P[data[,1]>x[1], data[,2]<=x[2]])
+    mass.table[i,3]<-sum(P[data[,1]<=x[1], data[,2]<=x[2]])
+    mass.table[i,4]<-sum(P[data[,1]<=x[1], data[,2]>x[2]])
   } 
   mass.table<-mass.table+0.000001
   return(mass.table)
 }
 
 
+###################################################################################################
+# Compute quarter probabilities for standard bivariate Gaussians 
+# with truncation y>x. We assume grid.points satisfy y>x
+#
+# grid.points - where to evaluate probabilitites 
+###################################################################################################
+QuarterProbGaussianAnalytic <- function(grid.points)
+{
+  mass.table<-matrix(0, dim(grid.points)[1], 4)
+  x <- grid.points[,1]
+  y <- grid.points[,2]
+  
+  mass.table[,1]<-(1-pnorm(y))*(1+pnorm(y)-2*pnorm(x))
+  mass.table[,2]<-(pnorm(x)-pnorm(y))^2
+  mass.table[,3]<-pnorm(x)*(2*pnorm(y)-pnorm(x))
+  mass.table[,4]<-2*pnorm(x)*(1-pnorm(y))
+  return(mass.table)
+}
 
 
-# New: cumulative 2d (for faster calculation of test statistic)
-# When we have ties we need to correct 
+###################################################################################################
+# Compute  2d cumulative distribution. When we have ties we need to correct this
+#
+# pdf.2d - a two-dim array of probabilities 
+# data - xy points with probabilities (used for sorting)
+###################################################################################################
 PDFToCDF2d <- function(pdf.2d, data)
 {
   Px <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
   Py <- sort(data[,2], index.return=TRUE)
-  
   cdf.2d <- apply(pdf.2d[Px$ix, Py$ix], 2, cumsum)
   cdf.2d <- apply(cdf.2d, 1, cumsum)
   
@@ -261,24 +279,85 @@ PDFToCDF2d <- function(pdf.2d, data)
   #    cdf.2d[i,] <- cdf.2d[i+1,]
   
   return( t(cdf.2d[invPerm(Py$ix), invPerm(Px$ix)]))  
-  #    return( t(apply(apply(pdf.2d, 2, cumsum), 1, cumsum)) )
 }
 
-
-# The true marginals (same for x and y) for uniform strip of width a
-UniformStripMarginal <- function(t,a){
+###################################################################################################
+# The true marginals (same for x and y) for uniform distribution on strip of width a
+# t - where to evaluate CDF
+# a - width of strip 
+###################################################################################################
+UniformStripMarginalCDF <- function(t,a)
+{
   if (a>0.5 | a<0) stop("a must be in (0,0.5]")
   c <- a*(2-a)
-  if (t<a){
-    val <- t*(t+2*a)/(2*c)
-  } else if (t<1-a) {
-    val <- 3*a^2/(2*c) + 2*a*(t-a)/c
-  } else {
-    val <- 3*a^2/(2*c) + 2*a*(1-2*a)/c + (1+3*a-t)*(t+a-1)/(2*c)
-  }
+  val <- 3*a^2/(2*c) + 2*a*(1-2*a)/c + (1+3*a-t)*(t+a-1)/(2*c) # all indices 
+  val[t<a] <- t[t<a]*(t[t<a]+2*a)/(2*c) # for t<a
+  val[(t<1-a) & (t>=a)] <- 3*a^2/(2*c) + 2*a*(t[(t<1-a) & (t>=a)]-a)/c # others with t<1-a
   return(val)
 }
 
 
-
-
+###################################################################################################
+# Plot scatter and estimated mariginals 
+# dependence.type - dependency label
+# biased.data - 2*n array with sampled data
+# prms - structure with parameters 
+###################################################################################################
+PlotBiasedData <- function(dependence.type, biased.data, prms)
+{
+  n <- dim(biased.data)[1]
+  output.scatter.file <- paste0(path, '/../Figures/simulations/', dependence.type, '_rho_', prms$rho)  # set output figure file name
+  for(plot.type in c('scatter', 'KM_marginal', 'marginal_scatter'))
+  {
+    switch(plot.type, # First sample from Fxy
+           'scatter' ={
+             xy <- data.frame(biased.data)   # plot and save to image file 
+           },
+           'KM_marginal' ={
+             marginals <- EstimateMarginals(biased.data, 'survival')
+             marginals.CDFs <- data.frame(cbind(marginals$xy, marginals$CDFs, 
+                                                seq(0, 1, len=n), UniformStripMarginalCDF(seq(0, 1, len=n), prms$rho)))   # estimated marginals 
+           },
+           'marginal_scatter' ={
+             Px <- c(marginals$CDFs[-1,1], 1)-marginals$CDFs[,1]
+             Py <- marginals$CDFs[,2]-c(0, marginals$CDFs[-n,2])
+             x.ind <- sample(x = marginals$xy[,1], size = 10000, replace = TRUE, prob = Px)
+             y.ind <- sample(x = marginals$xy[,2], size = 10000, replace = TRUE, prob = Py)
+             w.ind <- which(x.ind < y.ind) 
+             xy <- data.frame(cbind(x.ind[w.ind], y.ind[w.ind]))   # sample from estiamted marginals
+           }
+    ) # end switch 
+    if(plot.type=='KM_marginal')
+      print( ggplot(marginals.CDFs, aes(x=marginals.CDFs[,1], y=marginals.CDFs[,3], color= )) + 
+               geom_line(aes(x=marginals.CDFs[,1], y=marginals.CDFs[,3], col="\\hat{F}_X")) + 
+               geom_line(aes(x=marginals.CDFs[,2], y=marginals.CDFs[,4], col="\\hat{F}_y")) + 
+               geom_line(aes(x=marginals.CDFs[,5], y=marginals.CDFs[,6], col='F_X===F_Y')) + 
+               ggtitle(TeX(rep(paste0("$", gsub("_", '-', dependence.type), " (\\theta = ", prms$rho, " )$"), prms$title))) + 
+               xlab("X") + ylab("Y") + # keep defaults 
+               theme(plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
+                     axis.title.y = element_text(face="bold", size=14),
+                     axis.title.x = element_text(face="bold", size = 14),
+                     axis.text.x = element_text(face="bold", size=12), 
+                     axis.text.y = element_text(face="bold", size=12), 
+                     legend.background = element_rect(fill = alpha("lightgray", 0)),
+                     legend.title = element_text(), 
+                     legend.position =  c(0.85, 0.2)) + 
+               labs(color = "") + 
+               scale_color_discrete(labels=lapply(sprintf(c("\\hat{F}_X", "\\hat{F}_Y", "F_X=F_Y")), TeX)) )
+    else # new: plot two scatters on same datasets 
+      print( ggplot(xy, aes(x=xy[,1], y=xy[,2])) + 
+               geom_point() + 
+               ggtitle(TeX(rep(paste0( gsub("_", '-', dependence.type), " $(\\theta = ", prms$rho, " )$"), prms$title))) + 
+               xlab("X") + ylab("Y") +
+               theme(plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
+                     axis.title.y = element_text(face="bold", size=14),
+                     axis.title.x = element_text(face="bold", size = 14),
+                     axis.text.x = element_text(face="bold", size=12), 
+                     axis.text.y = element_text(face="bold", size=12), 
+                     legend.position = "none") )
+    
+    ggsave(paste0(output.scatter.file, '_', plot.type, '.png'), units="in", width=5, height=5, dpi=300)
+    if(dependence.type != 'UniformStrip') # last two plots are only for first dataset  
+      break
+  } # end loop on plot type
+}

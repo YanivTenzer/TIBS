@@ -2,7 +2,7 @@
 # The script contains real data analysis 
 # Due to privacy issues, the data files for the ICU datasets are not part of the released package. 
 # Please contact the authors if you are interested in them. 
-path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code' # modify to your path  # path = 'D:/cond_ind_2019'
+path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code' # modify to your path  
 setwd(path)
 
 source('TIBS.R')
@@ -15,28 +15,27 @@ library(permDep)
 library(tictoc)
 library(xtable)
 
-num.statistics = 100 # 10000
-plot_flag <- 1
+B = 1000 # 10000 # number of permutations/bootstrap samples 
+plot.flag <- 1
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
 datasets <- c('huji', 'AIDS', 'ICU', 'Infection')
-exchange_type <- c(FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
-bias.method <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum')
+exchange.type <- c(FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
+bias.type <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum')
 prms = c()
-W_max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
-n_datasets <- length(datasets)
-n_tests <- length(test.type)
+W.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
+n.datasets <- length(datasets)
+n.tests <- length(test.type)
 
-Hyperplane_prms<-c(-1,1,0)
-bias.params<-list(NA, list(Hyperplane_prms=Hyperplane_prms), list(Hyperplane_prms=Hyperplane_prms))
+Hyperplane.prms<-c(-1,1,0)
 
-test.pvalue <- matrix(-1, n_datasets, n_tests) # -1 denotes test wasn't performed
-test.time <- matrix(-1, n_datasets, n_tests) # -1 denotes test wasn't performed
+test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
+test.time <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 
-for(d in 1:n_datasets) # loop on datasets.
+for(d in 1:n.datasets) # loop on datasets.
 {
-    if(datasets[d] %in% c('ICU', 'Infection'))  # datasets available by request. Remove this line if you have them 
-      next
+#    if(datasets[d] %in% c('ICU', 'Infection'))  # datasets available by request. Remove this line if you have them 
+#      next
     switch(datasets[d],  # read dataset 
          'huji'={
            load('../data/APage_APtime.RData')
@@ -49,43 +48,50 @@ for(d in 1:n_datasets) # loop on datasets.
          },
          'ICU'={  # this dataset is not part of the released package
            input.data <- read.table("../data/ICU_data.txt", header = TRUE)
+           input.data <- input.data[,c(1:2)]
          }, 
          'Infection'={ # this dataset is not part of the released package
            load('../data/ICU_INF.Rdata')
            input.data <- cbind(X,Y)
-           W_max[d] <- max(X)+max(Y)
+           W.max[d] <- max(X)+max(Y)
          }
   ) # end switch 
   
   prms <- c()
-  prms$W_max <- W_max[d] 
-  for(t in 1:n_tests) # run all tests 
+  prms$W.max <- W.max[d] 
+  for(t in 1:n.tests) # run all tests 
   {
-    if((!(bias.method[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
+    if((!(bias.type[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
       next  # these tests run only for truncation 
-    if((test.type[t] == 'bootstrap') & (bias.method[d] %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
+    if((test.type[t] == 'bootstrap') & (bias.type[d] %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
       next # can't run bootstrap because w can be zero 
     
     set.seed(1)
     
     print(paste0(datasets[d], ", ", test.type[t], ":"))
     start.time <- Sys.time()
-    results.test<-TIBS(input.data, bias.method[d], bias.params[[d]], num.statistics,                                       
-                       test.type[t], prms)
+    results.test<-TIBS(input.data, bias.type[d], B, test.type[t], prms)
     test.time[d,t] <- Sys.time() - start.time
-    test.pvalue[d,t] <- length(which(results.test$statistics.under.null>=results.test$True_T))/num.statistics
+    test.pvalue[d,t] <- length(which(results.test$statistics.under.null>=results.test$TrueT))/B
     cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')
-    if(plot_flag & (t==2)) # permutations
+    if(plot.flag & (t==2)) # permutations
     {
-      bmp(paste(path, '/../Figures/real_data/', datasets[d], '.bmp', sep=''),
-          units="in", width=5, height=5, res=300)
-      plot(input.data[,1], input.data[,2], main=datasets[d], xlab='x', ylab='y')
-      points(results.test$permuted_data[,1], results.test$permuted_data[,2], col='red', pch=3, cex=0.75)
-      #      xy_lim <- par("usr")
-      #      alpha<-0.4
-      #      legend(xy_lim[1]*alpha+xy_lim[2]*(1-alpha), xy_lim[3]*alpha+xy_lim[4]*(1-alpha), legend=c('orig.', 'permuted'),
-      #             col=c("black", "red"),  pch=c(1,3)) # No need for legend
-      dev.off()      
+      xy <- cbind(data.frame(input.data), as.data.frame(results.test$permuted.data))
+      ggplot(xy, aes(x=xy[,1], y=xy[,2])) + 
+        geom_point(aes(x=xy[,1], y=xy[,2], col="original")) + 
+        geom_point(shape=3, aes(x=xy[,3], y=xy[,4], col="permuted")) + 
+        ggtitle(datasets[d]) +
+        xlab("X") + ylab("Y") +
+        scale_y_continuous(breaks=seq(-2, 2, 2)) +
+        scale_x_continuous(breaks=seq(-2, 2, 2)) +
+        theme(plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
+              axis.title.y = element_text(face="bold", size=14),
+              axis.title.x = element_text(face="bold", size = 14),
+              axis.text.x = element_text(face="bold", size=12), 
+              axis.text.y = element_text(face="bold", size=12), 
+              legend.position = "none")
+      ggsave(paste(path, '/../Figures/real_data/', datasets[d], '.png', sep=''),
+          width=5, height=5, dpi=300)
     }
   } # end loop on tests 
 } # end loop on datasets   
@@ -102,5 +108,5 @@ rownames(results.table) <- datasets
 save(test.pvalue, test.time, test.type, 
      file=paste0(path ,'/../docs/Tables/real_datasets_B_', num.statistics, '.Rdata'))
 #print(xtable(results.table, type = "latex"), 
-#      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # new! save in latex format 
+#      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # save also in latex format 
 

@@ -1,3 +1,4 @@
+#########################################################################
 # Simulate data with truncation X<Y
 # Parameters: 
 # n - sample size 
@@ -6,7 +7,7 @@
 #
 # Output: 
 # data - an n*2 array with (x,y) values
-# 
+#########################################################################
 SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
 {
   library('copula')
@@ -14,12 +15,12 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
   # rejection sampling   
   data <- matrix(0, n, 2)
   
-  if(!('W_max' %in% names(prms)))
-    prms$W_max <- 1.0 # temp. W_max should be input    
+  if(!('W.max' %in% names(prms)))
+    prms$W.max <- 1.0 # temp. W.max should be input    
   k = 1
   while(k<=n)
   {
-    switch(dependence.type, # First sample from F_XY
+    switch(dependence.type, # First sample from Fxy
            'Gaussian' ={ library(mvtnorm)
              xy<-rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))         
            },
@@ -51,8 +52,7 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
              xy <- rCopula(1, claytonCopula(0.5-rbinom(1, 1, 0.5)))
            }, 
            'strictly_positive'={ library('mvtnorm')  # w(x,y) = exp( -(|x|+|y|)/4 ) < 1 
-             Sigma=matrix(c(1, prms$rho, prms$rho,1),2,2)
-             xy <- rmvnorm(1, c(0,0), Sigma)
+             xy <- rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))
            },
            'UniformStrip'={
              xy.abs.diff <- 2
@@ -64,14 +64,14 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
            }
     ) # end switch 
     
-    #    switch(bias.type, # Next decide if to keep point based on W
+    # Next decide if to keep point based on W
     if(bias.type %in% c('truncation'))  # w(x,y)=1_{x<y}
     {
       keep <- xy[1] <= xy[2]
     } else
     {
       # w(x,y)>0 , use rejection sampling 
-      keep <- rbinom(1, 1, BiasedSamplingW(xy[1], xy[2], bias.type)/prms$W_max)
+      keep <- rbinom(1, 1, BiasedSamplingW(xy[1], xy[2], bias.type)/prms$W.max)
     }
     if(keep) 
     {
@@ -81,7 +81,6 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
   }    
   return (data)  
 }
-
 
 #######################################################################
 # Compute bias function used 
@@ -104,17 +103,14 @@ BiasedSamplingW <- function(x, y, bias.type)
 }
 
 
-
 ##########################################################################
 #  Compute the N*N matrix of sampling weights:
 # Parameters: 
 # data - n*2 matrix with (x,y) sample
 # N - sample size 
 # biased.method - method for matrix computation
-# bias.params - parameters
-#
 #########################################################################
-GetBiasedSamplingWeights <- function(data, N, biased.method, bias.params)
+GetBiasedSamplingWeights <- function(data, N, biased.method)
 {
   W = matrix(0,N,N)
   for(i in 1:N)
