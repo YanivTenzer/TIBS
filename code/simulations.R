@@ -40,7 +40,7 @@ prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
-iterations = 111 # NOW n=100 for all! measure time # 500  # Number of simulated dataset. Shared by all simulations
+iterations = 125 # NOW n=100 for all! measure time # 500  # Number of simulated dataset. Shared by all simulations
 B = 10^2 # 10^4 # number of permtuations or bootstrap samples. Shared by all simulations 
 num.sim <- length(dependence.type)
 

@@ -64,7 +64,7 @@ TIBS <- function(data, bias.type, B, test.type, prms)
                marginals.bootstrap<-EstimateMarginals(dummy.sample, bias.type)  # Why are the marginals estimated each time? 
                pdfs.bootstrap<-marginals.bootstrap$PDFs
                #3. Compute weights matrix W:    
-               W.bootstrap=GetBiasedSamplingWeights(dummy.sample, dim(dummy.sample)[1], bias.type)
+               W.bootstrap=GetBiasedSamplingWeights(marginals.bootstrap$xy, dim(marginals.bootstrap$xy)[1], bias.type)
                #4. Estimate W(x,y)*Fx*FY/normalizing.factor
                null.distribution.bootstrap<-GetNullDistribution(pdfs.bootstrap, W.bootstrap)
                normalizing.factor.bootstrap<-null.distribution.bootstrap$normalizing.factor
