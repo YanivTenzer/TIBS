@@ -1,3 +1,4 @@
+########################################################################
 # Perform Test for Independence under general Biased Sampling (TIBS)
 # 
 # Parameters: 
@@ -6,7 +7,7 @@
 # B - number of bootstrap/permutation samples to perform 
 # test.type - test to perform 
 # prms - additional parameters (needed for bootstrap)
-#
+########################################################################
 TIBS <- function(data, bias.type, B, test.type, prms)
 {  
   library(pracma)
@@ -59,7 +60,7 @@ TIBS <- function(data, bias.type, B, test.type, prms)
              if(mod(ctr,100)==0)
                print(paste0("Run Boots=", ctr))
              dummy.sample<-Bootstrap(marginals$xy, marginals$PDF, bias.type, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
-             if(!fast.bootstrap)
+             if(!prms$fast.bootstrap)
              {
                marginals.bootstrap<-EstimateMarginals(dummy.sample, bias.type)  # Why are the marginals estimated each time? 
                pdfs.bootstrap<-marginals.bootstrap$PDFs
@@ -71,8 +72,7 @@ TIBS <- function(data, bias.type, B, test.type, prms)
                null.distribution.bootstrap<-null.distribution.bootstrap$null.distribution
                expectations.table<-QuarterProbFromBootstrap(data, null.distribution.bootstrap, grid.points)
              } # MOST TIME SPENT HERE (STAT COMPUTE!) TEMP for profiling
-              #            print(paste0('null. stat ', ctr))
-             NullT<-ComputeStatistic(dummy.sample, grid.points, expectations.table)
+             NullT <- ComputeStatistic(dummy.sample, grid.points, expectations.table)
              null.obs.table <- NullT$obs.table
              statistics.under.null[ctr] <- NullT$Statistic
            }

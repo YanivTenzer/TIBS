@@ -26,9 +26,7 @@ prms = c()
 W.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
 n.datasets <- length(datasets)
 n.tests <- length(test.type)
-
 Hyperplane.prms<-c(-1,1,0)
-
 test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 test.time <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 
@@ -65,7 +63,6 @@ for(d in 1:n.datasets) # loop on datasets.
       next  # these tests run only for truncation 
     if((test.type[t] == 'bootstrap') & (bias.type[d] %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
       next # can't run bootstrap because w can be zero 
-    
     set.seed(1)
     
     print(paste0(datasets[d], ", ", test.type[t], ":"))
@@ -107,6 +104,6 @@ rownames(results.table) <- datasets
 # colnames(results.table) <- test.type
 save(test.pvalue, test.time, test.type, 
      file=paste0(path ,'/../docs/Tables/real_datasets_B_', num.statistics, '.Rdata'))
-#print(xtable(results.table, type = "latex"), 
+# print(xtable(results.table, type = "latex"), 
 #      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # save also in latex format 
 

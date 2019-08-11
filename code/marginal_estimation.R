@@ -3,7 +3,6 @@
 # Parameters: 
 # data - 2*n sample (X,Y)
 # bias.type - string indicating w function 
-# 
 ##############################################################################
 EstimateMarginals<-function(data, bias.type)
 {
@@ -45,7 +44,7 @@ EstimateMarginals<-function(data, bias.type)
 }
 
 ##############################################################################
-# 
+# Estimate marginal PDF from data 
 # Parameters: 
 # data - 2*n array of (X,Y)
 # CDF.table - vector of CDF of X and Y
@@ -56,7 +55,6 @@ GetMarginalsPDF<-function(data, CDF.table)
   num.samples<-dim(CDF.table)[1]
   PDF.table<-matrix(0, num.samples, num.variables)
   
-  #  print(paste0("num.samples=", num.samples, " and ", dim(data)[1]))
   for(i in 1:num.variables)
   {
     sorted.CDF<-sort(CDF.table[,i], index.return=TRUE)

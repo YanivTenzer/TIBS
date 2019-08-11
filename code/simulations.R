@@ -40,7 +40,7 @@ prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
-iterations = 125 # NOW n=100 for all! measure time # 500  # Number of simulated dataset. Shared by all simulations
+iterations = 99 # NOW n=100 for all! measure time # 500  # Number of simulated dataset. Shared by all simulations
 B = 10^2 # 10^4 # number of permtuations or bootstrap samples. Shared by all simulations 
 num.sim <- length(dependence.type)
 
@@ -60,6 +60,7 @@ for(s in 1:num.sim)  # 1 # Loop on different dependency types
   {
     prms$rho = prms.rho[[s]][i.prm]
     prms$W.max <- 1 # temp: 1 for all weights
+    prms$fast.bootstrap <- 1 # method for computing null expectations 
     
     ## Parallel on multiple cores 
     ##    results.table<- foreach(i=seq(iterations), .combine=rbind) %dopar%{ 

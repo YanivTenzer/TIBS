@@ -15,15 +15,11 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
   obs.table<-matrix(0, dim(grid.points)[1], 4)
   epsilon = 0.00000001
   Obs<-Exp<-matrix(0,4,1) # observed & expected
-  #  perm.flag <- !(min(dim(null.distribution))==num.samples) # check type of null. Doesn't work for n=4
-  
-  Statistic <- 0 # = rep(0, dim(grid.points)[1])
+
+  Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
-    Exp <- pmax(null.expectations.table[i,], epsilon)
-    Exp <- (Exp+1) / (sum(Exp)+4) # New! Add pseudo count !!! 
-    #    print(paste0("expected=", Exp))
-    #    print(paste0("Sum expected=", sum(Exp)))
+    Exp <- dim(data)[1] * (null.expectations.table[i,]+1) / (sum(null.expectations.table[i,])+4) # New! add pseudo count to avoid statistic inflation for low expected values 
     
     #Up right quarter (Observed) - this is the computationally costly part for permutations test 
     Rx <- data[,1]>grid.points[i,1]
@@ -31,15 +27,14 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
     Obs[1] <- sum(Rx*Ry)
     Obs[2] <- sum(Rx)-Obs[1]
     Obs[4] <- sum(Ry)-Obs[1]
-    Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)])
+    Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) 
     obs.table[i,] <- Obs
     #    if(any(is.na(Exp)))
     #      print(paste("i=", i, " Exp=", min(Exp), ' Obs=', min(Obs)))
-    Statistic <-  Statistic + sum((Obs-Exp)^2 / pmax(Exp, 0.0001)) # set valid statistic when expected is 0 or very small 
+    Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
   } # end loop on grid points 
   
   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
-  #  return(Statistic) # Excluded Nans #   sum(Statistic[!(is.nan(Statistic) | is.infinite(Statistic))]))
 }
 
 #########################################################################################
@@ -67,7 +62,6 @@ PermutationsMCMC<-function(W, B, N)
     j = switchIdx[2]
     ratio = W[i,Perm[j]]*W[j,Perm[i]]/(W[i,Perm[i]]*W[j,Perm[j]]) # New! Big-fix (?) denomerator didn't have parenthesis
     
-    #    print(paste0("ratio=", ratio, ", W=", W[i,Perm[j]], " ", W[j,Perm[i]], " ", W[i,Perm[i]], " ", W[j,Perm[j]]))
     if(rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
     {
       temp <- Perm[i] # SWAP 
@@ -178,7 +172,6 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 
 ###################################################################################################
 # Compute Expect[Qi(p_j)] for 1<=i<=4, and all j, given a grid of points and bootstrap null distribution
-#
 # Parameters: 
 # data - 2*n array (X,Y)
 # Permutations - set of permutations
@@ -234,7 +227,6 @@ QuarterProbFromPermutations <- function(data, Permutations, grid.points)
   return(mass.table)
 }
 
-
 ###################################################################################################
 # Compute quarter probabilities for standard bivariate Gaussians 
 # with truncation y>x. We assume grid.points satisfy y>x
@@ -271,8 +263,6 @@ PDFToCDF2d <- function(pdf.2d, data)
   # Deal with ties (not working yet)
   #  ties.x <- which(data[-1,1] == head(data[,1], -1))
   #  ties.y <- which(data[-1,2] == head(data[,2], -1))
-  #  print(paste0('ties.x=', ties.x))
-  #  print(paste0('ties.y=', ties.y))
   #  for(i in rev(ties.y))
   #    cdf.2d[,i] <- cdf.2d[,i+1]
   #  for(i in rev(ties.x))
