@@ -12,8 +12,7 @@ EstimateMarginals<-function(data, bias.type)
     Fx <- Fy <- W.inv / sum(W.inv) # normalize 
     PDF.table = as.data.frame(cbind(Fx, Fy))
     CDF.table = NULL
-  }
-  else{ 
+  } else{ 
     if(bias.type %in% c('survival')) 
     {
       # Estimate marginals using Kaplan-Meier estimator 
@@ -27,19 +26,27 @@ EstimateMarginals<-function(data, bias.type)
       data <- cbind(rev(-Fx$time), Fy$time)
       PDF.table<-GetMarginalsPDF(data, CDF.table)
     } else {
-      #case 2: left truncation, use the estimator of proposition 1 in the paper for exchangable distributions
-      # Augment data to include both x and y values for each axis (due to symmetry)
-      augment.data <- 1 # new: add xy values 
-      if(augment.data) # duplicate x and y values 
-        data <- cbind(union(data[,1], data[,2]), union(data[,1], data[,2]))
-      F1<-ecdf(data[,1])
-      F2<-ecdf(data[,2])
-      Fx<-(F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y
-      Fy<-(F1(data[,2])+F2(data[,2]))/2   
-      CDF.table<-cbind(Fx,Fy)
-      PDF.table<-GetMarginalsPDF(data, CDF.table)
-    }
-  } # end if 
+      if(bias.type %in% c('naive', 'no_bias')) # no bias (assume W(x,y)=1)
+      {
+        Fx<-ecdf(data[,1])
+        Fy<-ecdf(data[,2])
+        CDF.table<-cbind(Fx(data[,1]),Fy(data[,2]))
+        PDF.table<-GetMarginalsPDF(data, CDF.table)
+      } else {
+        #case 2: left truncation, use the estimator of proposition 1 in the paper for exchangable distributions
+        # Augment data to include both x and y values for each axis (due to symmetry)
+        augment.data <- 1 # new: add xy values 
+        if(augment.data) # duplicate x and y values 
+          data <- cbind(union(data[,1], data[,2]), union(data[,1], data[,2]))
+        F1<-ecdf(data[,1])
+        F2<-ecdf(data[,2])
+        Fx<-(F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y
+        Fy<-(F1(data[,2])+F2(data[,2]))/2   
+        CDF.table<-cbind(Fx,Fy)
+        PDF.table<-GetMarginalsPDF(data, CDF.table)
+      }
+    } # end if 
+  }
   return( list(xy=data, CDFs=CDF.table, PDFs=PDF.table) ) # new: return also x,y (might be different than original)
 }
 

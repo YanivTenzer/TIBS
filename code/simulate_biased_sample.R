@@ -14,6 +14,13 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
   
   # rejection sampling   
   data <- matrix(0, n, 2)
+  if(!('keep.all' %in% names(prms)))
+    prms$keep.all <- 0
+  if(prms$keep.all) # keep also data-points that we through away in biased samples
+  {
+    all.data <- matrix(0, 2*n, 2)
+    all.k <- 1
+  }
   
   if(!('W.max' %in% names(prms)))
     prms$W.max <- 1.0 # temp. W.max should be input    
@@ -78,8 +85,22 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
       data[k,] <- xy
       k <- k+1
     }
+    if(prms$keep.all)
+    {
+      if(all.k <= dim(all.data)[1])
+        all.data[all.k,] <- xy
+      else
+        all.data <- rbind(all.data, xy)
+      all.k <- all.k+1
+    }
   }    
-  return (data)  
+#  return(data)  
+  if(prms$keep.all)
+  {
+    return(list(data=data, all.data=all.data[1:(all.k-1),]))
+  }
+  else
+    return(list(data=data))
 }
 
 #######################################################################
@@ -97,7 +118,8 @@ BiasedSamplingW <- function(x, y, bias.type)
               'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
               'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
               'stritcly_positive'={exp((-abs(x)-abs(y))/4)}, # like exp? 
-              'sum'={x+y}
+              'sum'={x+y},
+              'naive'={1}
   )
   return(r)
 }

@@ -14,8 +14,10 @@ library(lubridate)
 library(permDep)
 library(tictoc)
 library(xtable)
+library(ggplot2)
+library(Matrix)
 
-B = 1000 # 10000 # number of permutations/bootstrap samples 
+B = 100 # 10000 # number of permutations/bootstrap samples 
 plot.flag <- 1
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
@@ -32,7 +34,7 @@ test.time <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 
 for(d in 1:n.datasets) # loop on datasets.
 {
-#    if(datasets[d] %in% c('ICU', 'Infection'))  # datasets available by request. Remove this line if you have them 
+#    if(datasets[d] %in% c('ICU', 'Infection'))  # datasets available by request. Uncomment this line if you don't have them 
 #      next
     switch(datasets[d],  # read dataset 
          'huji'={
@@ -47,6 +49,7 @@ for(d in 1:n.datasets) # loop on datasets.
          'ICU'={  # this dataset is not part of the released package
            input.data <- read.table("../data/ICU_data.txt", header = TRUE)
            input.data <- input.data[,c(1:2)]
+           input.data[,2] <- input.data[,2]-0.02 # correction: reduce by 1: the truncation criterion is L<TU (L==TU is removed)
          }, 
          'Infection'={ # this dataset is not part of the released package
            load('../data/ICU_INF.Rdata')
@@ -69,7 +72,7 @@ for(d in 1:n.datasets) # loop on datasets.
     start.time <- Sys.time()
     results.test<-TIBS(input.data, bias.type[d], B, test.type[t], prms)
     test.time[d,t] <- Sys.time() - start.time
-    test.pvalue[d,t] <- length(which(results.test$statistics.under.null>=results.test$TrueT))/B
+    test.pvalue[d,t] <- results.test$Pvalue 
     cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')
     if(plot.flag & (t==2)) # permutations
     {
@@ -79,8 +82,6 @@ for(d in 1:n.datasets) # loop on datasets.
         geom_point(shape=3, aes(x=xy[,3], y=xy[,4], col="permuted")) + 
         ggtitle(datasets[d]) +
         xlab("X") + ylab("Y") +
-        scale_y_continuous(breaks=seq(-2, 2, 2)) +
-        scale_x_continuous(breaks=seq(-2, 2, 2)) +
         theme(plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
               axis.title.y = element_text(face="bold", size=14),
               axis.title.x = element_text(face="bold", size = 14),
@@ -103,7 +104,7 @@ colnames(test.time) <- test.type
 rownames(results.table) <- datasets
 # colnames(results.table) <- test.type
 save(test.pvalue, test.time, test.type, 
-     file=paste0(path ,'/../docs/Tables/real_datasets_B_', num.statistics, '.Rdata'))
+     file=paste0(path ,'/../docs/Tables/real_datasets_B_', B, '.Rdata'))
 # print(xtable(results.table, type = "latex"), 
 #      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # save also in latex format 
 

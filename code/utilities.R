@@ -21,7 +21,6 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
   {
     Exp <- dim(data)[1] * (null.expectations.table[i,]+1) / (sum(null.expectations.table[i,])+4) # New! add pseudo count to avoid statistic inflation for low expected values 
     
-    #Up right quarter (Observed) - this is the computationally costly part for permutations test 
     Rx <- data[,1]>grid.points[i,1]
     Ry <- data[,2]>grid.points[i,2]
     Obs[1] <- sum(Rx*Ry)
@@ -29,8 +28,6 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
     Obs[4] <- sum(Ry)-Obs[1]
     Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) 
     obs.table[i,] <- Obs
-    #    if(any(is.na(Exp)))
-    #      print(paste("i=", i, " Exp=", min(Exp), ' Obs=', min(Obs)))
     Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
   } # end loop on grid points 
   
@@ -55,8 +52,8 @@ PermutationsMCMC<-function(W, B, N)
   Perm = 1:N
   while(Idx<=B)
   {
-    #A Metropolis Hastings algorithm with target stationary distribution \pi
-    #Choose the two indices to be switched
+    # A Metropolis Hastings algorithm with target stationary distribution \pi
+    # Choose the two indices to be switched
     switchIdx = sample(1:N, 2, replace = FALSE)  
     i = switchIdx[1]
     j = switchIdx[2]
@@ -84,15 +81,15 @@ PermutationsMCMC<-function(W, B, N)
 # Estimate the null distribution fx*fy*W (given the estimated PDFs f_x, f_y)
 # 
 # Parameters: 
-# pdfs - marginal distributions fx, fy probabilities 
+# pdfs - 2*n table with marginal distributions fx, fy probabilities 
 # w - n*n matrix with weights W[i,j] = w(x_i, y_j) 
 ###################################################################################
 GetNullDistribution <- function(pdfs, W)
 {
-  #compute the normalizing factor under the null:
+  # Compute the normalizing factor under the null:
   null.distribution <- W * (pdfs[,1] %*% t(pdfs[,2]))
   Z <- sum(null.distribution)
-  null.distribution<-null.distribution/Z
+  null.distribution <- null.distribution/Z
   return( list(null.distribution=null.distribution, normalizing.factors=Z) )
 }
 
@@ -315,13 +312,16 @@ PlotBiasedData <- function(dependence.type, biased.data, prms)
              y.ind <- sample(x = marginals$xy[,2], size = 10000, replace = TRUE, prob = Py)
              w.ind <- which(x.ind < y.ind) 
              xy <- data.frame(cbind(x.ind[w.ind], y.ind[w.ind]))   # sample from estiamted marginals
+           }, 
+           'all_scatter' = { # here plot both biased and original samples 
+              xy <- data.frame(biased.data)             
            }
     ) # end switch 
     if(plot.type=='KM_marginal')
       print( ggplot(marginals.CDFs, aes(x=marginals.CDFs[,1], y=marginals.CDFs[,3], color= )) + 
-               geom_line(aes(x=marginals.CDFs[,1], y=marginals.CDFs[,3], col="\\hat{F}_X")) + 
-               geom_line(aes(x=marginals.CDFs[,2], y=marginals.CDFs[,4], col="\\hat{F}_y")) + 
-               geom_line(aes(x=marginals.CDFs[,5], y=marginals.CDFs[,6], col='F_X===F_Y')) + 
+               geom_line(aes(x=marginals.CDFs[,1], y=marginals.CDFs[,3], col="\\hat{F}_X"), size=1.5) + 
+               geom_line(aes(x=marginals.CDFs[,2], y=marginals.CDFs[,4], col="\\hat{F}_y"), size=1.5) + 
+               geom_line(aes(x=marginals.CDFs[,5], y=marginals.CDFs[,6], col='F_X===F_Y'), size=1.5) + # change line width
                ggtitle(TeX(rep(paste0("$", gsub("_", '-', dependence.type), " (\\theta = ", prms$rho, " )$"), prms$title))) + 
                xlab("X") + ylab("Y") + # keep defaults 
                theme(plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
@@ -336,6 +336,8 @@ PlotBiasedData <- function(dependence.type, biased.data, prms)
                scale_color_discrete(labels=lapply(sprintf(c("\\hat{F}_X", "\\hat{F}_Y", "F_X=F_Y")), TeX)) )
     else # new: plot two scatters on same datasets 
       print( ggplot(xy, aes(x=xy[,1], y=xy[,2])) + 
+#               geom_point(aes(x=xy[,1], y=xy[,2], col="original")) + 
+#               geom_point(shape=3, aes(x=xy[,3], y=xy[,4], col="biased")) + 
                geom_point() + 
                ggtitle(TeX(rep(paste0( gsub("_", '-', dependence.type), " $(\\theta = ", prms$rho, " )$"), prms$title))) + 
                xlab("X") + ylab("Y") +

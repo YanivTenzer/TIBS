@@ -8,8 +8,7 @@ TsaiTestTies <- function(X,Y){
   X.sort <- X[ii]
   Y.sort <- Y[ii]
   n <- length(X)
-  S <- rep(0, n)
-  V <- rep(0, n)
+  S <- V <- rep(0, n)
   for (i in 1:n){
     risk.i <- which(X.sort[i:n]<=Y.sort[i])+i-1
     S[i] <- sum(X.sort[risk.i]>X.sort[i])-sum(X.sort[risk.i]<X.sort[i])
@@ -23,15 +22,3 @@ TsaiTestTies <- function(X,Y){
   return(c(tsai.stat,tsai.p))
 }
 
-
-#ICU.dat <- read.table("C:\\Users\\mmandel\\Dropbox\\students\\Bella\\StatMed\\simple data.txt",header=TRUE)
-#head(ICU.dat)
-#ICU.dat[ICU.dat$delta==0,] # censoring is always at 30
-
-
-# in our data the truncation criterion is L<TU
-# L=TU is not observed!
-# thus, the risk sets should be adjusted for that
-# therfore, we subtract 1 from TU, making the criterion L<=TU
-
-#tsai.test.ties(ICU.dat$L,ICU.dat$TU-1)
