@@ -34,23 +34,21 @@ bias.type <- c('truncation', 'truncation', 'truncation', 'truncation',
                'truncation', 'truncation', 'truncation', 'exponent_minus_sum_abs') # not good that we have only one simulation with positive W. Should add X+Y?
 monotone.type <- c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE) # is monotone
 exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) # is exchangeable
-# sample.size <- c(500, 500, 100, 100, 500, 500, 100, 500) 
 sample.size <- c(500, 100, 100, 100, 100, 100, 100, 100) # set all sample.sizes to 100 
 prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 
-# test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run - new: add 
-test.type <- c('bootstrap', 'permutations', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations', 
-               'tsai', 'minP2') # different tests to run - new: add 
+test.type <- c('tsai', 'minP2', # other's tests 
+               'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations') # different tests to run - new: add 
 num.tests <- length(test.type)
-iterations = 500 # 500  # Number of simulated dataset. Shared by all simulations
-B = 10^2 # 10^4 # number of permtuations or bootstrap samples. Shared by all simulations 
+iterations = 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
+B = 10^2  # number of permtuations or bootstrap samples. Shared by all simulations 
 num.sim <- length(dependence.type)
 
-for(s in 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+for(s in 2:7) # Run all on the farm  # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
 {
-  output.file <- paste0('results/', dependence.type[s], '_4tests_results_B_', 
-                        B, '_', 'iters_', iterations) # set output file name
+  output.file <- paste0('results/', dependence.type[s], '_all_tests_results_B_', 
+                        B, '_iters_', iterations, '_n_', sample.size[s]) # set output file name
   print(paste0("s=", s))
   set.seed(1)
   num.prms <- length(prms.rho[[s]])
@@ -76,7 +74,7 @@ for(s in 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop
       biased.data <- biased.data$data 
       if((!run.flag) & file.exists(paste0(output.file, '.Rdata'))) # simulate only once 
         break
-      for(t in 1:6) # loop on statistical tests . Last test (7) minP2 is very slow 
+      for(t in c(1:7))  # ALL TESTs !    #  c(1,2,6,7)) # loop on statistical tests . Last test (7) minP2 is very slow 
       {
         prms$fast.bootstrap <- 0 # method for computing null expectations 
         prms$naive.expectation <- 0 # Check test with standard expectations
@@ -88,11 +86,12 @@ for(s in 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop
         {
           if(bias.type[s] == 'huji')
             next
-          if((bias.type[s] %in% c('truncation', 'Hyperplane_Truncation')) & (!exchange.type[s]))
-            next # can't run bootstrap because w can be zero, unless we assume exchangability !!! 
+  # Run bootstrap even for truncation! (although the results are wrong here)
+          #          if((bias.type[s] %in% c('truncation', 'Hyperplane_Truncation')) & (!exchange.type[s]))
+  #            next # can't run bootstrap because w can be zero, unless we assume exchangability !!! 
         }      
-        if((t %in% c(3,4,5)) & (s != 2))
-          next # try comparison with naive settings only for Gaussian case (?) 
+        if((t %in% c(5:7)) & !(s %in% c(2:5)))
+          next # try comparison with naive settings only for Gaussian case and other cases in Table 1 
         cur.test.type <- test.type[t]
         switch(test.type[t], # Set test type
                'fast-bootstrap'={prms$fast.bootstrap <- 1
@@ -114,15 +113,18 @@ for(s in 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop
     prms$title <- as.integer(s>1) 
     if(plot.flag) # plot example 
       PlotBiasedData(dependence.type[s], biased.data, prms)
+    # save partial results for cases of script crashing
+    save(test.pvalue, test.time, prms.rho, sample.size, s, B, iterations, file=paste0(output.file, '.partial.Rdata'))
   } # end simulation and testing for one dependency type (loop over i.prm)
   # Compute power (this is also type-1-error alpha under the null)
   test.power <- apply(test.pvalue<alpha, 1, rowMeans) 
-  # Save in ONE file
-  save(test.pvalue, test.time, test.power, prms.rho, sample.size, s, file=paste0(output.file, '.Rdata'))
+  # Save results in one file per dataset 
+  save(test.pvalue, test.time, test.power, prms.rho, sample.size, s, B, iterations, file=paste0(output.file, '.Rdata'))
   test.output <- t(cbind(test.power, colSums(rowSums(test.time, dims=2))))
   colnames(test.output) <- test.type
   rownames(test.output) <- c(prms.rho[[s]], 'time')
-  test.output <- test.output[, test.time[1,,1]>=0] # take only relevant tests 
-  print(xtable(test.output, type = "latex"), file = paste0(output.file, '.tex'), size="\\tiny") # new! save in latex format 
+  test.output <- test.output[, test.time[1,,1]>=0, drop = FALSE] # take only relevant tests 
+  print(xtable(test.output, type = "latex", digits=3), 
+        file = paste0(output.file, '.tex'), size="\\tiny") # save in latex format 
 } # end loop on dependency types 
 

@@ -107,12 +107,12 @@ TIBS <- function(data, bias.type, B, test.type, prms)
            }
            output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
          },
-         'tsai' = { result<-TsaiTestTies(data[,1],data[,2]) #Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
+         'tsai' = { result<-TsaiTestTies(data[,1],data[,2]) # Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
          output<-list(Pvalue=result[2])
          },
-         'minP2' = {# library(permDep)  #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
+         'minP2' = { library(permDep)  #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
            require(survival)  
-           library(permDep) # should use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
+           # library(permDep) # should use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
            # QU: what should be min.eps?
            dat<-data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
            results<- permDep(dat$trun, dat$obs, B, dat$delta, nc = 4, minp2Only = TRUE, # set number of cores 
