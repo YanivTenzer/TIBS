@@ -1,4 +1,4 @@
-path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code'  # change to your path
+path = getwd()  # 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code'  # change to your path
 setwd(path)
 source('simulate_biased_sample.R')
 source('TIBS.R')
