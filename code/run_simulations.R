@@ -1,5 +1,5 @@
-path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code'  # change to your path
-setwd(path)
+# path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code'  # change to your path
+# setwd(path)
 
 source('simulate_and_test.R')
 source('simulate_biased_sample.R')
