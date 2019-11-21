@@ -46,11 +46,11 @@ num.tests <- length(test.type)
 iterations = 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
 B = 10^2  # number of permtuations or bootstrap samples. Shared by all simulations 
 num.sim <- length(dependence.type)
-run.dep <- args[1] #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
 if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
   library(copula) # needed for most simulations 
 
-print(paste0("sample-size=", sample.size))
+#print(paste0("sample-size=", sample.size))
 for(s in run.dep) # Run all on the farm  
 {
   print(paste0("s=", s))
