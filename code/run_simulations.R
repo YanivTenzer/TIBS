@@ -2,7 +2,6 @@
 # setwd(path)
 args=commandArgs(trailingOnly = TRUE)
 
-
 source('simulate_and_test.R')
 source('simulate_biased_sample.R')
 source('TIBS.R')
@@ -43,10 +42,10 @@ prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
 test.type <- c('tsai', 'minP2', # other's tests 
                'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations') # different tests to run - new: add 
 num.tests <- length(test.type)
-iterations = 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
-B = 10^2  # number of permtuations or bootstrap samples. Shared by all simulations 
-num.sim <- length(dependence.type)
 run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+iterations = as.integer(args[2])  # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
+B =  as.integer(args[3])  # 10^2  # number of permtuations or bootstrap samples. Shared by all simulations 
+num.sim <- length(dependence.type)
 if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
   library(copula) # needed for most simulations 
 
