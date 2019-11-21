@@ -4,7 +4,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
                               B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05)
 {
   output.file <- paste0('results/', dependence.type, '_all_tests_results_B_', 
-                        B, '_iters_', iterations, '_n_', sample.size[s]) # set output file name
+                        B, '_iters_', iterations, '_n_', sample.size) # set output file name
   num.prms <- length(prms.rho) # [[s]]
   if((!run.flag) & file.exists(paste0(output.file, '.Rdata')))
     load(file=paste0(output.file, '.Rdata'))
@@ -66,7 +66,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
     }  # end loop on iterations (parallel collection). Simulation and testing for one parameter (i.prm)
     prms$title <- as.integer(s>1) 
     if(plot.flag) # plot example 
-      PlotBiasedData(dependence.type[s], biased.data, prms)
+      PlotBiasedData(dependence.type, biased.data, prms)
     # save partial results for cases of script crashing
     save(test.pvalue, test.time, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.partial.Rdata'))
   } # end simulation and testing for one dependency type (loop over i.prm)
