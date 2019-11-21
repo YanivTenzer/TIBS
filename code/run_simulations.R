@@ -16,6 +16,7 @@ library(xtable)
 library(Matrix)
 library(ggplot2)  
 library(latex2exp)
+library(pracma)
 
 cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
