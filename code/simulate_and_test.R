@@ -1,3 +1,5 @@
+args=commandArgs(trailingOnly = TRUE)
+
 # Function running for one dataset: simulate data and perform weighted independent test 
 simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.type='truncation',
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
