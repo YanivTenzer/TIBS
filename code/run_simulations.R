@@ -50,6 +50,7 @@ run.dep <- args[1] #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to min
 if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
   library(copula) # needed for most simulations 
 
+print(paste0("sample-size=", sample.size))
 for(s in run.dep) # Run all on the farm  
 {
   print(paste0("s=", s))
