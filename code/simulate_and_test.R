@@ -1,11 +1,18 @@
+library(latex2exp)
+library(xtable)
+
 
 # Function running for one dataset: simulate data and perform weighted independent test 
 simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.type='truncation',
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
                               B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05)
 {
+  prms = c()
+  run.flag = 1
+  num.tests <- length(test.type)
+  
   output.file <- paste0('results/', dependence.type, '_all_tests_results_B_', 
-                        B, '_iters_', iterations, '_n_', sample.size) # set output file name
+                        B, '_iters_', iterations, '_n_', sample.size, '_rho_', prms.rho) # set output file name
   num.prms <- length(prms.rho) # [[s]]
   if((!run.flag) & file.exists(paste0(output.file, '.Rdata')))
     load(file=paste0(output.file, '.Rdata'))
@@ -65,7 +72,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
                      ' i=', i, ' of ', iterations, '. Pval=', round(test.pvalue[i.prm, t, i], 3), '. Time (sec.)=', round(test.time[i.prm, t, i], 2)))
       } # end loop on tests 
     }  # end loop on iterations (parallel collection). Simulation and testing for one parameter (i.prm)
-    prms$title <- as.integer(s>1) 
+    prms$title <- as.integer(dependence.type != 'UniformStrip') # s>1) 
     if(plot.flag) # plot example 
       PlotBiasedData(dependence.type, biased.data, prms)
     
