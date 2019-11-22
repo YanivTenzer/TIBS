@@ -115,8 +115,8 @@ TIBS <- function(data, bias.type, B, test.type, prms)
            # library(permDep) # should use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
            # QU: what should be min.eps?
            dat<-data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
-           results<- permDep(dat$trun, dat$obs, B, dat$delta, nc = 4, minp2Only = TRUE, # set number of cores 
-                                      sampling = 'conditional', kendallOnly = FALSE, minp.eps= prms$minp.eps) # ,  new! set also min epsilon
+           results<- permDep(dat$trun, dat$obs, B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
+##                                      sampling = 'conditional', kendallOnly = FALSE) #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
            output<-list(Pvalue=results$p.valueMinp2)
          }
   )
