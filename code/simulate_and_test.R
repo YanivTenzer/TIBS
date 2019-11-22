@@ -7,6 +7,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
                               B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05)
 {
+  print(paste0("rho.inside=", prms.rho))
   prms = c()
   run.flag = 1
   num.tests <- length(test.type)
