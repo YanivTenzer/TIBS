@@ -47,7 +47,7 @@ if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
 #print(paste0("sample-size=", sample.size))
 for(s in run.dep) # Run all on the farm  
 {
-  prms.rho[[s]] = as.integer(args[4]) # temp for loading from user 
+  prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
   print(paste0("s=", s))
   print(paste0("rho=", prms.rho[[s]]))
   set.seed(1) # set for randomization 
