@@ -56,8 +56,8 @@ for(s in run.dep) # Run all on the farm
   set.seed(1) # set for randomization 
   # Call function. # run simulations function 
   print(paste("n=", sample.size[s]))
-  simulate_and_test(dependence.type[s], prms.rho[[s]], bias.type[s], test.type, # run all tests 
-                  B, sample.size[s], iterations, plot.flag)  
+  T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], bias.type[s], test.type, # run all tests 
+                             B, sample.size[s], iterations, plot.flag)  
   
 } # end loop on dependency types
 

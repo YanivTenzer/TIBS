@@ -74,20 +74,17 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
     # Compute power (this is also type-1-error alpha under the null)
     test.power <- apply(test.pvalue<alpha, 1, rowMeans) 
     # Save results in one file per dataset 
-    
     test.output <- t(cbind(test.power, colSums(rowSums(test.time, dims=2))))
     colnames(test.output) <- test.type
     rownames(test.output) <- c(prms.rho, 'time') # [[s]]
-    
-    
     test.output <- test.output[, test.time[1,,1]>=0, drop = FALSE] # take only relevant tests 
     
     # save partial results for cases of script crashing
     if(i.prm < num.prms) # intermediate loops 
     {
       save(test.pvalue, test.time, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.partial.Rdata'))
-      print(xtable(test.output, type = "latex", digits=3), 
-          file = paste0(output.file, '.partial.tex'), size="\\tiny") # save in latex format
+      print(xtable(test.output[c(1:i.prm, i.prm+2),], type = "latex", digits=3), 
+            file = paste0(output.file, '.partial.tex'), size="\\tiny") # save in latex format
     } else #    if(i.prm == num.prms) # final loop 
     {
       save(test.pvalue, test.time, test.power, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.Rdata'))  
@@ -96,6 +93,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
     }
   } # end simulation and testing for one dependency type (loop over i.prm)
   
+  return(list(test.power=test.power, test.output=test.output))
   
-} # end loop on dependency types 
+} # end function
 
