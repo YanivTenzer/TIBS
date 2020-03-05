@@ -109,18 +109,21 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
 # x, y - data 
 # bias.type - string indicating W type 
 ########################################################################
-BiasedSamplingW <- function(x, y, bias.type)
-{
-  r <- switch(bias.type, 
-              'truncation'={x<y},
-              'Hyperplane_Truncation'={(x<y)},
-              'exp'= { exp((-abs(x)-abs(y))/4)},
-              'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
-              'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
-              'stritcly_positive'={exp((-abs(x)-abs(y))/4)}, # like exp? 
-              'sum'={x+y},
-              'naive'={1}
-  )
+BiasedSamplingW <- function(x, y, bias.type) {
+  if (typeof(bias.type)=="character") {
+    r <- switch(bias.type, 
+                'truncation'={x<y},
+                'Hyperplane_Truncation'={(x<y)},
+                'exp'= { exp((-abs(x)-abs(y))/4)},
+                'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
+                'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
+                'stritcly_positive'={exp((-abs(x)-abs(y))/4)}, # like exp? 
+                'sum'={x+y},
+                'naive'={1}
+    )
+  } else {
+    r <- bias.type(x,y)
+  }
   return(r)
 }
 
