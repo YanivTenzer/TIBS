@@ -2,8 +2,8 @@
 # The script contains real data analysis 
 # Due to privacy issues, the data files for the ICU datasets are not part of the released package. 
 # Please contact the authors if you are interested in them. 
-path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code' # modify to your path  
-setwd(path)
+
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
 source('TIBS.R')
 source('simulate_biased_sample.R')
