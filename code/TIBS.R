@@ -13,6 +13,7 @@ TIBS <- function(data, bias.type, B, test.type, prms)
   library(pracma)
   source('utilities.R')
   source('Tsai_test.R')
+  source('simulate_biased_sample.R')
   
   # Set defaults
   if(!('fast.bootstrap' %in% names(prms)))
