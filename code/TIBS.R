@@ -7,8 +7,9 @@
 # B - number of bootstrap/permutation samples to perform 
 # test.type - test to perform 
 # prms - additional parameters (needed for bootstrap)
+# cyc - cycle of MCMC, deafult is sample size
 ########################################################################
-TIBS <- function(data, bias.type, B, test.type, prms)
+TIBS <- function(data, bias.type, B, test.type, prms, cyc=dim(data)[1])
 {  
   library(pracma)
   source('utilities.R')
@@ -27,12 +28,15 @@ TIBS <- function(data, bias.type, B, test.type, prms)
   # 1.Compute weights matrix W:  
   W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
   # 2.Create a grid of points, based on the data:
-  permutation<-PermutationsMCMC(W, 1, dim(data)[1]) # why always sample a permutation using MCMC? 
-  temp.data<-cbind(data[,1], data[permutation,2])
+  permutation<-PermutationsMCMC(W, 1, dim(data)[1], cyc) # why always sample a permutation using MCMC? 
+  #temp.data<-cbind(data[,1], data[permutation,2])
+  grid.points <- cbind(data[,1], data[,2])
+  grid.points <- unique.matrix(grid.points)
   # Discard the extremum points to avoid numerical issues
-  idx.minmax <-which( (temp.data[,1] %in% c(min(temp.data[,1],max(temp.data[,1])))) | 
-                        (temp.data[,2] %in% c(min(temp.data[,2],max(temp.data[,2])))) )
-  grid.points<-temp.data[-idx.minmax,]
+  # idx.minmax <- which( (temp.data[,1] %in% c(min(temp.data[,1],max(temp.data[,1])))) | 
+  #                      (temp.data[,2] %in% c(min(temp.data[,2],max(temp.data[,2])))) )
+  # grid.points <- temp.data[-idx.minmax,]
+  # grid.points<- unique.matrix(temp.data[-idx.minmax,])
   
   switch(test.type,
          'bootstrap'={
@@ -87,7 +91,7 @@ TIBS <- function(data, bias.type, B, test.type, prms)
            output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
          },
          'permutations'={
-           Permutations=PermutationsMCMC(W, B, dim(data)[1])
+           Permutations=PermutationsMCMC(W, B, dim(data)[1], cyc)
            if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
            {
              marginals <- EstimateMarginals(data, 'naive')           
@@ -121,7 +125,7 @@ TIBS <- function(data, bias.type, B, test.type, prms)
            output<-list(Pvalue=results$p.valueMinp2)
          }
   )
-  output$permuted.data <- temp.data # add example of permuted data 
+  output$permuted.data <- NA #temp.data # add example of permuted data 
   if(!("Pvalue" %in% names(output))) # Compute empirical P-value
     output$Pvalue <- length(which(output$statistics.under.null>=output$TrueT))/B
   return(output)
