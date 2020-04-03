@@ -21,8 +21,8 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
-    Exp <- dim(data)[1] * (null.expectations.table[i,]+1) / (sum(null.expectations.table[i,])+4) # New! add pseudo count to avoid statistic inflation for low expected values 
-    
+    #Exp <- dim(data)[1] * (null.expectations.table[i,]+1) / (sum(null.expectations.table[i,])+4) # New! add pseudo count to avoid statistic inflation for low expected values 
+    Exp <- null.expectations.table[i,]
     Rx <- data[,1]>grid.points[i,1]
     Ry <- data[,2]>grid.points[i,2]
     Obs[1] <- sum(Rx*Ry)
@@ -30,7 +30,9 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
     Obs[4] <- sum(Ry)-Obs[1]
     Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) 
     obs.table[i,] <- Obs
+    if (min(Exp)>1) {
     Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+    }
   } # end loop on grid points 
   
   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
@@ -44,11 +46,11 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
 # B - number of permutations to draw
 # N - sample size (can be read from data or W?)
 #########################################################################################
-PermutationsMCMC<-function(W, B, N)
+PermutationsMCMC<-function(W, B, N, Cyc=N)
 { 
   # Set mcmc sampling parameters 
-  burn.in = 2*N
-  Cycle = N
+  burn.in = 2*Cyc
+  Cycle = Cyc
   Idx <- ctr <- 1
   PermutationsTable = matrix(0,N,B)
   Perm = 1:N
