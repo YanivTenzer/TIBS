@@ -30,16 +30,17 @@ TIBS <- function(data, bias.type, test.type, prms)
   # 1.Compute weights matrix W:  
   W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
   # 2.Create a grid of points, based on the data:
+<<<<<<< HEAD
 #  permutation<-PermutationsMCMC(W, dim(data)[1], list(B=1)) # why always sample a permutation using MCMC? 
-###  permutation <- rev(dim(data)[1]:1)  # always use the same permutation and grid - TEMP
-###  temp.data<-cbind(data[,1], data[permutation,2])
-###  permutation<-PermutationsMCMC(W, 1, dim(data)[1], cyc) # why always sample a permutation using MCMC? 
+  permutation <- rev(dim(data)[1]:1)  # always use the same permutation and grid - TEMP
+  temp.data<-cbind(data[,1], data[permutation,2])
+=======
+  permutation<-PermutationsMCMC(W, 1, dim(data)[1], cyc) # why always sample a permutation using MCMC? 
   #temp.data<-cbind(data[,1], data[permutation,2])
   grid.points <- cbind(data[,1], data[,2])
   grid.points <- unique.matrix(grid.points)
-
-  
-    # Discard the extremum points to avoid numerical issues
+>>>>>>> c4e2865536759c5a6cfccb33535060f9df21fd8f
+  # Discard the extremum points to avoid numerical issues
   # idx.minmax <- which( (temp.data[,1] %in% c(min(temp.data[,1],max(temp.data[,1])))) | 
   #                      (temp.data[,2] %in% c(min(temp.data[,2],max(temp.data[,2])))) )
   # grid.points <- temp.data[-idx.minmax,]
