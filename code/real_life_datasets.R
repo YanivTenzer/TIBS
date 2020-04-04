@@ -58,7 +58,7 @@ for(d in 1:n.datasets) # loop on datasets.
          }
   ) # end switch 
   
-  prms <- c()
+  prms <- list(B = 100)
   prms$W.max <- W.max[d] 
   for(t in 1:n.tests) # run all tests 
   {
@@ -70,7 +70,7 @@ for(d in 1:n.datasets) # loop on datasets.
     
     print(paste0(datasets[d], ", ", test.type[t], ":"))
     start.time <- Sys.time()
-    results.test<-TIBS(input.data, bias.type[d], B, test.type[t], prms)
+    results.test<-TIBS(input.data, bias.type[d], test.type[t], prms)
     test.time[d,t] <- Sys.time() - start.time
     test.pvalue[d,t] <- results.test$Pvalue 
     cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')

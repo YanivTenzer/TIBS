@@ -34,7 +34,7 @@ samp.LTRC <- function(n=200,rho=0){
 ### Simulation - comparing true weight fun to two estimates
 n.sim <- 100
 n.samp <- 200
-B <- 200
+prms <- list(B = 200)
 rho <- -0.5
 res <- c()
 for (i in 1:n.sim){
@@ -47,9 +47,9 @@ for (i in 1:n.sim){
   w.fun1 <- function(x,y){(x<y)*Srv.C1(y-x)}
   w.fun2 <- function(x,y){(x<y)*Srv.C2(y-x)}
   w.fun3 <- function(x,y){(x<y)*Srv.C3(y-x)}
-  tibs1 <- TIBS(data=only.uncens, bias.type=w.fun1, B=B, test.type='permutations',prms=c())
-  tibs2 <- TIBS(data=only.uncens, bias.type=w.fun2, B=B, test.type='permutations',prms=c())
-  tibs3 <- TIBS(data=only.uncens, bias.type=w.fun3, B=B, test.type='permutations',prms=c())
+  tibs1 <- TIBS(data=only.uncens, bias.type=w.fun1, test.type='permutations',prms=prms)
+  tibs2 <- TIBS(data=only.uncens, bias.type=w.fun2, test.type='permutations',prms=prms)
+  tibs3 <- TIBS(data=only.uncens, bias.type=w.fun3, test.type='permutations',prms==prms)
   res <- rbind(res,c(tibs1$Pvalue,tibs2$Pvalue,tibs3$Pvalue,dim(only.uncens)[1]))
 }
 
@@ -81,5 +81,5 @@ w.fun <- function(x,y){
 w.dat <- w.fun(only.uncens$X.obs,only.uncens$Y.obs)
 summary(w.dat)
 
-TIBS(data=only.uncens, bias.type=w.fun, B=1000, test.type='permutations',prms=c())
+TIBS(data=only.uncens, bias.type=w.fun,list(B = 1000), test.type='permutations',prms=c())
 

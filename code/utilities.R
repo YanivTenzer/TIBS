@@ -43,30 +43,39 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
 # W - matrix with weights 
 # B - number of permutations to draw
 # N - sample size (can be read from data or W?)
+# 
+# Output: 
+# PermutationsTable - A matrix representing the sampled permutations 
 #########################################################################################
-PermutationsMCMC<-function(W, B, N)
+PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
 { 
-  # Set mcmc sampling parameters 
-  burn.in = 2*N
-  Cycle = N
+  # Set mcmc default sampling parameters 
+  if(!('B' %in% names(prms)))
+    prms$B <- 1000
+  if(!('burn.in' %in% names(prms)))
+    prms$burn.in <- 2*N
+  if(!('Cycle' %in% names(prms)))
+    prms$Cycle <- N
+  
+  
   Idx <- ctr <- 1
-  PermutationsTable = matrix(0,N,B)
+  PermutationsTable = matrix(0,N,prms$B)
   Perm = 1:N
-  while(Idx<=B)
+  while(Idx<=prms$B)
   {
     # A Metropolis Hastings algorithm with target stationary distribution \pi
     # Choose the two indices to be switched
     switchIdx = sample(1:N, 2, replace = FALSE)  
     i = switchIdx[1]
     j = switchIdx[2]
-    ratio = W[i,Perm[j]]*W[j,Perm[i]]/(W[i,Perm[i]]*W[j,Perm[j]]) # New! Big-fix (?) denomerator didn't have parenthesis
+    ratio = W[i,Perm[j]]*W[j,Perm[i]]/(W[i,Perm[i]]*W[j,Perm[j]]) 
     
     if(rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
     {
       temp <- Perm[i] # SWAP 
       Perm[i] <- Perm[j]
       Perm[j] <- temp
-      if(ctr==burn.in || (ctr%%Cycle==0 && ctr>burn.in))
+      if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in))
       {
         PermutationsTable[,Idx]=Perm;
         Idx = Idx+1;

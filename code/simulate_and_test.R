@@ -8,7 +8,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
                               B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05)
 {
   print(paste0("rho.inside=", prms.rho))
-  prms = c()
+  prms = list(B = B)
   run.flag = 1
   num.tests <- length(test.type)
   
@@ -66,7 +66,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
                cur.test.type <- 'permutations'}
         ) 
         start.time <- Sys.time()
-        test.results<-TIBS(biased.data, bias.type, B, cur.test.type, prms)
+        test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue
         print(paste0(dependence.type, ', rho=', prms$rho, '. Test: ', test.type[t], 
