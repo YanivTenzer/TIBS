@@ -4,7 +4,7 @@ source('TIBS.R')
 library(PerMallows)
 
 # Problem: power distribution doesn't look binomial 
-set.seed(12345)
+set.seed(123456)
 X <- rnorm(300)
 Y <- rnorm(300)
 trnc <- (X<Y)
@@ -14,10 +14,10 @@ dat <- data.frame(x,y)
 prep <- c()
 
 prms = c()  # set parameters 
-prms$burn.in = 1000 # get default values 
-prms$Cycle = 400
+#prms$burn.in = 1000 # get default values 
+#prms$Cycle = 400
 prms$B = 300
-prms$naive.expectation <- 0
+prms$naive.expectation <- 0 # for 1 we get more stable statistic 
 
 for (i in 1:50){  # Test 100 times the same data with a different permutation test randomization 
   print(c('Run', i, 'out of', 100))
@@ -58,7 +58,7 @@ legend(0, 2000, legend=c('consecutive', 'from-first', 'random', 'two-runs'), col
 # New: plot the statistic: 
 plot(T$statistics.under.null)
 points(S$statistics.under.null, col='red')
-lines(c(0,300), c(T$TrueT, T$TrueT), col='green')
+lines(c(0,prms$B), c(T$TrueT, T$TrueT), col='green')
 
 
 plot(sign(T$statistics.under.null-T$TrueT))
@@ -68,7 +68,6 @@ points(sign(S$statistics.under.null-T$TrueT), col='red')
 
 # Consecutive differences vs. random differences
 plot(T$statistics.under.null[-1] - head(T$statistics.under.null, -1))
-diff <- mat <- matrix(c(1:17, rep(0, 3)), ncol = 2)
 
 diff <- matrix(c(T$statistics.under.null[-1] - head(T$statistics.under.null, -1), 
   sample(T$statistics.under.null[-1]) - head(T$statistics.under.null, -1), 
@@ -79,10 +78,9 @@ boxplot(diff)
 
 
 
-
 # Check if rejection counts for different simulations follow binomial distribution
 p.sort <- sort(prep)
-jpeg("../figs/fixed_grid4.jpg", width = 350, height = 350)
+jpeg("../figs/fixed_grid_estimate_Pij.jpg", width = 350, height = 350)
 ks.stat <- ks.test(p.sort*prms$B, "pbinom", prms$B, mean(prep))
 plot(ecdf(prep), main=c('Binomial KS Pvalue:', round(ks.stat$p.value, 3)))
 lines(p.sort,pbinom(p.sort*prms$B,prms$B,mean(prep)), col='blue')

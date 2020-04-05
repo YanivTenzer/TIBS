@@ -35,8 +35,8 @@ TIBS <- function(data, bias.type, test.type, prms)
 ###  temp.data<-cbind(data[,1], data[permutation,2])
 ###  permutation<-PermutationsMCMC(W, 1, dim(data)[1], cyc) # why always sample a permutation using MCMC? 
   #temp.data<-cbind(data[,1], data[permutation,2])
-  grid.points <- cbind(data[,1], data[,2])
-  grid.points <- unique.matrix(grid.points)
+  grid.points <- cbind(data[,1], data[,2])  # keep original points 
+  grid.points <- unique.matrix(grid.points)  # why set unique? we want to increase the density/weight for ties.
 
   
     # Discard the extremum points to avoid numerical issues
@@ -70,8 +70,7 @@ TIBS <- function(data, bias.type, test.type, prms)
            TrueT=ComputeStatistic(data, grid.points, expectations.table)
            obs.table <- TrueT$obs.table
            TrueT <- TrueT$Statistic
-#           TrueT <- 115 # Temp for debug !!!! 
-           
+
            #2. Compute statistic for bootstrap sample:
            statistics.under.null=matrix(0, prms$B, 1)
            null.distribution.bootstrap<-null.distribution
@@ -101,6 +100,8 @@ TIBS <- function(data, bias.type, test.type, prms)
          },
          'permutations'={
            Permutations=PermutationsMCMC(W, dim(data)[1], prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
+           P=Permutations$P
+           Permutations=Permutations$Permutations
            if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
            {
              marginals <- EstimateMarginals(data, 'naive')           
@@ -115,7 +116,7 @@ TIBS <- function(data, bias.type, test.type, prms)
                   null.distribution <- GetNullDistribution(marginals$PDF, W)
                   expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$null.distribution, grid.points)
               } else
-                  expectations.table <- QuarterProbFromPermutations(data, Permutations, grid.points)
+                  expectations.table <- QuarterProbFromPermutations(data, P, grid.points)  # Permutations
            }
     #             expectations.table <- QuarterProbFromPermutations(data, Permutations, grid.points)
            TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic

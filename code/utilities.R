@@ -15,7 +15,7 @@ library(Matrix)
 ComputeStatistic<- function(data, grid.points, null.expectations.table)
 {
   obs.table<-matrix(0, dim(grid.points)[1], 4)
-  epsilon = 0.00000001
+#  epsilon = 0.00000001
   Obs<-Exp<-matrix(0,4,1) # observed & expected
 
   Statistic <- 0 
@@ -51,7 +51,13 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
 #########################################################################################
 PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
 { 
-  # Set mcmc default sampling parameters 
+  P <- matrix(0, N, N) # New! matrix with P[i]=j estimate
+#  for(i in 1:num.permutations) 
+#    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
+  
+  
+  
+    # Set mcmc default sampling parameters 
   if(!('B' %in% names(prms)))
     prms$B <- 1000
   if(!('burn.in' %in% names(prms)))
@@ -64,7 +70,9 @@ PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non
   Perm = 1:N
   while(Idx<=prms$B)
   {
-    # A Metropolis Hastings algorithm with target stationary distribution \pi
+    P[cbind(1:N, Perm)] <- P[cbind(1:N, Perm)]+1 # Update table P
+    
+        # A Metropolis Hastings algorithm with target stationary distribution \pi
     # Choose the two indices to be switched
     switchIdx = sample(1:N, 2, replace = FALSE)  
     i = switchIdx[1]
@@ -85,8 +93,11 @@ PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non
       }
       ctr <- ctr+1;
     }
-  }
-  return(PermutationsTable)
+  }  # end while
+  P <- P / (ctr-1) # normalize 
+
+  return(list(PermutationsTable=PermutationsTable, P=P)) # New: return also P
+  # To do: return also a matrix P with estimates of Pi[i]=j. Can use consecutive permutations not only every cycle.
 }
 
 ###################################################################################
@@ -207,20 +218,20 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
 # compute Expect[Qi(p_j)] for 1<=i<=4, and all j, given a grid of points using permutations
 # Parameters: 
 # data - 2*n array (X,Y)
-# Permutations - set of permutations
+# P - n*n table representing permutations # Permutations - set of permutations
 # grid.points - centers of partitions
 #
 # Output: 
 # mass.table - a 4*#grid-points table with quadrants expectation
 ###################################################################################################
-QuarterProbFromPermutations <- function(data, Permutations, grid.points)
+QuarterProbFromPermutations <- function(data, P, grid.points) #Permutations
 {
-  num.permutations <- dim(Permutations)[2]
-  n <- dim(data)[1]
-  P <- matrix(0, n, n) # matrix with P[i]=j estimate
-  for(i in 1:num.permutations)
-    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
-  P <- P / num.permutations # normalize 
+#  num.permutations <- dim(Permutations)[2]
+#  n <- dim(data)[1]
+#  P <- matrix(0, n, n) # matrix with P[i]=j estimate
+#  for(i in 1:num.permutations) 
+#    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
+#  P <- P / num.permutations # normalize 
   
   #next each point has its probability of being selected we evaluate Expect[Qi(p_j)] by summation
   mass.table<-matrix(0, dim(grid.points)[1], 4)
@@ -232,7 +243,7 @@ QuarterProbFromPermutations <- function(data, Permutations, grid.points)
     mass.table[i,3]<-sum(P[data[,1]<=x[1], data[,2]<=x[2]])
     mass.table[i,4]<-sum(P[data[,1]<=x[1], data[,2]>x[2]])
   } 
-  mass.table<-mass.table+0.000001
+#  mass.table<-mass.table+0.000001
   return(mass.table)
 }
 
