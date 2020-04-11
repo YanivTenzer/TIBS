@@ -34,6 +34,11 @@ Additional datasets (ICU and Infection) are available upon request.
 
 The script 'real_life_datasets.R'  runs the TIBS tests on the real datasets.
 
+## Reference: 
+The paper describing the TIBS test implemented here is available on arxiv: <br>
+[Testing Independence under Biased Sampling. Y. Tenzer, M. Mandel and O. Zuk (2019)](https://arxiv.org/abs/1912.05769) <br>
+Please cite this paper if you are using the package. 
+
 ## Contacts: 
 For any questions, bug-reports etc. please contact: <br>
 Yaniv Tenzer   yaniv.tenzer@gmail.com <br>
