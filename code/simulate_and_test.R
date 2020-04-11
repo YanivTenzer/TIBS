@@ -78,29 +78,33 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
         # new! run sequencial tests and stop early 
         if(sequential.stopping)
         {
+          print('Run test with sequential (early) stopping')
           prms$B <- 10
           prms$gamma <- 0.0000001  # chance that we miss being below/above alpha at an early stop 
           prms$z_gamma <- abs(qnorm(prms$gamma/2))
           cur.pvalue <- 0
           stop.flag <- 0
-          for(i in 1:(B/10))  # run 10 permutations each time 
+          for(b in 1:(B/10))  # run 10 permutations each time 
           {
             cur.test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
-            cur.pvalue <- test.results$Pvalue + cur.pvalue
+            cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
             # test if we should stop! 
-            if( abs(alpha - cur.pvalue/i) > prms$z_gamma*0.5/sqrt(i*10))   # here stop early !!! 
+            if( abs(alpha - cur.pvalue/b) > prms$z_gamma*0.5/sqrt(b*10))   # here stop early !!! 
             {
-              print(paste('early stopping after ', i*10, ' permutations out of ', B, ' saving: ', round(100*(1-i*10/B), 1), '% of work!'))
+              print(paste('early stopping after ', b*10, ' permutations out of ', B, ' saving: ', round(100*(1-b*10/B), 1), '% of work!'))
               stop.flag <- 1
             }
-            if(stop.flag)
+            if(stop.flag || (b == B/10)) # reached last value!
             {
-              test.results$Pvalue <- cur.pvalue / i
+              print('STOP!')
+              print(paste("b is", b))
+              test.results <- c()
+              test.results$Pvalue <- cur.pvalue / b
               break
             }
           }
           
-        } else   # run old test: just simulate all B permutations 
+        } else   # run full test: just simulate all B permutations 
             test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue

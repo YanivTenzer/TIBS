@@ -25,7 +25,7 @@ TIBS <- function(data, bias.type, test.type, prms)
     prms$fast.bootstrap <- 0
   if(!('minp.eps' %in% names(prms)))
     prms$minp.eps <- NULL # default: let permDep algorithm select minp.eps
-  if(!('PL.expectation' %in% names(prms)))  # get expectation form the bootstrap
+  if(!('PL.expectation' %in% names(prms)))  # get expectation form the bootstrap: product-limit estimator
     prms$PL.expectation <- FALSE
   if(!('naive.expectation' %in% names(prms)))
     prms$naive.expectation <- 0

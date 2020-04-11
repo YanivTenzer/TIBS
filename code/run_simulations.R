@@ -1,5 +1,7 @@
 # path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code'  # change to your path
-# setwd(path)
+path = 'C:/Users/Or Zuk/Documents/GitHub/TIBS/code'
+
+setwd(path)
 args=commandArgs(trailingOnly = TRUE)
 
 source('simulate_and_test.R')
@@ -23,7 +25,7 @@ registerDoParallel(cl)
 hyperplane.prms<-c(-1,1,0)
 alpha <- 0.05 # significane threshold 
 plot.flag <- 0 # plot and save figures 
-run.flag <- 1 # 1: run simulations again. 0: load simulations results from file if they're available
+run.flag <- 1 # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 sequential.stopping <- 1 # New! use early stopping to save time ! 
 
 
@@ -39,9 +41,21 @@ prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 test.type <- c('tsai', 'minP2', # other's tests 
                'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations') # different tests to run - new: add 
-run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
-iterations = as.integer(args[2])  # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
-B =  as.integer(args[3])  # 10^2  # number of permtuations or bootstrap samples. Shared by all simulations 
+test.type <- c('permutations', 'bootstrap')  # for fast simulations 
+
+if(run.flag == 1)
+{
+  run.dep <- c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  iterations =10 # for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
+  B = 290  # number of permtuations or bootstrap samples. Shared by all simulations 
+  
+} else  # run from command line 
+{
+  run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  iterations = as.integer(args[2])  # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
+  B =  as.integer(args[3])  # 10^2  # number of permtuations or bootstrap samples. Shared by all simulations 
+  
+}
 num.sim <- length(dependence.type)
 if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
   library(copula) # needed for most simulations 
@@ -56,7 +70,7 @@ for(s in run.dep) # Run all on the farm
   # Call function. # run simulations function 
   print(paste("n=", sample.size[s]))
   T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], bias.type[s], test.type, # run all tests 
-                             B, sample.size[s], iterations, plot.flag)  
+                             B, sample.size[s], iterations, plot.flag, alpha, sequential.stopping)  
   
 } # end loop on dependency types
 
