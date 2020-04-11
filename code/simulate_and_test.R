@@ -3,9 +3,17 @@ library(xtable)
 
 
 # Function running for one dataset: simulate data and perform weighted independent test 
+# 
+# Parameters:
+# sequential.stopping (new!) - stop drawing permutations/bootstrap samples if we see that the p-value is very far from alpha 
+# 
+# Output:
+# test.power - estimated power of the test
+# test.output - structure containing power and running time 
+# 
 simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.type='truncation',
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
-                              B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05)
+                              B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0)
 {
   print(paste0("rho.inside=", prms.rho))
   prms = list(B = B)
@@ -20,7 +28,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
   else
     test.pvalue <- test.time <- array(-1, c(num.prms, num.tests, iterations)) 
   
-  for(i.prm in 1:num.prms) # only 0.9 correlation num.prms) # loop on different simulation parameters - should plot for each of them? 
+  for(i.prm in 1:num.prms) # loop on different simulation parameters - should plot for each of them? 
   {
     prms$rho = prms.rho[i.prm] # [[s]]
     prms$W.max <- 1 # temp: 1 for all weights
@@ -30,7 +38,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
     ## Parallel on multiple cores 
     ##    results.table<- foreach(i=seq(iterations), .combine=rbind) %dopar%{ 
     ##      iteration_result <- matrix(0, 4, B+1)
-    for(i in 1:iterations) # run simulations again
+    for(i in 1:iterations) # run simulations multiple times 
     { 
       biased.data <- SimulateBiasedSample(sample.size, dependence.type, bias.type, prms) 
       all.data <- biased.data$all.data
@@ -66,7 +74,34 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
                cur.test.type <- 'permutations'}
         ) 
         start.time <- Sys.time()
-        test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
+
+        # new! run sequencial tests and stop early 
+        if(sequential.stopping)
+        {
+          prms$B <- 10
+          prms$gamma <- 0.0000001  # chance that we miss being below/above alpha at an early stop 
+          prms$z_gamma <- abs(qnorm(prms$gamma/2))
+          cur.pvalue <- 0
+          stop.flag <- 0
+          for(i in 1:(B/10))  # run 10 permutations each time 
+          {
+            cur.test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
+            cur.pvalue <- test.results$Pvalue + cur.pvalue
+            # test if we should stop! 
+            if( abs(alpha - cur.pvalue/i) > prms$z_gamma*0.5/sqrt(i*10))   # here stop early !!! 
+            {
+              print(paste('early stopping after ', i*10, ' permutations out of ', B, ' saving: ', round(100*(1-i*10/B), 1), '% of work!'))
+              stop.flag <- 1
+            }
+            if(stop.flag)
+            {
+              test.results$Pvalue <- cur.pvalue / i
+              break
+            }
+          }
+          
+        } else   # run old test: just simulate all B permutations 
+            test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue
         print(paste0(dependence.type, ', rho=', prms$rho, '. Test: ', test.type[t], 

@@ -24,6 +24,8 @@ hyperplane.prms<-c(-1,1,0)
 alpha <- 0.05 # significane threshold 
 plot.flag <- 0 # plot and save figures 
 run.flag <- 1 # 1: run simulations again. 0: load simulations results from file if they're available
+sequential.stopping <- 1 # New! use early stopping to save time ! 
+
 
 # Vectors with different dependency settings 
 dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 

@@ -5,7 +5,11 @@
 # data - n*2 array of (x,y) samples
 # bias.type - string indicating biased sampling function W 
 # test.type - test to perform 
-# prms - additional parameters (needed for bootstrap) # B - number of bootstrap/permutation samples to perform 
+# prms - additional parameters (needed for bootstrap) including B - number of bootstrap/permutation samples to perform 
+# 
+# Output:
+# TrueT - test statistic for the data
+# statistics.under.null - vector of statistics under the null 
 ########################################################################
 TIBS <- function(data, bias.type, test.type, prms)
 {  
@@ -83,7 +87,7 @@ TIBS <- function(data, bias.type, test.type, prms)
              null.obs.table <- NullT$obs.table
              statistics.under.null[ctr] <- NullT$Statistic
            }
-           output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
+           output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null)
          },
          'permutations'={
            Permutations=PermutationsMCMC(W, dim(data)[1], prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
@@ -116,7 +120,7 @@ TIBS <- function(data, bias.type, test.type, prms)
              statistics.under.null[ctr] <- ComputeStatistic(
                cbind(data[,1], data[Permutations[,ctr],2]), grid.points, expectations.table)$Statistic
            }
-           output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null, Permutations=Permutations)
+           output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations test 
          'tsai' = {result <- TsaiTestTies(data[,1],data[,2]) # Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
          output <- list(Pvalue=result[2])
