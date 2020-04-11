@@ -21,7 +21,7 @@ TIBS <- function(data, bias.type, test.type, prms)
     prms$fast.bootstrap <- 0
   if(!('minp.eps' %in% names(prms)))
     prms$minp.eps <- NULL # default: let permDep algorithm select minp.eps
-  if(!('PL.expectation' %in% names(prms)))  # what's that?
+  if(!('PL.expectation' %in% names(prms)))  # get expectation form the bootstrap
     prms$PL.expectation <- FALSE
   if(!('naive.expectation' %in% names(prms)))
     prms$naive.expectation <- 0
@@ -30,21 +30,9 @@ TIBS <- function(data, bias.type, test.type, prms)
   # 1.Compute weights matrix W:  
   W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
   # 2.Create a grid of points, based on the data:
-#  permutation<-PermutationsMCMC(W, dim(data)[1], list(B=1)) # why always sample a permutation using MCMC? 
-###  permutation <- rev(dim(data)[1]:1)  # always use the same permutation and grid - TEMP
-###  temp.data<-cbind(data[,1], data[permutation,2])
-###  permutation<-PermutationsMCMC(W, 1, dim(data)[1], cyc) # why always sample a permutation using MCMC? 
-  #temp.data<-cbind(data[,1], data[permutation,2])
   grid.points <- cbind(data[,1], data[,2])  # keep original points 
-  grid.points <- unique.matrix(grid.points)  # why set unique? we want to increase the density/weight for ties.
+  grid.points <- unique.matrix(grid.points)  # set unique for ties? for discrete data
 
-  
-    # Discard the extremum points to avoid numerical issues
-  # idx.minmax <- which( (temp.data[,1] %in% c(min(temp.data[,1],max(temp.data[,1])))) | 
-  #                      (temp.data[,2] %in% c(min(temp.data[,2],max(temp.data[,2])))) )
-  # grid.points <- temp.data[-idx.minmax,]
-  # grid.points<- unique.matrix(temp.data[-idx.minmax,])
-  
   switch(test.type,
          'bootstrap'={
            #3. Estimate the marginals
@@ -66,7 +54,6 @@ TIBS <- function(data, bias.type, test.type, prms)
            }
 
            #1. First compute the statistics based on the original data set:
-           #           expectations.table<-QuarterProbFromBootstrap(marginals$xy, null.distribution, grid.points) # data
            TrueT=ComputeStatistic(data, grid.points, expectations.table)
            obs.table <- TrueT$obs.table
            TrueT <- TrueT$Statistic
@@ -109,7 +96,7 @@ TIBS <- function(data, bias.type, test.type, prms)
              expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$null.distribution, grid.points) # data
            } else
            {
-              if(prms$PL.expectation)  # what's this? 
+              if(prms$PL.expectation)  # get expectations from the bootstrap estimator
               {
                   marginals <- EstimateMarginals(data, bias.type)
                   W = GetBiasedSamplingWeights(marginals$xy, dim(marginals$xy)[1], bias.type)
@@ -118,7 +105,6 @@ TIBS <- function(data, bias.type, test.type, prms)
               } else
                   expectations.table <- QuarterProbFromPermutations(data, P, grid.points)  # Permutations
            }
-    #             expectations.table <- QuarterProbFromPermutations(data, Permutations, grid.points)
            TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
            
            #Compute the statistics value for each permutation:
@@ -138,8 +124,6 @@ TIBS <- function(data, bias.type, test.type, prms)
          'minP2' = { library(permDep)  #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
            require(survival)  
            # library(permDep) # should use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
-           # QU: what should be min.eps?
-###           dat<-data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
            if(!is.na(prms$delta))
            {
               dat<-data.frame(list(trun = data[,1], obs = data[,2], delta = prms$delta))
@@ -148,9 +132,8 @@ TIBS <- function(data, bias.type, test.type, prms)
               dat<-data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
            }
            
-           
            results<- permDep(dat$trun, dat$obs, prms$B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
-##                                      sampling = 'conditional', kendallOnly = FALSE) #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
+##                                      sampling = 'conditional') #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
            output<-list(Pvalue=results$p.valueMinp2)
          }
   )

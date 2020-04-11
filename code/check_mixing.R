@@ -45,14 +45,14 @@ for(i in 1:(prms$B-1)) # For Debugging! Calculate the distances between permutat
   tworuns.distance[i] <- distance(T$Permutations[,i], S$Permutations[,i])
 }
 
-
+jpeg("../figs/perm_mixing.jpg", width = 350, height = 350)
 plot(mixing.distance)
 points(first.distance, col='red')
 points(random.distance, col='green')
 points(tworuns.distance, col='blue')
 legend(0, 2000, legend=c('consecutive', 'from-first', 'random', 'two-runs'), col=c('black', 'red', 'green', 'blue'), 
        lty=c(1, 1, 1, 1), cex=0.8)
-
+dev.off()
 
 
 # New: plot the statistic: 

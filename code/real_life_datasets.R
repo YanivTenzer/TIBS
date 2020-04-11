@@ -34,7 +34,7 @@ test.time <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 
 for(d in 1:n.datasets) # loop on datasets.
 {
-#    if(datasets[d] %in% c('ICU', 'Infection'))  # datasets available by request. Uncomment this line if you don't have them 
+#    if(datasets[d] %in% c('ICU', 'Infection'))  # these datasets are available by request. Uncomment this line if you don't have them 
 #      next
     switch(datasets[d],  # read dataset 
          'huji'={

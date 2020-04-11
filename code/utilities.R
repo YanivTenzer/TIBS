@@ -376,3 +376,21 @@ PlotBiasedData <- function(dependence.type, biased.data, prms)
       break
   } # end loop on plot type
 }
+
+
+###################################################################################################
+# Compute density of product of two Gaussian densities  
+# mu1, mu2 - mean vectors 
+# sigma1, sigma2 - covariance matrices
+###################################################################################################
+GaussianDensityProduct <- function(mu1, mu2, sigma1, sigma2)
+{
+  sigma <- solve(solve(sigma1) + solve(sigma2))
+  mu <- sigma * (solve(sigma1) * mu1 + solve(sigma2) * mu2)
+  return(list(mu=mu, sigma=sigma))
+}  
+  
+
+  
+  
+  
