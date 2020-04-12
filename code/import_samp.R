@@ -13,7 +13,7 @@
 #   3 | 2
 ##################################################################################################
 
-ComputeStatistic.W<- function(data, grid.points,w=function(x){1}){
+ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
   W <- apply(data,1,w)
   n.w <- sum(1/W)
   obs.table<-exp.table <- matrix(0, dim(grid.points)[1], 4)
@@ -89,10 +89,10 @@ simul <- function(rep=100,B=2000,r=0){
   return(prep)
 }
 
-prep <- simul(rep=100,B=2000,r=0.25)
-summary(prep)
-mean(prep<0.05)
-plot(ecdf(prep))
-abline(0,1)
+# prep <- simul(rep=100,B=2000,r=0.25)
+# summary(prep)
+# mean(prep<0.05)
+# plot(ecdf(prep))
+# abline(0,1)
 
 

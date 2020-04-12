@@ -1,8 +1,9 @@
 #########################################################################
-# Simulate data with truncation X<Y
+# Simulate data with biased-sampling weighting function W
 # Parameters: 
 # n - sample size 
 # dependence.type - distribution (copula, normal, ..)
+# bias.type - function W(x,y) to use
 # prms - parameters of distribution
 #
 # Output: 
@@ -128,7 +129,7 @@ BiasedSamplingW <- function(x, y, bias.type) {
 }
 
 
-##########################################################################
+#########################################################################
 #  Compute the N*N matrix of sampling weights:
 # Parameters: 
 # data - n*2 matrix with (x,y) sample

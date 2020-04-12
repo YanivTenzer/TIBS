@@ -31,8 +31,8 @@ TIBS <- function(data, bias.type, test.type, prms)
     prms$naive.expectation <- 0
   
   #################################################################
-  # 1.Compute weights matrix W: (not needed) 
-#   W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
+  # 1.Compute weights matrix W: (not needed here, just for permutations test)
+#  W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
   # 2.Create a grid of points, based on the data:
   grid.points <- cbind(data[,1], data[,2])  # keep original points 
   grid.points <- unique.matrix(grid.points)  # set unique for ties? for discrete data
@@ -90,6 +90,7 @@ TIBS <- function(data, bias.type, test.type, prms)
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null)
          },
          'permutations'={
+           W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
            Permutations=PermutationsMCMC(W, dim(data)[1], prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
            P=Permutations$P
            Permutations=Permutations$Permutations
@@ -138,7 +139,10 @@ TIBS <- function(data, bias.type, test.type, prms)
            
            results<- permDep(dat$trun, dat$obs, prms$B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
 ##                                      sampling = 'conditional') #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
-           output<-list(Pvalue=results$p.valueMinp2)
+           output <-list(Pvalue=results$p.valueMinp2)
+         }, 
+         'importance.sampling' = {  # new importance sampling test 
+           results <- IS.permute(dat, prms$B, bias.type) # W)  # ComputeStatistic.W(dat, grid.points, bias.type)
          }
   )
   output$permuted.data <- NA #temp.data # add example of permuted data 

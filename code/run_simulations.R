@@ -9,6 +9,7 @@ source('simulate_biased_sample.R')
 source('TIBS.R')
 source('marginal_estimation.R')
 source('utilities.R')
+source('import_samp.R')
 library(foreach)
 library(doSNOW)
 library(parallel)
@@ -41,12 +42,12 @@ prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 test.type <- c('tsai', 'minP2', # other's tests 
                'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations') # different tests to run - new: add 
-test.type <- c('permutations', 'bootstrap')  # for fast simulations 
+test.type <- c('permutations', 'bootstrap') #  'importance.sampling')  # for fast simulations . Add new importance sampling test 
 
 if(run.flag == 1)
 {
   run.dep <- c(5) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
-  iterations =10 # for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
+  iterations = 4   # for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
   B = 150  # number of permtuations or bootstrap samples. Shared by all simulations 
   
 } else  # run from command line 
