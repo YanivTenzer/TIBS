@@ -132,13 +132,11 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
     print('save results:') # save partial results for cases of script crashing
     if(i.prm < num.prms) # intermediate loops 
     {
-      print(paste0(output.file, '.partial.Rdata'))
       save(test.pvalue, test.time, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.partial.Rdata'))
       print(xtable(test.output[c(1:i.prm, i.prm+2),], type = "latex", digits=3), 
             file = paste0(output.file, '.partial.tex'), size="\\tiny") # save in latex format
     } else #    if(i.prm == num.prms) # final loop 
     {
-      print(paste0(output.file, '.partial.Rdata ELSE'))
       save(test.pvalue, test.time, test.power, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.Rdata'))  
       print(xtable(test.output, type = "latex", digits=3), 
             file = paste0(output.file, '.tex'), size="\\tiny") # save in latex format 
