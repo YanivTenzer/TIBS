@@ -1,5 +1,5 @@
-# path = 'C:\\Users\\Or Zuk\\Dropbox\\BiasedSampling\\Code'  # change to your path
-path = 'C:/Users/Or Zuk/Documents/GitHub/TIBS/code'
+path = 'C:/Users/Or Zuk/Documents/GitHub/TIBS/code'  # change to your path
+
 
 setwd(path)
 args=commandArgs(trailingOnly = TRUE)
@@ -45,9 +45,9 @@ test.type <- c('permutations', 'bootstrap')  # for fast simulations
 
 if(run.flag == 1)
 {
-  run.dep <- c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  run.dep <- c(5) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   iterations =10 # for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
-  B = 290  # number of permtuations or bootstrap samples. Shared by all simulations 
+  B = 150  # number of permtuations or bootstrap samples. Shared by all simulations 
   
 } else  # run from command line 
 {
@@ -60,10 +60,10 @@ num.sim <- length(dependence.type)
 if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
   library(copula) # needed for most simulations 
 
-#print(paste0("sample-size=", sample.size))
 for(s in run.dep) # Run all on the farm  
 {
-  prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
+  if(run.flag != 1)
+    prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
   print(paste0("s=", s))
   print(paste0("rho=", prms.rho[[s]]))
   set.seed(1) # set for randomization 

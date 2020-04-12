@@ -31,8 +31,8 @@ TIBS <- function(data, bias.type, test.type, prms)
     prms$naive.expectation <- 0
   
   #################################################################
-  # 1.Compute weights matrix W:  
-  W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
+  # 1.Compute weights matrix W: (not needed) 
+#   W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
   # 2.Create a grid of points, based on the data:
   grid.points <- cbind(data[,1], data[,2])  # keep original points 
   grid.points <- unique.matrix(grid.points)  # set unique for ties? for discrete data

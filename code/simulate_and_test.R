@@ -1,5 +1,6 @@
 library(latex2exp)
 library(xtable)
+library(binom)  # for binomial confidence intervals 
 
 
 # Function running for one dataset: simulate data and perform weighted independent test 
@@ -21,8 +22,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
   num.tests <- length(test.type)
   
   output.file <- paste0('results/', dependence.type, '_all_tests_results_B_', 
-                        B, '_iters_', iterations, '_n_', sample.size, '_rho_', prms.rho) # set output file name
-  num.prms <- length(prms.rho) # [[s]]
+                        B, '_iters_', iterations, '_n_', sample.size, '_rho_', paste(prms.rho, collapse = '_')) # set output file name
+  num.prms <- length(prms.rho)
   if((!run.flag) & file.exists(paste0(output.file, '.Rdata')))
     load(file=paste0(output.file, '.Rdata'))
   else
@@ -75,29 +76,31 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
         ) 
         start.time <- Sys.time()
 
-        # new! run sequencial tests and stop early 
+        # new! run sequencial tests and stop early for bootstrap/permutations
         if(sequential.stopping)
         {
-          print('Run test with sequential (early) stopping')
-          prms$B <- 10
-          prms$gamma <- 0.0000001  # chance that we miss being below/above alpha at an early stop 
-          prms$z_gamma <- abs(qnorm(prms$gamma/2))
+          block.size <- 50
+          prms$B <- block.size
+          prms$gamma <- 0.0001  # chance that we miss being below/above alpha at an early stop - 1/10000 for each block
+#          prms$z_gamma <- abs(qnorm(prms$gamma/2))
           cur.pvalue <- 0
           stop.flag <- 0
-          for(b in 1:(B/10))  # run 10 permutations each time 
+          for(b in 1:(B/block.size))  # run block.size permutations each time 
           {
             cur.test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
             cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
+            
+            cur.conf.int <- binom.confint(cur.pvalue*block.size, b*block.size, conf.level = 1-prms$gamma, method = "wilson")
+            
             # test if we should stop! 
-            if( abs(alpha - cur.pvalue/b) > prms$z_gamma*0.5/sqrt(b*10))   # here stop early !!! 
+#            print(paste('cur.pval=', round(cur.pvalue/b, 3), 'conf.int=(', round(cur.conf.int$lower, 3), ', ', round(cur.conf.int$upper, 3), ') alpha=', alpha))
+            if((alpha < cur.conf.int$lower) ||  (alpha > cur.conf.int$upper))   # here stop early !!! 
             {
-              print(paste('early stopping after ', b*10, ' permutations out of ', B, ' saving: ', round(100*(1-b*10/B), 1), '% of work!'))
+              print(paste0('early stopping after ', b*block.size, ' ', cur.test.type, ' out of ', B, ' saving: ', round(100*(1-b*block.size/B), 1), '% of work!'))
               stop.flag <- 1
             }
-            if(stop.flag || (b == B/10)) # reached last value!
+            if(stop.flag || (b == B/block.size)) # reached last value!
             {
-              print('STOP!')
-              print(paste("b is", b))
               test.results <- c()
               test.results$Pvalue <- cur.pvalue / b
               break
@@ -126,14 +129,16 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
     rownames(test.output) <- c(prms.rho, 'time') # [[s]]
     test.output <- test.output[, test.time[1,,1]>=0, drop = FALSE] # take only relevant tests 
     
-    # save partial results for cases of script crashing
+    print('save results:') # save partial results for cases of script crashing
     if(i.prm < num.prms) # intermediate loops 
     {
+      print(paste0(output.file, '.partial.Rdata'))
       save(test.pvalue, test.time, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.partial.Rdata'))
       print(xtable(test.output[c(1:i.prm, i.prm+2),], type = "latex", digits=3), 
             file = paste0(output.file, '.partial.tex'), size="\\tiny") # save in latex format
     } else #    if(i.prm == num.prms) # final loop 
     {
+      print(paste0(output.file, '.partial.Rdata ELSE'))
       save(test.pvalue, test.time, test.power, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.Rdata'))  
       print(xtable(test.output, type = "latex", digits=3), 
             file = paste0(output.file, '.tex'), size="\\tiny") # save in latex format 

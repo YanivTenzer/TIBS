@@ -21,7 +21,6 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
-    #Exp <- dim(data)[1] * (null.expectations.table[i,]+1) / (sum(null.expectations.table[i,])+4) # New! add pseudo count to avoid statistic inflation for low expected values 
     Exp <- null.expectations.table[i,]
     Rx <- data[,1]>grid.points[i,1]
     Ry <- data[,2]>grid.points[i,2]
@@ -380,8 +379,13 @@ PlotBiasedData <- function(dependence.type, biased.data, prms)
 
 ###################################################################################################
 # Compute density of product of two Gaussian densities  
+# Parameters:
 # mu1, mu2 - mean vectors 
 # sigma1, sigma2 - covariance matrices
+# 
+# Output:
+# mu - mean vector of product distribution
+# sigma - covariance matrix of product distribution
 ###################################################################################################
 GaussianDensityProduct <- function(mu1, mu2, sigma1, sigma2)
 {
