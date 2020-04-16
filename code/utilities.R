@@ -36,8 +36,75 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
   
   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
 }
-
 #########################################################################################
+ComputeStatistic_inverse_weighting<- function(data, grid.points, W)
+{
+  obs.table<-matrix(0, dim(grid.points)[1], 4)
+  Obs<-Exp<-matrix(0,4,1) # observed & expected
+  n_tilde <- sum(1/diag(W))
+  Statistic <- 0  
+  min_Exp<-1/dim(data)[1]
+  
+  for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
+  {
+    Rx <- data[,1]>grid.points[i,1]
+    Ry <- data[,2]>grid.points[i,2]
+    
+    idx1 <- which(Rx*Ry==1)
+    Obs[1] <- sum(1/diag(W)[idx1])
+    idx2 <- which(Rx*(!Ry)==1)
+    Obs[2] <-sum(1/diag(W)[idx2])
+    idx3 <- which((!Rx)*(!Ry)==1)
+    Obs[3] <- sum(1/diag(W)[idx3])
+    idx4 <- which(Ry*(!Rx)==1)
+    Obs[4] <- sum(1/diag(W)[idx4])
+    Obs<-Obs*(n_tilde^(-1))
+    
+    Exp[1]<-sum(1/diag(W)[Rx])*sum(1/diag(W)[Ry])
+    Exp[2]<-sum(1/diag(W)[Rx])*sum(1/diag(W)[which(!Ry==1)])
+    Exp[3]<-sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[which(!Ry==1)])
+    Exp[4]<-sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[Ry])
+    Exp<-Exp*(n_tilde^(-2))
+    
+    obs.table[i,] <- Obs
+    
+    if (min(Exp)>min_Exp){
+      Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+    }
+  } # end loop on grid points 
+  
+  return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
+}
+#########################################################################################
+ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
+  W <- apply(data,1,w)
+  n.w <- sum(1/W)
+  obs.table<-exp.table <- matrix(0, dim(grid.points)[1], 4)
+  Obs<-Exp<-matrix(0,4,1) # observed & expected
+  Statistic <- 0 
+  for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
+  {
+    Rx <- data[,1]>grid.points[i,1]
+    Ry <- data[,2]>grid.points[i,2]
+    Exp[1] <- sum(Rx/W)*sum(Ry/W)/n.w^2
+    Exp[2] <- sum(Rx/W)*sum((!Ry)/W)/n.w^2
+    Exp[4] <- sum((!Rx)/W)*sum(Ry/W)/n.w^2
+    Exp[3] <- sum((!Rx)/W)*sum((!Ry)/W)/n.w^2
+    Obs[1] <- sum(Rx*Ry/W)/n.w
+    Obs[2] <- sum(Rx*(!Ry)/W)/n.w
+    Obs[4] <- sum((!Rx)*Ry/W)/n.w
+    Obs[3] <- sum((!Rx)*(!Ry)/W)/n.w
+    obs.table[i,] <- Obs
+    exp.table[i,] <- Exp
+    if (min(Exp)>(1/dim(data)[1])) {
+      Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+    } 
+  } # end loop on grid points 
+  
+  return(list(Statistic=Statistic, obs.table=obs.table,exp.table=exp.table)) 
+  # returns also expected and observed tables for diagnostics
+}
+#################################################################
 # sample permutations, using MCMC, over the set of valid permutations, 
 # with respect to the distribution appears in Eq 8
 # Parameters: 

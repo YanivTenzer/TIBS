@@ -36,8 +36,29 @@ TIBS <- function(data, bias.type, test.type, prms)
   # 2.Create a grid of points, based on the data:
   grid.points <- cbind(data[,1], data[,2])  # keep original points 
   grid.points <- unique.matrix(grid.points)  # set unique for ties? for discrete data
-
+ 
   switch(test.type,
+         'bootstrap_inverse_weighting'={
+           marginals <- EstimateMarginals(data, bias.type)
+           W = GetBiasedSamplingWeights(marginals$xy, dim(marginals$xy)[1], bias.type) 
+           null.distribution <- GetNullDistribution(marginals$PDF, W)
+           
+           TrueT=ComputeStatistic_inverse_weighting(data, grid.points, W)
+           TrueT <- TrueT$Statistic
+           
+           statistics.under.null=matrix(0, prms$B, 1)
+           for(ctr in 1:prms$B) 
+           {
+             if(mod(ctr,100)==0)
+               print(paste0("Run Boots=", ctr))
+             
+             bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, bias.type, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
+             W.bootstrap=GetBiasedSamplingWeights(bootstrap.sample, dim(bootstrap.sample)[1], bias.type)
+             NullT <- ComputeStatistic_inverse_weighting(bootstrap.sample, grid.points, W.bootstrap)
+             statistics.under.null[ctr] <- NullT$Statistic
+           }
+           output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
+         },
          'bootstrap'={
            #3. Estimate the marginals
            marginals <- EstimateMarginals(data, bias.type)
@@ -123,6 +144,26 @@ TIBS <- function(data, bias.type, test.type, prms)
            }
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations test 
+         'permutations_inverse_weighting'={
+           W=GetBiasedSamplingWeights(data, dim(data)[1], bias.type)
+           TrueT = ComputeStatistic_inverse_weighting(data, grid.points, W)$Statistic
+          
+           Permutations=PermutationsMCMC(W, dim(data)[1], prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
+           Permutations=Permutations$Permutations
+          #Compute the statistics value for each permutation:
+           statistics.under.null = matrix(0, prms$B, 1)
+           for(ctr in 1:prms$B) 
+           {
+             if(mod(ctr,100)==0)
+               print(paste0("Comp. Stat. Perm=", ctr))
+            
+             permuted_sample =  cbind(data[,1], data[Permutations[,ctr],2])
+             W.permutation=GetBiasedSamplingWeights(permuted_sample, dim(permuted_sample)[1], bias.type)
+             NullT <- ComputeStatistic_inverse_weighting(permuted_sample, grid.points, W.permutation)
+             statistics.under.null[ctr] <- NullT
+           }
+           output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
+         },  # end permutations with inverse weighting test 
          'tsai' = {result <- TsaiTestTies(data[,1],data[,2]) # Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
          output <- list(Pvalue=result[2])
          },
