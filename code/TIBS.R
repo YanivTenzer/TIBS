@@ -124,10 +124,15 @@ TIBS <- function(data, bias.type, test.type, prms)
            {
               if(prms$PL.expectation)  # get expectations from the bootstrap estimator
               {
+                if (!typeof(bias.type)=="character")
+                {
+                  cat("bias type must be a string and not a funciton")
+                }else{
                   marginals <- EstimateMarginals(data, bias.type)
                   W = GetBiasedSamplingWeights(marginals$xy, dim(marginals$xy)[1], bias.type)
                   null.distribution <- GetNullDistribution(marginals$PDF, W)
                   expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$null.distribution, grid.points)
+                }
               } else
                   expectations.table <- QuarterProbFromPermutations(data, P, grid.points)  # Permutations
            }
