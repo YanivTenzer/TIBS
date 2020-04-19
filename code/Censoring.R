@@ -150,8 +150,13 @@ for(dependence in dependence.type)
       Prms$delta = dat$delta
       minP2 <- TIBS(data=dat[,1:2], w.fun1, test.type='minP2',Prms)
       
-      res <- rbind(res,c(tibs1$Pvalue, minP2$Pvalue, dim(only.uncens)[1]))
+      #Tsai:
+      tsai <- TIBS(data=dat[,1:2], NA, test.type='tsai',NA)
+      
+      res <- rbind(res,c(tibs1$Pvalue, minP2$Pvalue, tsai$Pvalue, dim(only.uncens)[1]))
     }
+    res = as.data.frame(res)
+    colnames(res)<-c('tibs', 'minP2', 'tsai', 'n')
     save(dependence.type, prm, res,file=paste0(output_dir, '/LTRC_', dependence, toString(idx),'.Rdata'))
   }
 }
