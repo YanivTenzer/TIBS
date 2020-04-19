@@ -8,21 +8,103 @@ library(mvtnorm)
 library(ggplot2)
 library(survival)
 source("TIBS.R")
+source("simulate_biased_sample.R")
 
 # sampling left truncated right censored data
-# log normal with correlation rho
-
-samp.LTRC <- function(n=200,rho=0){
+samp.LTRC <- function(n=200,rho=0, dependence.type){
   k <- 0 
   X <- NULL; Y<- NULL
   while(k<n){
-    XX <- rmvnorm(n = n-k,mean = c(0,0),sigma = matrix(c(1,rho,rho,1),2,2))
-    keep <- I(XX[,1]<XX[,2])
-    X <- c(X,exp(XX[keep,1]))
-    Y <- c(Y,exp(XX[keep,2]))
-    k <- length(X)
+    
+    if(dependence.type=='micha_example')
+    {
+      XX <- rmvnorm(n = n-k,mean = c(0,0),sigma = matrix(c(1,rho,rho,1),2,2))
+      keep <- I(XX[,1]<XX[,2])
+      X <- c(X,exp(XX[keep,1]))
+      Y <- c(Y,exp(XX[keep,2]))
+      k <- length(X)
+    }
+    
+    if(dependence.type=='Gaussian')
+    {
+      library(mvtnorm)
+      xy<-rmvnorm(n=n-k, c(0,0), matrix(c(1, rho, rho,1),2,2))  
+      keep <- I(xy[,1]<xy[,2])
+      X_new = xy[keep==1,1]
+      Y_new = xy[keep==1,2]
+      X <- c(X,X_new)
+      Y <- c(Y,Y_new)
+      k <- length(X)
+    }
+    if(dependence.type=='LD')
+    {
+      library(copula)  
+      GaussianCop<- normalCopula(param=rho, dim = 2, dispstr = "ex") # if needed
+      ranks<- rCopula(n-k, GaussianCop)
+      X_1<-qexp(ranks[,2], rate = 0.2)
+      Y_1<-qweibull(ranks[,1], shape = 3, scale = 2, lower.tail = TRUE, log.p = FALSE)
+      keep <- I(X_1<Y_1)
+      X_new = X_1[keep==1]
+      Y_new = Y_1[keep==1]
+      X <- c(X,X_new)
+      Y <- c(Y,Y_new)
+      k <- length(X)
+    }
+    
+    if(dependence.type=='nonmonotone_nonexchangeable')
+    {
+      library(copula)  # y ~ weibull, x ~ Gaussian copula 
+      GaussianCop<- normalCopula(param=rho, dim = 2, dispstr = "ex") # if needed
+      ranks<- rCopula(n-k, GaussianCop)
+      Y_1<-qweibull(ranks[,1], shape = 0.5, scale = 2, lower.tail = TRUE, log.p = FALSE)
+      X_1<-0.5 * (ranks[,2] * sample(c(-1,1), 1)+ 1)
+      keep <- I(X_1<Y_1)
+      X_new = X_1[keep==1]
+      Y_new = Y_1[keep==1]
+      X <- c(X,X_new)
+      Y <- c(Y,Y_new)
+      k <- length(X)
+    }
+    if(dependence.type=='CLmix')
+    {
+      library(copula)
+      xy <- rCopula(n-k, claytonCopula(0.5-rbinom(1, 1, 0.5)))
+      X_1<-xy[,1]
+      Y_1<-xy[,2]
+      keep <- I(X_1<Y_1)
+      X_new = X_1[keep==1]
+      Y_new = Y_1[keep==1]
+      X <- c(X,X_new)
+      Y <- c(Y,Y_new)
+      k <- length(X)
+    }
+    if(dependence.type=='Gumbel')
+    {
+      library(copula)
+      xy <- qnorm(rCopula(n-k, gumbelCopula(rho)))
+      X_1<-xy[,1]
+      Y_1<-xy[,2]
+      keep <- I(X_1<Y_1)
+      X_new = X_1[keep==1]
+      Y_new = Y_1[keep==1]
+      X <- c(X,X_new)
+      Y <- c(Y,Y_new)
+      k <- length(X)
+    }
   }
-  C <- rgamma(n,shape=4,scale=0.5)
+
+  if(dependence.type %in% c("Gumbel", "CLmix"))
+  {
+    C <- rgamma(n,shape=1,scale=1.5)
+  }else{
+    if(dependence.type %in% c('LD'))
+    {
+      C <- rgamma(n,shape=1.5,scale=1.5)
+    }else
+    {
+      C <- rgamma(n,shape=5,scale=1.5)
+    }
+  }
   X.obs <- X
   Y.obs <- pmin(Y,X+C)
   delta <- (Y<= X+C)
@@ -32,54 +114,82 @@ samp.LTRC <- function(n=200,rho=0){
 
 
 ### Simulation - comparing true weight fun to two estimates
-n.sim <- 100
-n.samp <- 200
-prms <- list(B = 200)
-rho <- -0.5
-res <- c()
-for (i in 1:n.sim){
-  dat <- samp.LTRC(n=n.samp,rho=rho)
-  KM <- survfit(Surv(Y.obs-X.obs,!delta) ~ 1,data=dat)
-  Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
-  Srv.C2 <- stepfun(KM$time,c(1,KM$surv))
-  Srv.C3 <- function(x){pgamma(x,shape=4,scale=0.5,lower.tail = FALSE)}
-  only.uncens <- dat[dat$delta,1:2]
-  w.fun1 <- function(x,y){(x<y)*Srv.C1(y-x)}
-  w.fun2 <- function(x,y){(x<y)*Srv.C2(y-x)}
-  w.fun3 <- function(x,y){(x<y)*Srv.C3(y-x)}
-  tibs1 <- TIBS(data=only.uncens, bias.type=w.fun1, test.type='permutations',prms=prms)
-  tibs2 <- TIBS(data=only.uncens, bias.type=w.fun2, test.type='permutations',prms=prms)
-  tibs3 <- TIBS(data=only.uncens, bias.type=w.fun3, test.type='permutations',prms==prms)
-  res <- rbind(res,c(tibs1$Pvalue,tibs2$Pvalue,tibs3$Pvalue,dim(only.uncens)[1]))
+n.sim <- 10
+n.samp <-200
+B <- 20
+Prms<-list()
+Prms$naive.expectation = 0
+Prms$PL.expectation = 0
+Prms$B = B
+
+dependence.type = c('nonmonotone_nonexchangeable', 'LD', 'Gumbel', 'CLmix')
+prms <- list(seq(0,0.2,0.1), seq(0,0.2, 0.1), c(1.6), c(0))
+names(prms) <- c('nonmonotone_nonexchangeable', 'LD', 'Gumbel', 'CLmix')
+
+output_dir <- '~/Documents/TIBS/code' #(set your output dir)
+########################################################################
+# Main loop
+#######################################################################
+for(dependence in dependence.type)
+{
+  idx = 0
+  res <- c()
+  for(prm in prms[[dependence]])
+  {
+    idx = idx+1
+    for(rep_idx in seq(n.sim))
+    {
+      dat <- samp.LTRC(n=n.samp,rho=prm, dependence)
+      only.uncens <- dat[dat$delta==1,1:2]
+      KM <- survfit(Surv(Y.obs-X.obs,!delta) ~ 1,data=dat)
+      Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
+      w.fun1 <- function(x,y){(x<y)*Srv.C1(y-x)}
+      tibs1 <- TIBS(data=only.uncens, bias.type=w.fun1, test.type='permutations',prms=Prms)
+      
+      #minP2:
+      Prms$delta = dat$delta
+      minP2 <- TIBS(data=dat[,1:2], w.fun1, test.type='minP2',Prms)
+      
+      res <- rbind(res,c(tibs1$Pvalue, minP2$Pvalue, dim(only.uncens)[1]))
+    }
+    save(dependence.type, prm, res,file=paste0(output_dir, '/LTRC_', dependence, toString(idx),'.Rdata'))
+  }
+}
+################################################################
+#  end of main loop
+#############################################################
+power<-c()
+for(idx in seq(1,10))
+{
+  #File = paste0('~/Dropbox/cond_ind/code/censoring/Gaussian_with_censoring/','Gaussian_', toString(idx), '.Rdata')
+  File = paste0('~/Dropbox/cond_ind/code/LD', toString(idx), '.Rdata')
+  load(File)
+  power<-rbind(power, c(mean(res[,1]<0.05),mean(res[,2]<0.05),mean(res[,3]<0.05), mean(res[,4]<0.05)))
 }
 
-summary(res)
-c(mean(res[,1]<0.05),mean(res[,2]<0.05),mean(res[,3]<0.05))
+power = data.frame(power)
+colnames(power)<-c('tibs1', 'tibs2', 'tibs3', 'minp2')
+library(cast)
+power_melt<-melt(power)
+power_melt<-data.frame(power_melt)
+colnames(power_melt)<-c("test", 'power')
+rho = rep(seq(0, 0.9, 0.1), 4)
+power_melt<-cbind(power_melt, rho)
 
-
+jpeg('LD_35_with_censoring.jpeg')
+p<-ggplot(power_melt, aes(x=rho, y=power, group=test, linetype=test)) +
+  theme(axis.title.x=element_blank(), axis.title.y=element_blank(), 
+        panel.background = element_blank(),
+        axis.line = element_line(colour = "black"),
+        axis.text.x = element_text(size = 30),
+        axis.text.y = element_text(size = 30),
+        axis.ticks.y = element_blank())+#,
+  #legend.position = "none")+
+  scale_y_continuous(limits = c(0, 1), breaks=c(0, 0.3, 0.6, 0.9))+
+  geom_line(aes(color=test),size=1.2)+
+  geom_point(aes(color=test, shape=test), stroke = 2)+
+  scale_shape_manual(values = c(5, 3,4,19,25,7,8,9))+
+  scale_size_manual(values=rep(20,7)) 
+print(p)
+dev.off()
 #############################################################
-#############################################################
-# a simple example 
-
-dat <- samp.LTRC(n=200,rho=-0.3)
-# descriptive
-table(dat$delta)
-ggplot(dat, aes(x = X.obs, y = Y.obs, colour = as.factor(delta))) +
-  geom_point() + geom_abline(intercept = 0, slope = 1)
-
-KM <- survfit(Surv(Y.obs-X.obs,!delta) ~ 1,data=dat)
-# to eliminate 0 values, we use Nelson AAlen instead of Kaplan-Meier
-Srv.C <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
-curve(Srv.C(x),col="green",0,max(dat$Y.obs))
-Srv.C <- function(x){pgamma(x,shape=4,scale=0.5,lower.tail = FALSE)}
-
-only.uncens <- dat[dat$delta,1:2]
-w.fun <- function(x,y){
-  (x<y)*Srv.C(y-x)
-}
-
-w.dat <- w.fun(only.uncens$X.obs,only.uncens$Y.obs)
-summary(w.dat)
-
-TIBS(data=only.uncens, bias.type=w.fun,list(B = 1000), test.type='permutations',prms=c())
-
