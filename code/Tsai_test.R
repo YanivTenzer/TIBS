@@ -1,24 +1,36 @@
-# Tsai's test for quasi-independence. [Tsai, 1990]
-# test for truncation independent of total time
-# X - truncation time, 
+# Tsai's test for quasi-independence [Tsai, 1990].
+# P-val by normal approximation - OK censoring and ties. 
+# L - truncation time
 # Y - lifetime (no censoring)
-# The criterion of truncation is X<=Y
-TsaiTestTies <- function(X,Y){
-  ii <- order(Y)
-  X.sort <- X[ii]
-  Y.sort <- Y[ii]
-  n <- length(X)
-  S <- V <- rep(0, n)
-  for (i in 1:n){
-    risk.i <- which(X.sort[i:n]<=Y.sort[i])+i-1
-    S[i] <- sum(X.sort[risk.i]>X.sort[i])-sum(X.sort[risk.i]<X.sort[i])
-    t.risk <- table(X.sort[risk.i])
-    R <- length(risk.i)
-    V[i] <- (R^2-1)/3-sum(t.risk^3-t.risk)/(3*R)
+# del - optional censoring indicator (1=failure, 0=censoring)
+# NOTE: The criterion of truncation is L<=Y so:
+# Y_j is in risk set of Y_i if L_j=Y_i
+# For strict truncation L<Y add 'epsilon' to all Y's
+
+Tsai.test <- function(L,Y,del=rep(1,length(Y))){
+  n <- length(Y)
+  Risk <- vector(mode = "list", length = n)
+  for (i in 1:n) {
+    set.i <- which(L<=Y[i] & Y>=Y[i])
+    Risk[[i]] <- set.i
   }
-  var.H0 <- sum(V[which(is.nan(V)==FALSE)])
-  tsai.stat <- sum(S)^2/var.H0
-  tsai.p <- 1-pchisq(tsai.stat,1)
-  return(c(tsai.stat,tsai.p))
+  S.i <- NULL
+  V.i <- NULL
+  for (i in 1:n){
+    if (del[i]==1) {
+      S.i[i] <- sum(sign(L[Risk[[i]]]-L[i]))
+      ties <- table(L[Risk[[i]]])
+      risk.size <- length(Risk[[i]])
+      V.i[i] <- (risk.size^2-1)/3-sum(ties^3-ties)/(3*risk.size)
+    } else {
+      S.i[i] <- 0
+      V.i[i] <- 0
+    }
+  }
+  K.star <- sum(S.i)
+  V <- sum(V.i)
+  test.stat <- K.star/sqrt(V)
+  p <- 2*pnorm(-abs(test.stat))
+  return(rbind(K.star,sqrt(V),test.stat,p))
 }
 
