@@ -23,7 +23,7 @@ plot.flag <- 1
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
 datasets <- c('huji', 'AIDS', 'ICU', 'Infection')
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
-bias.type <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum')
+w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum')
 prms = c()
 W.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
 n.datasets <- length(datasets)
@@ -62,15 +62,15 @@ for(d in 1:n.datasets) # loop on datasets.
   prms$W.max <- W.max[d] 
   for(t in 1:n.tests) # run all tests 
   {
-    if((!(bias.type[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
+    if((!(w.fun[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
       next  # these tests run only for truncation 
-    if((test.type[t] == 'bootstrap') & (bias.type[d] %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
+    if((test.type[t] == 'bootstrap') & (w.fun[d] %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
       next # can't run bootstrap because w can be zero 
     set.seed(1)
     
     print(paste0(datasets[d], ", ", test.type[t], ":"))
     start.time <- Sys.time()
-    results.test<-TIBS(input.data, bias.type[d], test.type[t], prms)
+    results.test<-TIBS(input.data, w.fun[d], test.type[t], prms)
     test.time[d,t] <- Sys.time() - start.time
     test.pvalue[d,t] <- results.test$Pvalue 
     cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')

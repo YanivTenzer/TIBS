@@ -2,18 +2,23 @@
 # Estimate marginals Fx, Fy from biased sample with density proportional to Fxy * W
 # Parameters: 
 # data - 2*n sample (X,Y)
-# bias.type - string indicating w function 
+# w.fun - biased sampling w function 
+#
+# Output: 
+# xy - data
+# CDFs - cdf of the estimated marginals
+# PDFs - pdfs of the estimated marginals 
 ##############################################################################
-EstimateMarginals<-function(data, bias.type)
+EstimateMarginals<-function(data, w.fun)
 {
-  if(bias.type %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) # for w(x,y)>0 cases 
+  if(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) # for w(x,y)>0 cases 
   { #case 1: strictly positive W, use ML estimator
-    W.inv <- 1/BiasedSamplingW(data[,1], data[,2], bias.type)
-    Fx <- Fy <- W.inv / sum(W.inv) # normalize 
+    w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun)
+    Fx <- Fy <- w.inv / sum(w.inv) # normalize 
     PDF.table = as.data.frame(cbind(Fx, Fy))
     CDF.table = NULL
   } else{ 
-    if(bias.type %in% c('survival')) 
+    if(w.fun %in% c('survival'))  # what is the definition of w here? 
     {
       # Estimate marginals using Kaplan-Meier estimator 
       n <- dim(data)[1]
@@ -25,14 +30,14 @@ EstimateMarginals<-function(data, bias.type)
       CDF.table<-cbind(rev(Fx$surv), 1-Fy$surv)
       data <- cbind(rev(-Fx$time), Fy$time)
       PDF.table<-GetMarginalsPDF(data, CDF.table)
-    } else {
-      if(bias.type %in% c('naive', 'no_bias')) # no bias (assume W(x,y)=1)
+    } else {  
+      if(w.fun %in% c('naive', 'no_bias')) # no bias (assume W(x,y)=1)
       {
         Fx<-ecdf(data[,1])
         Fy<-ecdf(data[,2])
         CDF.table<-cbind(Fx(data[,1]),Fy(data[,2]))
         PDF.table<-GetMarginalsPDF(data, CDF.table)
-      } else {
+      } else {  # general biased sampling function (w.fun can be a function not a string)
         #case 2: left truncation, use the estimator of proposition 1 in the paper for exchangable distributions
         # Augment data to include both x and y values for each axis (due to symmetry)
         augment.data <- 1 # new: add xy values 

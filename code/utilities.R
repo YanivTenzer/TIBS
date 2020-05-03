@@ -189,11 +189,11 @@ GetNullDistribution <- function(pdfs, W)
 # Parameters: 
 # data - n*2 array with (X,Y) samples
 # pdfs - fx and fy  
-# bias.type - W
+# w.fun - Biased sampling function w 
 # prms - for w max 
 # n - allow a different sample size 
 ############################################################################################
-Bootstrap <- function(data, pdfs, bias.type, prms, n=NULL)
+Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
 {
   if(is.null(n))
     n = dim(data)[1]
@@ -203,7 +203,7 @@ Bootstrap <- function(data, pdfs, bias.type, prms, n=NULL)
   {   # sampling n-k together
     x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X from Fx
     y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y from Fy
-    keep <- which(as.logical(rbinom(n-k, 1, BiasedSamplingW(x, y, bias.type)/prms$W.max)))
+    keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$W.max)))
     if(isempty(keep))
       next
     boot.sample[1:length(keep)+k,] <- cbind(x[keep],y[keep]) 

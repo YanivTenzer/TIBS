@@ -12,7 +12,7 @@ library(binom)  # for binomial confidence intervals
 # test.power - estimated power of the test
 # test.output - structure containing power and running time 
 # 
-simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.type='truncation',
+simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun='truncation',
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
                               B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0)
 {
@@ -41,7 +41,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
     ##      iteration_result <- matrix(0, 4, B+1)
     for(i in 1:iterations) # run simulations multiple times 
     { 
-      biased.data <- SimulateBiasedSample(sample.size, dependence.type, bias.type, prms) 
+      biased.data <- SimulateBiasedSample(sample.size, dependence.type, w.fun, prms) 
       all.data <- biased.data$all.data
       biased.data <- biased.data$data 
       if((!run.flag) & file.exists(paste0(output.file, '.Rdata'))) # simulate only once 
@@ -51,15 +51,15 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
         prms$fast.bootstrap <- 0 # method for computing null expectations 
         prms$naive.expectation <- 0 # Check test with standard expectations
         # Skip irrelevant tests 
-        if((!(bias.type %in% c('truncation', 'Hyperplane_Truncation'))) & 
+        if((!(w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & 
            (test.type[t] %in% c("tsai", 'minP2')))
           next  # these tests run only for truncation 
         if(test.type[t] == 'bootstrap')
         {
-          if(bias.type == 'huji')
+          if(w.fun == 'huji')
             next
           # Run bootstrap even for truncation! (although the results are wrong here)
-          #          if((bias.type[s] %in% c('truncation', 'Hyperplane_Truncation')) & (!exchange.type[s]))
+          #          if((w.fun[s] %in% c('truncation', 'Hyperplane_Truncation')) & (!exchange.type[s]))
           #            next # can't run bootstrap because w can be zero, unless we assume exchangability !!! 
         }      
         if((t %in% c(5:7)) & !(dependence.type %in% c('Gaussian', 'Clayton', 'Gumbel', 'LD')))
@@ -87,7 +87,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
           stop.flag <- 0
           for(b in 1:(B/block.size))  # run block.size permutations each time 
           {
-            cur.test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
+            cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
             cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
             
             cur.conf.int <- binom.confint(cur.pvalue*block.size, b*block.size, conf.level = 1-prms$gamma, method = "wilson")
@@ -108,7 +108,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), bias.
           }
           
         } else   # run full test: just simulate all B permutations 
-            test.results<-TIBS(biased.data, bias.type, cur.test.type, prms)
+            test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue
         print(paste0(dependence.type, ', rho=', prms$rho, '. Test: ', test.type[t], 

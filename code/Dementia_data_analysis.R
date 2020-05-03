@@ -1,4 +1,5 @@
 # TESTING INDEPENDENCE - DEMENTIA DATA 
+# Should unite this with real_life_datasets 
 
 library(survival)
 source("TIBS.R")
@@ -9,7 +10,7 @@ source("TIBS.R")
 ###########################################
 
 ### Get data.
-prevdata<-read.csv("C:/Users/mm/Dropbox/marco/Nonparametric bivariate estimation/Old folder/Data analysis/cshaforRCSV.csv");
+prevdata<-read.csv("C:/Users/mm/Dropbox/marco/Nonparametric bivariate estimation/Old folder/Data analysis/cshaforRCSV.csv"); # change to relative path 
 ### Clean data.
 badindex<-which(prevdata$duration-prevdata$truncation<=0);
 prevdata<-prevdata[-badindex,];
@@ -43,7 +44,7 @@ x.csha <- cshadata$w-cshadata$x
 y.csha <- cshadata$v
 delta.csha <- cshadata$delta
 csha.delta1 <- data.frame(x.csha[delta.csha],y.csha[delta.csha])
-TIBS(data=csha.delta1, bias.type=w.fun1, B=1000, test.type='permutations',prms=c())
+TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
 
 
 

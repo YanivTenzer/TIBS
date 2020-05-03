@@ -3,13 +3,13 @@
 # Parameters: 
 # n - sample size 
 # dependence.type - distribution (copula, normal, ..)
-# bias.type - function W(x,y) to use
+# w.fun - function W(x,y) to use
 # prms - parameters of distribution
 #
 # Output: 
 # data - an n*2 array with (x,y) values
 #########################################################################
-SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
+SimulateBiasedSample <- function(n, dependence.type, w.fun, prms)
 {
   library('copula')
   
@@ -73,13 +73,13 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
     ) # end switch 
     
     # Next decide if to keep point based on W
-    if(bias.type %in% c('truncation'))  # w(x,y)=1_{x<y}
+    if(w.fun %in% c('truncation'))  # w(x,y)=1_{x<y}
     {
       keep <- xy[1] <= xy[2]
     } else
     {
       # w(x,y)>0 , use rejection sampling 
-      keep <- rbinom(1, 1, BiasedSamplingW(xy[1], xy[2], bias.type)/prms$W.max)
+      keep <- rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$W.max)
     }
     if(keep) 
     {
@@ -105,14 +105,17 @@ SimulateBiasedSample <- function(n, dependence.type, bias.type, prms)
 }
 
 #######################################################################
-# Compute bias function used 
+# A set of biased sampling functions to be used 
 # Input: 
 # x, y - data 
-# bias.type - string indicating W type 
+# w.fun - string indicating W type 
+# 
+# Output: 
+# The values of w evaluated at the (x,y) array 
 ########################################################################
-BiasedSamplingW <- function(x, y, bias.type) {
-  if (typeof(bias.type)=="character") {
-    r <- switch(bias.type, 
+w_fun_eval <- function(x, y, w.fun) {
+  if(typeof(w.fun)=="character") {
+    r <- switch(w.fun, 
                 'truncation'={x<y},
                 'Hyperplane_Truncation'={(x<y)},
                 'exp'= { exp((-abs(x)-abs(y))/4)},
@@ -120,12 +123,11 @@ BiasedSamplingW <- function(x, y, bias.type) {
                 'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
                 'stritcly_positive'={exp((-abs(x)-abs(y))/4)}, # like exp? 
                 'sum'={x+y},
-                'naive'={1}
-    )
-  } else {
-    r <- bias.type(x,y)
+                'naive'={1})
+  } else {  # here w.fun is a function. Apply it to the array 
+    r <- w.fun(x,y)
   }
-  return(r)
+  return (r)
 }
 
 
@@ -133,13 +135,13 @@ BiasedSamplingW <- function(x, y, bias.type) {
 #  Compute the N*N matrix of sampling weights:
 # Parameters: 
 # data - n*2 matrix with (x,y) sample
-# N - sample size 
-# biased.method - method for matrix computation
+# w.fun - biased sampling function W
 #########################################################################
-GetBiasedSamplingWeights <- function(data, N, biased.method)
+w_fun_to_mat <- function(data, w.fun)
 {
-  W = matrix(0,N,N)
-  for(i in 1:N)
-    W[i,] <- BiasedSamplingW(data[i,1], data[,2], biased.method)
-  return (W)
+  n <- dim(data)[1]  # get sample size 
+  w.mat = matrix(0,n,n)
+  for(i in 1:n)
+    w.mat[i,] <- w_fun_eval(data[i,1], data[,2], w.fun)
+  return (w.mat)
 }

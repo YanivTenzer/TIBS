@@ -144,7 +144,7 @@ for(dependence in dependence.type)
       KM <- survfit(Surv(Y.obs-X.obs,!delta) ~ 1,data=dat)
       Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
       w.fun1 <- function(x,y){(x<y)*Srv.C1(y-x)}
-      tibs1 <- TIBS(data=only.uncens, bias.type=w.fun1, test.type='permutations',prms=Prms)
+      tibs1 <- TIBS(data=only.uncens, w.fun=w.fun1, test.type='permutations',prms=Prms)
       
       #minP2:
       Prms$delta = dat$delta

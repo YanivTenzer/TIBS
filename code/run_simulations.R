@@ -33,7 +33,7 @@ sequential.stopping <- 1 # New! use early stopping to save time !
 # Vectors with different dependency settings 
 dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 
                      'LD', 'nonmonotone_nonexchangeable', 'CLmix', 'strictly_positive')
-bias.type <- c('truncation', 'truncation', 'truncation', 'truncation', 
+w.fun <- c('truncation', 'truncation', 'truncation', 'truncation', 
                'truncation', 'truncation', 'truncation', 'exponent_minus_sum_abs') # not good that we have only one simulation with positive W. Should add X+Y?
 monotone.type <- c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE) # is monotone
 exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) # is exchangeable
@@ -70,7 +70,7 @@ for(s in run.dep) # Run all on the farm
   set.seed(1) # set for randomization 
   # Call function. # run simulations function 
   print(paste("n=", sample.size[s]))
-  T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], bias.type[s], test.type, # run all tests 
+  T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], w.fun[s], test.type, # run all tests 
                              B, sample.size[s], iterations, plot.flag, alpha, sequential.stopping)  
   
 } # end loop on dependency types
