@@ -333,8 +333,53 @@ QuarterProbGaussianAnalytic <- function(grid.points)
 }
 
 
+##############################################################################
+# Convert marginal PDF to PDF from data 
+# Parameters: 
+# CDF.table - matrix with every column a vector of CDF of each variable 
+# Output: 
+# PDF.table - matrix with every column a vector of PDF of each variable  
+##############################################################################
+CDFToPDFMarginals <- function(CDF.table)
+{
+  n<-dim(CDF.table)[1]  # number of samples 
+  PDF.table <- array(0L, dim(CDF.table))  # matrix(0, num.samples, num.variables)
+  for(i in 1:dim(CDF.table)[2])  # loop on variables 
+  {
+    sorted.CDF<-sort(CDF.table[,i], index.return=TRUE)
+    PDF.table[sorted.CDF$ix,i] <- c(sorted.CDF$x[1], sorted.CDF$x[-1]-sorted.CDF$x[-n])
+  }
+  return(PDF.table)
+}
+
+
+
+##############################################################################
+# Convert marginal PDF to CDF from data 
+# Parameters: 
+# data - k*n array of variables 
+# PDF.table - matrix with every column a vector of PDF of each variable  
+# Output: 
+# CDF.table - matrix with every column a vector of CDF of each variable 
+##############################################################################
+PDFToCDFMarginals <- function(data, PDF.table)
+{
+  n<-dim(PDF.table)[1]  # number of samples 
+  CDF.table <- array(0L, dim(PDF.table))  # matrix(0, num.samples, num.variables)
+  
+  for(i in 1:dim(PDF.table)[2])  # loop on variables 
+  {
+    print("do i")
+    Px <- sort(data[,i], index.return=TRUE)  # Permute to order x_i, y_i 
+    print(Px)
+    CDF.table[Px$ix,i] <- cumsum(PDF.table[Px$ix,i])
+  }
+  return(CDF.table)
+}
+
+
 ###################################################################################################
-# Compute  2d cumulative distribution. When we have ties we need to correct this
+# Compute 2d cumulative distribution. When we have ties we need to correct this
 #
 # pdf.2d - a two-dim array of probabilities 
 # data - xy points with probabilities (used for sorting)
@@ -343,10 +388,9 @@ PDFToCDF2d <- function(pdf.2d, data)
 {
   Px <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
   Py <- sort(data[,2], index.return=TRUE)
-  cdf.2d <- apply(pdf.2d[Px$ix, Py$ix], 2, cumsum)
-  cdf.2d <- apply(cdf.2d, 1, cumsum)
-  
-  # Deal with ties (not working yet)
+  cdf.2d <- apply(apply(pdf.2d[Px$ix, Py$ix], 2, cumsum), 1, cumsum)  # cumsum on rows and columns 
+
+  # Use data to deal with ties (not working yet)
   #  ties.x <- which(data[-1,1] == head(data[,1], -1))
   #  ties.y <- which(data[-1,2] == head(data[,2], -1))
   #  for(i in rev(ties.y))
@@ -460,8 +504,3 @@ GaussianDensityProduct <- function(mu1, mu2, sigma1, sigma2)
   mu <- sigma * (solve(sigma1) * mu1 + solve(sigma2) * mu2)
   return(list(mu=mu, sigma=sigma))
 }  
-  
-
-  
-  
-  
