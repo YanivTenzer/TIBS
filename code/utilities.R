@@ -366,12 +366,9 @@ PDFToCDFMarginals <- function(data, PDF.table)
 {
   n<-dim(PDF.table)[1]  # number of samples 
   CDF.table <- array(0L, dim(PDF.table))  # matrix(0, num.samples, num.variables)
-  
   for(i in 1:dim(PDF.table)[2])  # loop on variables 
   {
-    print("do i")
     Px <- sort(data[,i], index.return=TRUE)  # Permute to order x_i, y_i 
-    print(Px)
     CDF.table[Px$ix,i] <- cumsum(PDF.table[Px$ix,i])
   }
   return(CDF.table)
