@@ -278,6 +278,8 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
     mass.table[i,4] = 1-sum( mass.table[i,1:3]) # , epsilon)
   }
   mass.table <- dim(data)[1]*mass.table # normalize to counts 
+  
+  return(mass.table)
 }
 
 ###################################################################################################

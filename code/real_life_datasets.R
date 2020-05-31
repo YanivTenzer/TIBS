@@ -21,9 +21,9 @@ B = 100 # 10000 # number of permutations/bootstrap samples
 plot.flag <- 1
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
-datasets <- c('huji', 'AIDS', 'ICU', 'Infection')
-exchange.type <- c(FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
-w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum')
+datasets <- c('huji', 'AIDS', 'ICU', 'Infection', 'Dementia')
+exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
+w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
 prms = c()
 W.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
 n.datasets <- length(datasets)
@@ -48,13 +48,62 @@ for(d in 1:n.datasets) # loop on datasets.
          },
          'ICU'={  # this dataset is not part of the released package
            input.data <- read.table("../data/ICU_data.txt", header = TRUE)
-           input.data <- input.data[,c(1:2)]
+           input.data <- input.data[,c(1:2)]  # discard third column 
            input.data[,2] <- input.data[,2]-0.02 # correction: reduce by 1: the truncation criterion is L<TU (L==TU is removed)
          }, 
          'Infection'={ # this dataset is not part of the released package
            load('../data/ICU_INF.Rdata')
            input.data <- cbind(X,Y)
            W.max[d] <- max(X)+max(Y)
+         }, 
+         'Dementia'={ # this dataset is not part of the released package
+           # DEMENTIA DATA
+
+           ### Get data.
+           prevdata<-read.csv("C:/Users/mm/Dropbox/marco/Nonparametric bivariate estimation/Old folder/Data analysis/cshaforRCSV.csv"); # change to relative path 
+           ### Clean data.
+           badindex<-which(prevdata$duration-prevdata$truncation<=0);
+           prevdata<-prevdata[-badindex,];
+           
+           ### Order data according to disease duration.
+           x<-prevdata$AAO;
+           v<-prevdata$duration;
+           w<-prevdata$AAO+prevdata$truncation;
+           delta<-prevdata$death;
+           order.v<-order(v);
+           x<-x[order.v];
+           v<-v[order.v];
+           w<-w[order.v];
+           delta<-delta[order.v];
+           
+           ### Create data frame.
+           cshadata <- data.frame(list("x"=x,"v"=v,"w"=w,"delta"=delta))
+            
+           # Save data frame (next time we can load only this)
+           
+                      
+           # the risk set vanishes before the last observation. 
+           # remove the largest 3 v's to take care of that.
+           id.rs <- which(cshadata$v>25)
+           cshadata1 <- cshadata[-id.rs,] 
+           
+           # before ommiting the largest 3
+           KM <- survfit(Surv(v-(w-x),!delta) ~ 1,data=cshadata)
+           Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
+           Srv.C2 <- stepfun(KM$time,c(1,KM$surv))
+           w.fun1 <- function(x,y){(x<y)*Srv.C1(y-x)}
+           w.fun2 <- function(x,y){(x<y)*Srv.C2(y-x)}
+           x.csha <- cshadata$w-cshadata$x
+           y.csha <- cshadata$v
+           delta.csha <- cshadata$delta
+           csha.delta1 <- data.frame(x.csha[delta.csha],y.csha[delta.csha])
+           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
+           
+           
+           
+           
+           
+           
          }
   ) # end switch 
   
@@ -107,4 +156,7 @@ save(test.pvalue, test.time, test.type,
      file=paste0(path ,'/../docs/Tables/real_datasets_B_', B, '.Rdata'))
 # print(xtable(results.table, type = "latex"), 
 #      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # save also in latex format 
+
+
+
 
