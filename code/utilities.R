@@ -18,6 +18,8 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
 #  epsilon = 0.00000001
   Obs<-Exp<-matrix(0,4,1) # observed & expected
 
+  print("DIM NULL TABLE")
+  print(dim(null.expectations.table))
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
@@ -173,10 +175,10 @@ PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non
 # pdfs - 2*n table with marginal distributions fx, fy probabilities 
 # w - n*n matrix with weights W[i,j] = w(x_i, y_j) 
 ###################################################################################
-GetNullDistribution <- function(pdfs, W)
+GetNullDistribution <- function(pdfs, w_mat)
 {
   # Compute the normalizing factor under the null:
-  null.distribution <- W * (pdfs[,1] %*% t(pdfs[,2]))
+  null.distribution <- w_mat * (pdfs[,1] %*% t(pdfs[,2]))
   Z <- sum(null.distribution)
   null.distribution <- null.distribution/Z
   return( list(null.distribution=null.distribution, normalizing.factors=Z) )

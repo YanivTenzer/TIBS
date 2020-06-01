@@ -84,8 +84,12 @@ double ComputeStatistic(long n, double** data, double** grid_points, double *nul
 //	cout << "Inside Start Hoeffding\n";
 	for (i = 0; i < n; i++) // Slow loop on grid points
 	{
-		for(j = 0; j < 4; j++) // loop on quadrants
+		for (j = 0; j < 4; j++) // loop on quadrants
+		{
 			Exp[j] = null_expectations_table[j][i];
+			if(i < 10)
+				cout << "Ind: " << i << " " << j << " Exp: " << Exp[j] << endl;
+		}
 
 		for (j = 0; j < n; j++)  // loop on data points  
 		{
@@ -158,7 +162,7 @@ double QuarterProbFromBootstrap( double *data[2], double **null_distribution, do
 	{
 		cur_grid_points[0] = grid_points[0][i];
 		cur_grid_points[1] = grid_points[1][i];
-//		cout << "Inside Started i=" << i << endl;
+		cout << "cur-grid-points i=" << i << " " << cur_grid_points[0] << ", " << cur_grid_points[1] << endl;
 		for (j = 0; j < 3; j++)
 			mass_table[j][i] = GetQuarterExpectedProb(cur_grid_points, j, data, null_distribution_CDF, n);
 		mass_table[3][i] = 1 - mass_table[2][i] - mass_table[1][i] - mass_table[0][i]; 
@@ -166,8 +170,12 @@ double QuarterProbFromBootstrap( double *data[2], double **null_distribution, do
 	}
 
 	for(j = 0; j < 4; j++)
-		for(i = 0; i < n; i++)  //  normalize to counts
+		for (i = 0; i < n; i++)  //  normalize to counts
+		{
 			mass_table[j][i] *= n;
+			if(i < 10)
+				cout << "Index: " << j << " " << i << " Mass-Table: " << mass_table[j][i] << endl;
+		}
 
 	return(TRUE); 
 }  // end function QuarterProbFromBootstrap
@@ -339,6 +347,10 @@ double GetQuarterExpectedProb(double Point[2], long QId, double *data[2], double
 	if ((idx_x == -1) || (idx_y == -1))
 		return(0);
 
+	cout << "Data for max-index:";
+	for (i = 0; i < 10; i++)
+		cout << data[0][i] << " , " << data[1][i] << endl;
+
 	long idx_x_max = max_index(data[0], n);
 	long idx_y_max = max_index(data[1], n);
 
@@ -350,6 +362,8 @@ double GetQuarterExpectedProb(double Point[2], long QId, double *data[2], double
 	case 2: {S = -null_distribution_CDF[idx_x][idx_y]; break; }
 	case 3: {S = -null_distribution_CDF[idx_x][idx_y_max] - null_distribution_CDF[idx_x][idx_y]; break; }
 	} // end switch 
+
+	cout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
 
 	return(S);
 }
@@ -375,7 +389,7 @@ GetNullDistribution < -function(pdfs, W)
 */
 
 
-double GetNullDistribution(double *pdfs[2], double **W, long n, double **null_distribution)
+double GetNullDistribution(double *pdfs[2], double **w_mat, long n, double **null_distribution)
 {
 	// Compute the normalizing factor under the null :
 	long i, j;
@@ -383,13 +397,16 @@ double GetNullDistribution(double *pdfs[2], double **W, long n, double **null_di
 	for (i = 0; i < n; i++)
 		for (j = 0; j < n; j++)
 		{
-			null_distribution[i][j] = W[i][j] * pdfs[0][i] * pdfs[1][j];
+			null_distribution[i][j] = w_mat[i][j] * pdfs[0][i] * pdfs[1][j];
 			z += null_distribution[i][j];
 		}
 	for (i = 0; i < n; i++)
 		for (j = 0; j < n; j++)
+		{
 			null_distribution[i][j] /= z;
-	
+			if (i < 10)
+				cout << i << ", " << j << " null_distribution_pdf: " << null_distribution[i][j] << endl; // printing: 
+		}
 	return(z);
 }
 
@@ -432,7 +449,20 @@ long cumsum(double* x, long n, double* x_cumsum)
 // find maximum element of an array
 long max_index(double* x, long n)
 {
-	return(long(distance(x, max_element(x, x + n))));
+	long i;
+	long max_ind = 0;
+	double max_val = x[0];
+
+	for (i = 1; i < n; i++)
+	{
+		if (x[i] > max_val)
+		{
+			max_val = x[i];
+			max_ind = i;
+		}
+	}
+
+	return(max_ind);
 }
 // Count total lines in file 
 long count_lines_in_file(string file_name)

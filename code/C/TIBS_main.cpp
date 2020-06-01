@@ -47,9 +47,7 @@ int main()
             n = num_lines - 1;
             cout << "Total lines:" << num_lines;
             for (j = 0; j < 2; j++)
-            {
                 data[j] = new double[num_lines];
-            }
 
             //            data.open(data_file, ios::in); // | ios::app | ios::binary);
             i = 0;
@@ -66,7 +64,7 @@ int main()
                 for (int k = 0; k < num_lines; k++) // loop on lines 
                 {
                     getline(data_str, data_arr[i++], '\n');
-                    cout << " READ: " << data_arr[i - 1] << '\n';
+//                    cout << " READ: " << data_arr[i - 1] << '\n';
 
                     // position = data_arr[i - 1].find(' ', position);
                     // first_section = str1.substr(0, position);
