@@ -29,7 +29,7 @@ int main()
     long n = 100; // Number of data points 
     double* data[2]; // data array 
     double* grid_points[2];
-    double** null_expectation_table;
+//    double** null_expectation_table;
 
     long num_lines;
 
@@ -106,7 +106,11 @@ int main()
         for (i = 0; i < n; i++)
             grid_points[j][i] = data[j][i];
     }
-    cout << "Hoefdings Test Statistics on Data: " << ComputeStatistic(n, data, grid_points, null_expectation_table) << "\n";
+
+    double* params = new double[2];
+    params[0] = params[1] = 0.0;
+    cout << "Hoefdings Test Statistics on Data: " << TIBS(data, "truncation", "bootstrap", params, n);
+//    cout << "Hoefdings Test Statistics on Data: " << ComputeStatistic(n, data, grid_points, null_expectation_table) << "\n";
 
 
 }

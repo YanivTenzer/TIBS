@@ -12,7 +12,7 @@
 using namespace std;
 
 // Main function 
-double TIBS(double* data[2], string w_fun, string test_type, string prms, long n)
+double TIBS(double* data[2], string w_fun, string test_type, double *params, long n)
 {
 	double* mass_table[4];
 	long i, j;
@@ -58,9 +58,22 @@ double TIBS(double* data[2], string w_fun, string test_type, string prms, long n
 	for (i = 0; i < n; i++)
 		w_mat[i] = new double[n];
 
-	EstimateMarginals(data, w_fun, marginals); // estimate marginals 
-	w_fun_to_mat(marginals_xy, w_fun, w_mat); // 
+
+
+	double* marginals_xy[2], *marginals_pdfs[2], *marginals_cdfs[2];
+	for (i = 0; i < 2; i++)
+	{
+		marginals_xy[i] = new double[2*n];
+		marginals_pdfs[i] = new double[2*n];
+		marginals_cdfs[i] = new double[2*n];
+	}
+
+//	stimateMarginals(double* data[2], string w_fun, double* params, long n, // inputs 
+//		double* xy[2], double* PDFs[2], double* CDFs[2])
+	EstimateMarginals(data, w_fun, params, n, marginals_xy, marginals_pdfs, marginals_cdfs); // estimate marginals 
+	w_fun_to_mat(marginals_xy, w_fun, n, w_mat); // 
 	double z = GetNullDistribution(marginals_pdfs, w_mat, n, null_distribution);
+
 
 	// get null expectation
 	QuarterProbFromBootstrap(data, null_distribution, grid_points, n, null_expectation_table);

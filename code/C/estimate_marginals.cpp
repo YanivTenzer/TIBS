@@ -14,10 +14,10 @@
 using namespace std;
 
 // Marginal estimation
-long EstimateMarginals(double* data[2], string w_fun, double* prms, long n, // inputs 
-	double* PDFs[2], double* CDFs[2])
+long EstimateMarginals(double* data[2], string w_fun, double* params, long n, // inputs 
+	double *xy[2], double* PDFs[2], double* CDFs[2])
 {
-	long i, j, k;
+	long i, j;
 
 	long naive_flag = FALSE, pos_flag = FALSE;
 	double* w_inv = new double[n];
@@ -43,8 +43,9 @@ long EstimateMarginals(double* data[2], string w_fun, double* prms, long n, // i
 
 	if (pos_flag) // w_fun % in % c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) // for w(x, y) > 0 cases
 	{ // case 1: strictly positive W, use ML estimator
-		w_inv = 1 / w_fun_eval(data[0], data[1], w_fun); // NEED TO IMPLEMENT
-		w_inv_sum = accumulate(w_inv, w_inv + n, sum);
+		for(i=0; i<n; i++)
+			w_inv[i] = 1.0 / w_fun_eval(data[0][i], data[1][i], w_fun); // NEED TO IMPLEMENT
+		w_inv_sum = accumulate(w_inv, w_inv + n, 0.0);
 		for (i = 0; i < n; i++)   // normalize
 		{
 			PDFs[0][i] = PDFs[1][i] = w_inv[i] / w_inv_sum;
@@ -97,14 +98,11 @@ long EstimateMarginals(double* data[2], string w_fun, double* prms, long n, // i
 			}
 		}
 	} // end if
+
+	return(TRUE);
 }  // else on w.fun type
 
 
-print('Estimating PDF marginal! returning!')
-PDF.table < -CDFToPDFMarginals(CDF.table)
-
-	return(list(xy = data, CDFs = CDF.table, PDFs = PDF.table)) # new: return also x, y(might be different than original)
-}
 
 
 
@@ -114,16 +112,16 @@ PDF.table < -CDFToPDFMarginals(CDF.table)
 # Parameters:
 # data - 2 * n sample(X, Y)
 # w.fun - biased sampling w function
-# prms - new (optional) : what estimation algorithm to use
+# params - new (optional) : what estimation algorithm to use
 #
 # Output :
 	# xy - data
 	# CDFs - cdf of the estimated marginals
 	# PDFs - pdfs of the estimated marginals
 ##############################################################################
-	EstimateMarginals < -function(data, w.fun, prms = c())
+	EstimateMarginals < -function(data, w.fun, params = c())
 {
-	if (!missing(prms))
+	if (!missing(params))
 	{
 		PDF.table < -iterative_marginal_estimation(data, w.fun)
 			# get marginal CDFs from PDFs

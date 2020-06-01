@@ -181,8 +181,9 @@ double PDFToCDF2d(double **pdf_2d, double *data[2], long n, double **cdf_2d)
 	long *Px = new long[n];
 	long *Py = new long[n];
 
-	Px = sort_indexes<vector> (data[0]);
-	Py = sort_indexes<vector> (data[1]); //	sort(data[0], data[0] + n); // why +n? 
+
+	sort_with_indexes(data[0], n, Px);
+	sort_with_indexes(data[1], n, Py); //	sort(data[0], data[0] + n); // why +n? 
 
 	double** cdf_2d_temp = new double*[n];
 	for (i = 0; i < n; i++)
@@ -269,34 +270,34 @@ GetQuarterExpectedProb < -function(Point, QId, data, null_distribution_CDF)
 double GetQuarterExpectedProb(double Point[2], long QId, double *data[2], double **null_distribution_CDF, long n)
 {
 	// convert below R to C++:
-	long idx_x = -1, idx_y = -1, i, j;
+	long idx_x = -1, idx_y = -1, i;
 	double S; 
 
 	if ((QId == 1) || (QId == 2))
 	{
-		for (i = 1; i < n; i++)
-			if (data[0][j] > Point[0])
+		for (i = 0; i < n; i++)
+			if (data[0][i] > Point[0])
 				if ((idx_x == -1) || (data[0][idx_x] > data[0][i]))
 					idx_x = i;
 	}
 	else
 	{
-		for (i = 1; i < n; i++)
-			if (data[0][j] <= Point[0])
+		for (i = 0; i < n; i++)
+			if (data[0][i] <= Point[0])
 				if ((idx_x == -1) || (data[0][idx_x] < data[0][i]))
 					idx_x = i;
 	}
 	if ((QId == 1) || (QId ==  4))
 	{
-		for (i = 1; i < n; i++)
-			if (data[1][j] > Point[1])
+		for (i = 0; i < n; i++)
+			if (data[1][i] > Point[1])
 				if ((idx_y == -1) || (data[1][idx_y] > data[1][i]))
 					idx_y = i;
 	}
 	else
 	{
-		for (i = 1; i < n; i++)
-			if (data[1][j] <= Point[1])
+		for (i = 0; i < n; i++)
+			if (data[1][i] <= Point[1])
 				if ((idx_y == -1) || (data[1][idx_y] < data[1][i]))
 					idx_y = i;
 	}
@@ -362,11 +363,12 @@ double GetNullDistribution(double *pdfs[2], double **W, long n, double **null_di
 // General utilities below
 
 // Compute inverse permutation
-long inv_perm(double* p, long n, double* inv_p)
+long inv_perm(long* p, long n, double* inv_p)
 {
 	long i;
 	for (i = 0; i < n; i++)
 		inv_p[p[i]] = i; 
+	return(TRUE);
 }
 
 
@@ -376,9 +378,10 @@ long empirical_cdf(double* x, long n, double* ecdf)
 	long i; 
 	long* Px = new long[n];
 	
-	sort_indexes(x, Px); // sort index
+	sort_with_indexes(x, n, Px); // sort index
 	for (i = 0; i < n; i++)
 		ecdf[Px[i]] = i / n; 
+	return(TRUE);
 }
 
 
@@ -395,7 +398,7 @@ long cumsum(double* x, long n, double* x_cumsum)
 // find maximum element of an array
 long max_index(double* x, long n)
 {
-	return(distance(x, max_element(x, x + n));
+	return(long(distance(x, max_element(x, x + n))));
 }
 // Count total lines in file 
 long count_lines_in_file(string file_name)
@@ -416,3 +419,23 @@ long count_lines_in_file(string file_name)
 	return(count);
 }
 
+//constexpr unsigned int str2int(const char* str, long h = 0)
+//{
+//	return !str[h] ? 5381 : (str2int(str, h + 1) * 33) ^ str[h];
+//}
+
+long sort_with_indexes(double* data, long n, long* sort_perm)
+{
+	vector<int> index(n, 0);
+	for (int i = 0; i != index.size(); i++)
+		index[i] = i;
+	sort(index.begin(), index.end(),
+		[&](const int& a, const int& b) {
+			return (data[a] < data[b]);
+		}
+	);
+	for (int i = 0; i != index.size(); i++)
+		sort_perm[i] = index[i];
+	return(TRUE);
+
+}
