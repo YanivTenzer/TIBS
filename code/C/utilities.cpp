@@ -102,32 +102,35 @@ double ComputeStatistic(long n, double** data, double** grid_points, double **nu
 //QuarterProbFromBootstrap < -function(data, null.distribution, grid.points)
 //{
 //	mass.table < -matrix(0, dim(grid.points)[1], 4)
-//		null.distribution.CDF < -PDFToCDF2d(null.distribution, data)
+//		null_distribution_CDF < -PDFToCDF2d(null.distribution, data)
 //
 //		for (i in seq(1, dim(grid.points)[1], 1))
 //		{
 //			for (j in 1 : 3)
-//				mass.table[i, j] < -GetQuarterExpectedProb(grid.points[i, ], j, data, null.distribution.CDF)
+//				mass.table[i, j] < -GetQuarterExpectedProb(grid.points[i, ], j, data, null_distribution_CDF)
 //				mass.table[i, 4] = 1 - sum(mass.table[i, 1:3]) # , epsilon)
 //		}
 //	mass.table < -dim(data)[1] * mass.table # normalize to counts
 //}
 
 
-double QuarterProbFromBootstrap( double *data[2], double null_distribution, double *grid_points[2], long n, 
+double QuarterProbFromBootstrap( double *data[2], double **null_distribution, double *grid_points[2], long n, 
 	double *mass_table[4])
 {
 	long i, j;
 	
-	double* null_distribution_CDF; 
-	null_distribution_CDF = PDFToCDF2d(null_distribution, data);  // convert PDF to CDF 
+	double** null_distribution_CDF = new double*[n];
+	for (i = 0; i < n; i++)  // loop on grid-points
+		null_distribution_CDF[i] = new double[n];
+	PDFToCDF2d(null_distribution, data, n, null_distribution_CDF);  // convert PDF to CDF 
 
 	for (i = 0; i < n; i++)  // loop on grid-points
+	{
 		for (j = 0; j < 3; j++)
-			mass_table[j][i] = GetQuarterExpectedProb(grid_points[i, ], j, data, null_distribution_CDF);
+			mass_table[j][i] = GetQuarterExpectedProb(grid_points[i], j, data, null_distribution_CDF, n);
 		mass_table[3][i] = 1 - mass_table[2][i] - mass_table[1][i] - mass_table[0][i]; 
 	}
-	
+
 	for(j = 0; j < 4; j++)
 		for(i = 0; i < n; i++)  //  normalize to counts
 			mass_table[j][i] *= n;
@@ -162,20 +165,56 @@ PDFToCDF2d < -function(pdf.2d, data)
 }
 **/
 
+////////////////////////////////////////////////////////////////////////////////////
+// Compute 2d cumulative distribution.When we have ties we need to correct this
+// Input:
+// pdf_2d - a two-dim array n * n of probabilities
+// data - xy points with probabilities, array size n*2 (used for sorting)
+// Output:
+// cdf_2d - a two-dim array n * n of cumulative probabilities
+////////////////////////////////////////////////////////////////////////////////////
 
-double PDFToCDF2d(double *pdf_2d, double *data[2])
+double PDFToCDF2d(double **pdf_2d, double *data[2], long n, double **cdf_2d)
 {
+	long i, j;
 	// sort 
+	long *Px = new long[n];
+	long *Py = new long[n];
+
+	Px = sort_indexes<vector> (data[0]);
+	Py = sort_indexes<vector> (data[1]); //	sort(data[0], data[0] + n); // why +n? 
+
+	double** cdf_2d_temp = new double*[n];
+	for (i = 0; i < n; i++)
+		cdf_2d_temp[i] = new double[n];
+
+	// cumulative sum on rows 
+	for(i = 0; i < n; i++)
+	{
+		cdf_2d_temp[Px[i]][Py[0]] = pdf_2d[Px[i]][Py[0]];
+		for (j = 1; j < n; j++)
+			cdf_2d_temp[Px[i]][Py[j]] = cdf_2d_temp[Px[i]][Py[j-1]] + pdf_2d[Px[i]][Py[j]];
+	}
+	// cumulative sum on columns 
+	for (j = 0; j < n; j++)
+	{
+		cdf_2d_temp[Px[0]][Py[j]] = pdf_2d[Px[0]][Py[j]];
+		for (i = 1; i < n; i++)
+			cdf_2d_temp[Px[i]][Py[j]] = cdf_2d_temp[Px[i-1]][Py[j]] + pdf_2d[Px[i]][Py[j]];
+	}
 	
-	sort_indexes(data[0])
+	// apply inverse permutation to rows and columns
+//	long* Px_inv = new long[n];
+//	long* Py_inv = new long[n];
+//	inv_perm(Px, n, Px_inv);
+//	inv_perm(Py, n, Py_inv);
 
-	sort(data[0], data[0] + n); // why +n? 
+	// copy results permuted
+	for (i = 0; i < n; i++)
+		for (j = 0; j < n; j++)
+			cdf_2d[Px[i]][Py[j]] = cdf_2d[i][j];
+	return(0);
 
-	Px < -sort(data[, 1], index.return = TRUE)  # Permute to order x_i, y_i
-		Py < -sort(data[, 2], index.return = TRUE)
-		cdf.2d < -apply(apply(pdf.2d[Px$ix, Py$ix], 2, cumsum), 1, cumsum)  # cumsum on rows and columns
-
-		return(t(cdf.2d[invPerm(Py$ix), invPerm(Px$ix)]))
 }
 
 
@@ -187,9 +226,9 @@ double PDFToCDF2d(double *pdf_2d, double *data[2])
 # Point - (x, y) value defining quadrants
 # QId - which quadrant 1, 2, 3, 4
 # data - 2 * n array of(x, y)
-# null.distribution.CDF - n * n table of 2d cumulative of Fx * Fy * w(problem with ties)
+# null_distribution_CDF - n * n table of 2d cumulative of Fx * Fy * w(problem with ties)
 ###################################################################################################
-GetQuarterExpectedProb < -function(Point, QId, data, null.distribution.CDF)
+GetQuarterExpectedProb < -function(Point, QId, data, null_distribution_CDF)
 {
 	if (QId % in % c(1, 2))
 	{
@@ -218,11 +257,11 @@ GetQuarterExpectedProb < -function(Point, QId, data, null.distribution.CDF)
 		n < -which.max(data[, 2])
 
 		switch (QId, # First sample from Fxy
-			{ S < -null.distribution.CDF[m, n] + null.distribution.CDF[idx.x, idx.y] -
-			  null.distribution.CDF[idx.x, n] - null.distribution.CDF[m, idx.y] }, # 1
-		{S < -null.distribution.CDF[m, idx.y] - null.distribution.CDF[idx.x, idx.y]}, # 1
-		{S < -null.distribution.CDF[idx.x, idx.y]}, # 3
-		{S < -null.distribution.CDF[idx.x, n] - null.distribution.CDF[idx.x, idx.y]}) # 4
+			{ S < -null_distribution_CDF[m, n] + null_distribution_CDF[idx.x, idx.y] -
+			  null_distribution_CDF[idx.x, n] - null_distribution_CDF[m, idx.y] }, # 1
+		{S < -null_distribution_CDF[m, idx.y] - null_distribution_CDF[idx.x, idx.y]}, # 1
+		{S < -null_distribution_CDF[idx.x, idx.y]}, # 3
+		{S < -null_distribution_CDF[idx.x, n] - null_distribution_CDF[idx.x, idx.y]}) # 4
 			return(S)
 }
 */
@@ -230,59 +269,134 @@ GetQuarterExpectedProb < -function(Point, QId, data, null.distribution.CDF)
 double GetQuarterExpectedProb(double Point[2], long QId, double *data[2], double **null_distribution_CDF, long n)
 {
 	// convert below R to C++:
+	long idx_x = -1, idx_y = -1, i, j;
+	double S; 
 
-	if (QId % in % c(1, 2))
+	if ((QId == 1) || (QId == 2))
 	{
-		idx.x < -which(data[, 1] > Point[1])
-			idx.x < -idx.x[which.min(data[idx.x, 1])]
+		for (i = 1; i < n; i++)
+			if (data[0][j] > Point[0])
+				if ((idx_x == -1) || (data[0][idx_x] > data[0][i]))
+					idx_x = i;
 	}
 	else
 	{
-		idx.x < -which(data[, 1] <= Point[1])
-			idx.x < -idx.x[which.max(data[idx.x, 1])]
+		for (i = 1; i < n; i++)
+			if (data[0][j] <= Point[0])
+				if ((idx_x == -1) || (data[0][idx_x] < data[0][i]))
+					idx_x = i;
 	}
-	if (QId % in % c(1, 4))
+	if ((QId == 1) || (QId ==  4))
 	{
-		idx.y < -which(data[, 2] > Point[2])
-			idx.y < -idx.y[which.min(data[idx.y, 2])]
+		for (i = 1; i < n; i++)
+			if (data[1][j] > Point[1])
+				if ((idx_y == -1) || (data[1][idx_y] > data[1][i]))
+					idx_y = i;
 	}
 	else
 	{
-		idx.y < -which(data[, 2] <= Point[2])
-			idx.y < -idx.y[which.max(data[idx.y, 2])]
+		for (i = 1; i < n; i++)
+			if (data[1][j] <= Point[1])
+				if ((idx_y == -1) || (data[1][idx_y] < data[1][i]))
+					idx_y = i;
 	}
 
-	if (isempty(idx.x) | isempty(idx.y))
-		return(0)
-		m < -which.max(data[, 1])
-		n < -which.max(data[, 2])
+	if ((idx_x == -1) || (idx_y == -1))
+		return(0);
 
-		switch (QId, # First sample from Fxy
-			{ S < -null.distribution.CDF[m, n] + null.distribution.CDF[idx.x, idx.y] -
-			  null.distribution.CDF[idx.x, n] - null.distribution.CDF[m, idx.y] }, # 1
-		{S < -null.distribution.CDF[m, idx.y] - null.distribution.CDF[idx.x, idx.y]}, # 1
-		{S < -null.distribution.CDF[idx.x, idx.y]}, # 3
-		{S < -null.distribution.CDF[idx.x, n] - null.distribution.CDF[idx.x, idx.y]}) # 4
-			return(S)
+	long idx_x_max = max_index(data[0], n);
+	long idx_y_max = max_index(data[1], n);
+
+
+	switch (QId) { // different quardants
+	case 1: {S = null_distribution_CDF[idx_x_max][idx_y_max] + null_distribution_CDF[idx_x][idx_y] -
+		null_distribution_CDF[idx_x][idx_y_max] - null_distribution_CDF[idx_x_max][idx_y]; break; } // "huji" prints "1",
+	case 2: {S = -null_distribution_CDF[idx_x_max][idx_y] - null_distribution_CDF[idx_x][idx_y]; break; }
+	case 3: {S = -null_distribution_CDF[idx_x][idx_y]; break; }
+	case 4: {S = -null_distribution_CDF[idx_x][idx_y_max] - null_distribution_CDF[idx_x][idx_y]; break; }
+	} // end switch 
+
+	return(S);
 }
 
 
 
-double TIBS(double *data[2], string w_fun, string test_type, string prms, long n)
+/*
+###################################################################################
+# Estimate the null distribution fx* fy* W(given the estimated PDFs f_x, f_y)
+# 
+# Parameters:
+# pdfs - 2 * n table with marginal distributions fx, fy probabilities
+# w - n * n matrix with weights W[i, j] = w(x_i, y_j)
+###################################################################################
+GetNullDistribution < -function(pdfs, W)
 {
-	double* mass_table[4];
-	for (j = 0; j < 4; j++)
-	{
-		mass_table[j] = new double[n];
-		for (i = 0; i < n; i++)
-			mass_table[j][i] = 0.0;
-	}
+	# Compute the normalizing factor under the null :
+	null.distribution < -W * (pdfs[, 1] % *%t(pdfs[, 2]))
+		Z < -sum(null.distribution)
+		null.distribution < -null.distribution / Z
+		return(list(null.distribution = null.distribution, normalizing.factors = Z))
+}
+*/
 
 
-	return(ComputeStatistic(n, data, grid_points, null_expectation_table)) // call function and return 
+double GetNullDistribution(double *pdfs[2], double **W, long n, double **null_distribution)
+{
+	// Compute the normalizing factor under the null :
+	long i, j;
+	double z = 0;
+	for (i = 0; i < n; i++)
+		for (j = 0; j < n; j++)
+		{
+			null_distribution[i][j] = W[i][j] * pdfs[0][i] * pdfs[1][j];
+			z += null_distribution[i][j];
+		}
+	for (i = 0; i < n; i++)
+		for (j = 0; j < n; j++)
+			null_distribution[i][j] /= z;
+	
+	return(z);
 }
 
 
+// General utilities below
+
+// Compute inverse permutation
+long inv_perm(double* p, long n, double* inv_p)
+{
+	long i;
+	for (i = 0; i < n; i++)
+		inv_p[p[i]] = i; 
+}
+
+
+// compute empirical cdf 
+long empirical_cdf(double* x, long n, double* ecdf)
+{
+	long i; 
+	long* Px = new long[n];
+	
+	sort_indexes(x, Px); // sort index
+	for (i = 0; i < n; i++)
+		ecdf[Px[i]] = i / n; 
+}
+
+
+// cumsum 
+long cumsum(double* x, long n, double* x_cumsum)
+{
+	x_cumsum[0] = x[0]; 
+	for (long i = 1; i < n; i++)
+		x_cumsum[i] = x_cumsum[i - 1] + x[i];
+	return(TRUE);
+}
+
+
+// find maximum element of an array
+long max_index(double* x, long n)
+{
+	return(distance(x, max_element(x, x + n));
+}
 // Count total lines in file 
 long count_lines_in_file(string file_name)
 {
