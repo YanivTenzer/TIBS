@@ -49,39 +49,65 @@ vector<size_t> sort_indexes(const vector<T>& v) {
 //   ------
 //   3 | 2
 //##################################################################################################
-double ComputeStatistic(long n, double** data, double** grid_points, double **null_expectations_table)
+double ComputeStatistic(long n, double** data, double** grid_points, double *null_expectations_table[4])
 {
-	double Obs[4];
-	double Exp[4];
+	double Obs[4] = { 0 };
+	double Exp[4] = { 0 };
 	long i, j;
-	double  Statistic = 0.0;
+	double Statistic = 0.0;
 	long *Rx = new long[n];
-	long* Ry = new long[n];
+	long *Ry = new long[n];
 
 //	double* obs_table[4];
 //	for (j = 0; j < 4; j++)  // loop on quadrants
 //		obs_table[j] = new double[n];
 
+/*
+ Statistic <- 0
+  for (i in 1:dim(grid.points)[1])  # Slow loop on grid points
+  {
+	Exp <- null.expectations.table[i,]
+	Rx <- data[,1]>grid.points[i,1]
+	Ry <- data[,2]>grid.points[i,2]
+	Obs[1] <- sum(Rx*Ry)
+	Obs[2] <- sum(Rx)-Obs[1]
+	Obs[4] <- sum(Ry)-Obs[1]
+	Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)])
+	obs.table[i,] <- Obs
+	if (min(Exp)>1) {
+	Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small
+	}
+  } # end loop on grid points
+*/
+
+
+//	cout << "Inside Start Hoeffding\n";
 	for (i = 0; i < n; i++) // Slow loop on grid points
 	{
-		for (j = 0; j < 4; j++)  // loop on quadrants 
+		for(j = 0; j < 4; j++) // loop on quadrants
+			Exp[j] = null_expectations_table[j][i];
+
+		for (j = 0; j < n; j++)  // loop on data points  
 		{
-			Exp[j] = null_expectations_table[i][j];
-			Rx[j] = data[j][0] > grid_points[i][0];
-			Ry[j] = data[j][1] > grid_points[i][1];
-			Obs[0] += Rx[j] * Ry[j];
+			Rx[j] = data[0][j] > grid_points[0][i];
+			Ry[j] = data[1][j] > grid_points[1][i];
+			Obs[0] += double(Rx[j] * Ry[j]);
 			Obs[1] += Rx[j];
 			Obs[3] += Ry[j];
 		}
+		
 		Obs[1] -= Obs[0];
 		Obs[3] -= Obs[0];
-		Obs[2] = n - Obs[1] - Obs[2] - Obs[4];
+		Obs[2] = n - Obs[0] - Obs[1] - Obs[3];
 
 //		for (j = 0; j < 4; j++)
 //			obs_table[j][i] = -Obs[j];
 		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
+		{
+			cout << "Update Statistic" << pow((Obs[j] - Exp[j]), 2) / Exp[j];
 			for (j = 0; j < 4; j++)
 				Statistic += pow((Obs[j] - Exp[j]), 2) / Exp[j];  // set valid statistic when expected is 0 or very small
+		}
 	} // end loop on grid points
 
 	return(Statistic);
@@ -120,15 +146,23 @@ double QuarterProbFromBootstrap( double *data[2], double **null_distribution, do
 	long i, j;
 	
 	double** null_distribution_CDF = new double*[n];
+
+	double cur_grid_points[2];
 	for (i = 0; i < n; i++)  // loop on grid-points
 		null_distribution_CDF[i] = new double[n];
+//	cout << "Inside DO PDFToCDF2d\n";
 	PDFToCDF2d(null_distribution, data, n, null_distribution_CDF);  // convert PDF to CDF 
 
+//	cout << "Inside DO GetQuarterExpectedProb\n";
 	for (i = 0; i < n; i++)  // loop on grid-points
 	{
+		cur_grid_points[0] = grid_points[0][i];
+		cur_grid_points[1] = grid_points[1][i];
+//		cout << "Inside Started i=" << i << endl;
 		for (j = 0; j < 3; j++)
-			mass_table[j][i] = GetQuarterExpectedProb(grid_points[i], j, data, null_distribution_CDF, n);
+			mass_table[j][i] = GetQuarterExpectedProb(cur_grid_points, j, data, null_distribution_CDF, n);
 		mass_table[3][i] = 1 - mass_table[2][i] - mass_table[1][i] - mass_table[0][i]; 
+//		cout << "Inside Finished i=" << i << endl;
 	}
 
 	for(j = 0; j < 4; j++)
@@ -273,7 +307,7 @@ double GetQuarterExpectedProb(double Point[2], long QId, double *data[2], double
 	long idx_x = -1, idx_y = -1, i;
 	double S; 
 
-	if ((QId == 1) || (QId == 2))
+	if ((QId == 0) || (QId == 1)) // change to 0-3 coordinates for quadrants !!
 	{
 		for (i = 0; i < n; i++)
 			if (data[0][i] > Point[0])
@@ -287,7 +321,7 @@ double GetQuarterExpectedProb(double Point[2], long QId, double *data[2], double
 				if ((idx_x == -1) || (data[0][idx_x] < data[0][i]))
 					idx_x = i;
 	}
-	if ((QId == 1) || (QId ==  4))
+	if ((QId == 0) || (QId ==  3))
 	{
 		for (i = 0; i < n; i++)
 			if (data[1][i] > Point[1])
@@ -310,11 +344,11 @@ double GetQuarterExpectedProb(double Point[2], long QId, double *data[2], double
 
 
 	switch (QId) { // different quardants
-	case 1: {S = null_distribution_CDF[idx_x_max][idx_y_max] + null_distribution_CDF[idx_x][idx_y] -
+	case 0: {S = null_distribution_CDF[idx_x_max][idx_y_max] + null_distribution_CDF[idx_x][idx_y] -
 		null_distribution_CDF[idx_x][idx_y_max] - null_distribution_CDF[idx_x_max][idx_y]; break; } // "huji" prints "1",
-	case 2: {S = -null_distribution_CDF[idx_x_max][idx_y] - null_distribution_CDF[idx_x][idx_y]; break; }
-	case 3: {S = -null_distribution_CDF[idx_x][idx_y]; break; }
-	case 4: {S = -null_distribution_CDF[idx_x][idx_y_max] - null_distribution_CDF[idx_x][idx_y]; break; }
+	case 1: {S = -null_distribution_CDF[idx_x_max][idx_y] - null_distribution_CDF[idx_x][idx_y]; break; }
+	case 2: {S = -null_distribution_CDF[idx_x][idx_y]; break; }
+	case 3: {S = -null_distribution_CDF[idx_x][idx_y_max] - null_distribution_CDF[idx_x][idx_y]; break; }
 	} // end switch 
 
 	return(S);

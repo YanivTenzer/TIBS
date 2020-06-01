@@ -109,6 +109,7 @@ int main()
 
     double* params = new double[2];
     params[0] = params[1] = 0.0;
+    cout << "Start computing TIBS\n";
     cout << "Hoefdings Test Statistics on Data: " << TIBS(data, "truncation", "bootstrap", params, n);
 //    cout << "Hoefdings Test Statistics on Data: " << ComputeStatistic(n, data, grid_points, null_expectation_table) << "\n";
 

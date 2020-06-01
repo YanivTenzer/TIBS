@@ -14,6 +14,7 @@ using namespace std;
 // Main function 
 double TIBS(double* data[2], string w_fun, string test_type, double *params, long n)
 {
+	cout << "Allocate memory\n";
 	double* mass_table[4];
 	long i, j;
 	for (j = 0; j < 4; j++)
@@ -25,8 +26,7 @@ double TIBS(double* data[2], string w_fun, string test_type, double *params, lon
 
 	// compute grid_points 
 	double* grid_points[2];
-
-	for (j = 0; j < n; j++)
+	for (j = 0; j < 2; j++)
 	{
 		grid_points[j] = new double[n];
 		for (i = 0; i < n; i++)
@@ -38,8 +38,8 @@ double TIBS(double* data[2], string w_fun, string test_type, double *params, lon
 	for (j = 0; j < n; j++)
 		null_distribution[j] = new double[n];
 
-	double** null_expectation_table = new double* [n];
-	for (j = 0; j < n; j++)
+	double* null_expectation_table[4]; 
+	for (j = 0; j < 4; j++)
 		null_expectation_table[j] = new double[n];
 
 
@@ -70,14 +70,21 @@ double TIBS(double* data[2], string w_fun, string test_type, double *params, lon
 
 //	stimateMarginals(double* data[2], string w_fun, double* params, long n, // inputs 
 //		double* xy[2], double* PDFs[2], double* CDFs[2])
+	cout << "Estimate Marginals\n";
 	EstimateMarginals(data, w_fun, params, n, marginals_xy, marginals_pdfs, marginals_cdfs); // estimate marginals 
+	cout << "Compute W_mat\n";
+
 	w_fun_to_mat(marginals_xy, w_fun, n, w_mat); // 
+
+	cout << "Compute Null Distribution\n";
 	double z = GetNullDistribution(marginals_pdfs, w_mat, n, null_distribution);
 
 
 	// get null expectation
+	cout << "Compute Null Expectation Table from Bootstrap\n";
 	QuarterProbFromBootstrap(data, null_distribution, grid_points, n, null_expectation_table);
 	// R: expectations.table < -QuarterProbFromBootstrap(marginals$xy, null.distribution$null.distribution, grid.points)
 
+	cout << "Compute Modified Hoeffding's Statistic\n";
 	return(ComputeStatistic(n, data, grid_points, null_expectation_table)); // call function and return 
 }

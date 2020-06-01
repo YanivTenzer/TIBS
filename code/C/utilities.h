@@ -6,8 +6,8 @@ using namespace std;
 #define TRUE 1
 #define FALSE 0
 
-double ComputeStatistic(long n, double** data, double** grid_points, double** null_expectations_table);
-long count_lines_in_file(std::string file_name);
+double ComputeStatistic(long n, double** data, double** grid_points, double* null_expectations_table[4]);
+long count_lines_in_file(string file_name);
 double QuarterProbFromBootstrap(double* data[2], double** null_distribution, double* grid_points[2], long n,
 	double* mass_table[4]);
 double PDFToCDF2d(double** pdf_2d, double* data[2], long n, double** cdf_2d);
@@ -19,7 +19,7 @@ double w_fun_eval(double x, double y, string w_fun);
 long w_fun_to_mat(double* data[2], string w_fun, long n, double** w_mat);
 
 long EstimateMarginals(double* data[2], string w_fun, double* params, long n, // inputs 
-	double* xy[2], double* PDFs[2], double* CDFs[2]);
+	double* xy[2], double* PDFs[2], double* CDFs[2]); // outputs 
 
 
 //template <typename T>
