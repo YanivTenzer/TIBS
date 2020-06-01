@@ -99,11 +99,6 @@ for(d in 1:n.datasets) # loop on datasets.
            csha.delta1 <- data.frame(x.csha[delta.csha],y.csha[delta.csha])
            TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
            
-           
-           
-           
-           
-           
          }
   ) # end switch 
   

@@ -132,7 +132,7 @@ w_fun_eval <- function(x, y, w.fun) {
 
 
 #########################################################################
-#  Compute the N*N matrix of sampling weights:
+#  Compute the n*n matrix of sampling weights:
 # Parameters: 
 # data - n*2 matrix with (x,y) sample
 # w.fun - biased sampling function W

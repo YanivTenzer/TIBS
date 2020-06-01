@@ -247,6 +247,7 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
   m <- which.max(data[,1])
   n <- which.max(data[,2])
   
+  
   switch(QId, # First sample from Fxy
          {S <- null.distribution.CDF[m, n] + null.distribution.CDF[idx.x, idx.y] - 
            null.distribution.CDF[idx.x, n] - null.distribution.CDF[m, idx.y]}, # 1
@@ -260,6 +261,7 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 # Compute Expect[Qi(p_j)] for 1<=i<=4, and all j, given a grid of points and bootstrap null distribution
 # Parameters: 
 # data - 2*n array (X,Y)
+# null.distribution - a two-dim array n*n of probabilities under the null 
 # Permutations - set of permutations
 # grid.points - centers of partitions
 #
@@ -379,9 +381,11 @@ PDFToCDFMarginals <- function(data, PDF.table)
 
 ###################################################################################################
 # Compute 2d cumulative distribution. When we have ties we need to correct this
-#
-# pdf.2d - a two-dim array of probabilities 
-# data - xy points with probabilities (used for sorting)
+# Input: 
+# pdf.2d - a two-dim array n*n of probabilities 
+# data - xy points with probabilities, array size n*2 (used for sorting)
+# Output: 
+# cdf.2d - a two-dim array n*n of cumulative probabilities 
 ###################################################################################################
 PDFToCDF2d <- function(pdf.2d, data)
 {
