@@ -398,14 +398,17 @@ double GetNullDistribution(double *pdfs[2], double **w_mat, long n, double **nul
 		for (j = 0; j < n; j++)
 		{
 			null_distribution[i][j] = w_mat[i][j] * pdfs[0][i] * pdfs[1][j];
+			if (i < 10)
+				cout << i << ", " << j << " W: " << w_mat[i][j] << " pdf0= " << pdfs[0][i] << " pdf1=" << pdfs[1][i] << endl; // printing: 
+
 			z += null_distribution[i][j];
 		}
 	for (i = 0; i < n; i++)
 		for (j = 0; j < n; j++)
 		{
 			null_distribution[i][j] /= z;
-			if (i < 10)
-				cout << i << ", " << j << " null_distribution_pdf: " << null_distribution[i][j] << endl; // printing: 
+//			if (i < 10)
+	//			cout << i << ", " << j << " null_distribution_pdf: " << null_distribution[i][j] << endl; // printing: 
 		}
 	return(z);
 }

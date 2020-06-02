@@ -6,7 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <numeric>
-
+#include <algorithm>
 
 
 #include "utilities.h"
@@ -40,6 +40,7 @@ long EstimateMarginals(double* data[2], string w_fun, double* params, long n, //
 		if (w_fun == naive_w[i])
 			naive_flag = TRUE;
 
+	cout << "POS FLAG=" << pos_flag << " NAIVE FLAG=" << naive_flag << endl;
 
 	if (pos_flag) // w_fun % in % c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) // for w(x, y) > 0 cases
 	{ // case 1: strictly positive W, use ML estimator
@@ -87,18 +88,50 @@ long EstimateMarginals(double* data[2], string w_fun, double* params, long n, //
 						new_data[i][j] = data[i][j];
 				}
 			}
+/*
+				F1 <- ecdf(data[, 1])
+				F2 <- ecdf(data[, 2])
+				Fx <- (F1(data[, 1]) + F2(data[, 1])) / 2  # Fx, Fy are the same CDFs evaluated at different data x, y
+				Fy <- (F1(data[, 2]) + F2(data[, 2])) / 2
+				CDF.table < -cbind(Fx, Fy)
+*/
 
-			empirical_cdf(data[0], n, F0);
-			empirical_cdf(data[1], n, F1);
+			// need here permutations !! 
+
+
+			long *Px = new long[2*n];
+			long *Py = new long[2*n];
+
+			double* new_data_sorted[2];
+			for (i = 0; i < 2; i++)
+				new_data_sorted[i] = new double[2*n];
+
+			sort_with_indexes(new_data[0], n, Px);
+			sort_with_indexes(new_data[1], n, Py);
+
 
 			for (i = 0; i < n; i++)
 			{
+				new_data_sorted[0][i] = new_data[0][Px[i]];
+				new_data_sorted[1][i] = new_data[1][Py[i]];
+			}
+
+			empirical_cdf(new_data[0], n, F0);
+			empirical_cdf(new_data[1], n, F1);
+
+			long F01, F10; 
+			for (i = 0; i < n; i++)
+			{
+				F01 = binary_search(new_data_sorted[0], new_data_sorted[0] + n, new_data[1][i]);
+				F10 = binary_search(new_data_sorted[1], new_data_sorted[1] + n, new_data[0][i]);
+
 				CDFs[0][i] = (F0[i] + F1[i]) / 2;
 				CDFs[1][i] = (F0[i] + F1[i]) / 2;  // need to change !!! 
 			}
 		}
 	} // end if
 
+	exit(99);
 	return(TRUE);
 }  // else on w.fun type
 
