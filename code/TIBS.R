@@ -1,3 +1,5 @@
+Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
+
 ########################################################################
 # Perform Test for Independence under general Biased Sampling (TIBS)
 # 
@@ -19,6 +21,8 @@ TIBS <- function(data, w.fun, test.type, prms)
   source('Tsai_test.R')
   source('simulate_biased_sample.R')
   source('marginal_estimation.R')
+  
+  use_cpp <- 0 # new: a flag for using c++ code 
   
   # Set defaults
   if(!('fast.bootstrap' %in% names(prms)))
@@ -77,7 +81,17 @@ TIBS <- function(data, w.fun, test.type, prms)
            }
 
            #1. First compute the statistic based on the original data set:
-           TrueT=ComputeStatistic(data, grid.points, expectations.table)
+           if(use_cpp)  # new: use cpp
+           {
+             print("USE C")
+             TrueT=ComputeStatistic_cpp(n, data, grid.points, expectations.table)
+           }
+           
+           else
+           {
+             print("USE R")
+             TrueT=ComputeStatistic(data, grid.points, expectations.table)
+           }
            # obs.table <- TrueT$obs.table
            TrueT <- TrueT$Statistic
 

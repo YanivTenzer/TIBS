@@ -18,8 +18,8 @@ ComputeStatistic<- function(data, grid.points, null.expectations.table)
 #  epsilon = 0.00000001
   Obs<-Exp<-matrix(0,4,1) # observed & expected
 
-  print("DIM NULL TABLE")
-  print(dim(null.expectations.table))
+#  print("DIM NULL TABLE")
+#  print(dim(null.expectations.table))
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
@@ -509,3 +509,7 @@ GaussianDensityProduct <- function(mu1, mu2, sigma1, sigma2)
   mu <- sigma * (solve(sigma1) * mu1 + solve(sigma2) * mu2)
   return(list(mu=mu, sigma=sigma))
 }  
+
+
+
+

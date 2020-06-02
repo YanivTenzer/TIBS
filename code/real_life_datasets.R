@@ -4,18 +4,31 @@
 # Please contact the authors if you are interested in them. 
 
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+path = getwd()
+
 
 source('TIBS.R')
 source('simulate_biased_sample.R')
 source('marginal_estimation.R')
 source('Tsai_test.R')
 source('utilities.R') 
+source('utilities_cpp.R')  # cpp code inside R file  
+Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
 library(lubridate)
 library(permDep)
 library(tictoc)
 library(xtable)
 library(ggplot2)
 library(Matrix)
+
+# example of a cpp function
+cppFunction('NumericVector timesTwo(NumericVector x) {
+  return x * 2;
+}')
+
+
+
+
 
 B = 100 # 10000 # number of permutations/bootstrap samples 
 plot.flag <- 1
@@ -132,7 +145,7 @@ for(d in 1:n.datasets) # loop on datasets.
               axis.text.x = element_text(face="bold", size=12), 
               axis.text.y = element_text(face="bold", size=12), 
               legend.position = "none")
-      ggsave(paste(path, '/../Figures/real_data/', datasets[d], '.png', sep=''),
+      ggsave(paste(path, '/../figs/real_data/', datasets[d], '.png', sep=''),
           width=5, height=5, dpi=300)
     }
   } # end loop on tests 
