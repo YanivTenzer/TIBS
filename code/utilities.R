@@ -4,35 +4,38 @@ library(Matrix)
 # Compute the modified Hoeffding's test statistic, for the permutation test
 # Parameters: 
 # data - n*2 matrix with (x,y) sample
-# grid.points - all possible (x_i,y_j) points  
-# null.expectations.table - 4*n mass table with pre-computed mass estimates 
+# grid.points - n*2 all possible (x_i,y_j) points  (can be the same as data, or a subset)
+# null.expectations.table - n*4 mass table with pre-computed mass estimates for grid.points 
 # 
 #  Quardants convension:
 #   4 | 1
 #   ------
 #   3 | 2
 ##################################################################################################
-ComputeStatistic<- function(data, grid.points, null.expectations.table)
+ComputeStatistic <- function(data, grid.points, null.expectations.table)
 {
-  obs.table<-matrix(0, dim(grid.points)[1], 4)
-#  epsilon = 0.00000001
-  Obs<-Exp<-matrix(0,4,1) # observed & expected
-
-#  print("DIM NULL TABLE")
-#  print(dim(null.expectations.table))
+  obs.table <- matrix(0, dim(grid.points)[1], 4)
+  Obs <- Exp <- matrix(0,4,1) # observed & expected
+  
+  #  print("DIM NULL TABLE")
+  #  print(dim(null.expectations.table))
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
     Exp <- null.expectations.table[i,]
-    Rx <- data[,1]>grid.points[i,1]
-    Ry <- data[,2]>grid.points[i,2]
+    Rx <- data[,1] > grid.points[i,1]
+    Ry <- data[,2] > grid.points[i,2]
     Obs[1] <- sum(Rx*Ry)
     Obs[2] <- sum(Rx)-Obs[1]
     Obs[4] <- sum(Ry)-Obs[1]
     Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) 
     obs.table[i,] <- Obs
+#    print(Exp)
+#    print(Obs)
     if (min(Exp)>1) {
-    Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+#      print("Add To Expected")
+      Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+#      print(Statistic)
     }
   } # end loop on grid points 
   
@@ -55,18 +58,18 @@ ComputeStatistic_inverse_weighting<- function(data, grid.points, W)
     idx1 <- which(Rx*Ry==1)
     Obs[1] <- sum(1/diag(W)[idx1])
     idx2 <- which(Rx*(!Ry)==1)
-    Obs[2] <-sum(1/diag(W)[idx2])
+    Obs[2] <- sum(1/diag(W)[idx2])
     idx3 <- which((!Rx)*(!Ry)==1)
     Obs[3] <- sum(1/diag(W)[idx3])
     idx4 <- which(Ry*(!Rx)==1)
     Obs[4] <- sum(1/diag(W)[idx4])
-    Obs<-Obs*(n_tilde^(-1))
+    Obs <- Obs*(n_tilde^(-1))
     
-    Exp[1]<-sum(1/diag(W)[Rx])*sum(1/diag(W)[Ry])
-    Exp[2]<-sum(1/diag(W)[Rx])*sum(1/diag(W)[which(!Ry==1)])
-    Exp[3]<-sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[which(!Ry==1)])
-    Exp[4]<-sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[Ry])
-    Exp<-Exp*(n_tilde^(-2))
+    Exp[1] <- sum(1/diag(W)[Rx])*sum(1/diag(W)[Ry])
+    Exp[2] <- sum(1/diag(W)[Rx])*sum(1/diag(W)[which(!Ry==1)])
+    Exp[3] <- sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[which(!Ry==1)])
+    Exp[4] <- sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[Ry])
+    Exp <- Exp*(n_tilde^(-2))
     
     obs.table[i,] <- Obs
     
@@ -81,8 +84,8 @@ ComputeStatistic_inverse_weighting<- function(data, grid.points, W)
 ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
   W <- apply(data,1,w)
   n.w <- sum(1/W)
-  obs.table<-exp.table <- matrix(0, dim(grid.points)[1], 4)
-  Obs<-Exp<-matrix(0,4,1) # observed & expected
+  obs.table <- exp.table <- matrix(0, dim(grid.points)[1], 4)
+  Obs <- Exp <- matrix(0,4,1) # observed & expected
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
@@ -96,6 +99,8 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
     Obs[2] <- sum(Rx*(!Ry)/W)/n.w
     Obs[4] <- sum((!Rx)*Ry/W)/n.w
     Obs[3] <- sum((!Rx)*(!Ry)/W)/n.w
+    print(Exp)
+    print(Obs)
     obs.table[i,] <- Obs
     exp.table[i,] <- Exp
     if (min(Exp)>(1/dim(data)[1])) {
@@ -116,16 +121,17 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
 # 
 # Output: 
 # PermutationsTable - A matrix representing the sampled permutations 
+# P - An n*n matrix with P(i,j) = Pr(pi(i)=j) over the sampled permutations 
 #########################################################################################
 PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
 { 
   P <- matrix(0, N, N) # New! matrix with P[i]=j estimate
-#  for(i in 1:num.permutations) 
-#    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
+  #  for(i in 1:num.permutations) 
+  #    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
   
   
   
-    # Set mcmc default sampling parameters 
+  # Set mcmc default sampling parameters 
   if(!('B' %in% names(prms)))
     prms$B <- 1000
   if(!('burn.in' %in% names(prms)))
@@ -138,9 +144,8 @@ PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non
   Perm = 1:N
   while(Idx<=prms$B)
   {
-    P[cbind(1:N, Perm)] <- P[cbind(1:N, Perm)]+1 # Update table P
     
-        # A Metropolis Hastings algorithm with target stationary distribution \pi
+    # A Metropolis Hastings algorithm with target stationary distribution \pi
     # Choose the two indices to be switched
     switchIdx = sample(1:N, 2, replace = FALSE)  
     i = switchIdx[1]
@@ -159,11 +164,12 @@ PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non
         if(mod(Idx,100)==0)
           print(c("Sample Perm=", Idx))
       }
-      ctr <- ctr+1;
+      P[cbind(1:N, Perm)] <- P[cbind(1:N, Perm)]+1 # Update table P
+      ctr <- ctr+1;  # update counter only after swap 
     }
   }  # end while
   P <- P / (ctr-1) # normalize 
-
+  
   return(list(PermutationsTable=PermutationsTable, P=P)) # New: return also P
   # To do: return also a matrix P with estimates of Pi[i]=j. Can use consecutive permutations not only every cycle.
 }
@@ -197,19 +203,26 @@ GetNullDistribution <- function(pdfs, w_mat)
 ############################################################################################
 Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
 {
+  #  print("Inside Bootstrap")
   if(is.null(n))
     n = dim(data)[1]
+  #  print(dim(data))
   boot.sample<-matrix(-1,n,2)
   k <- 0
   while(k<n) 
   {   # sampling n-k together
+    #    print("Inside Bootstrap sample x")
     x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X from Fx
+    #    print("Inside Bootstrap sample y")
     y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y from Fy
+    #    print("Inside Bootstrap keep")
     keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$W.max)))
+    #    print(keep)
     if(isempty(keep))
       next
     boot.sample[1:length(keep)+k,] <- cbind(x[keep],y[keep]) 
     k <- k+length(keep)
+    #    print(k)
   }    
   return(boot.sample)
 }
@@ -272,7 +285,7 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 ###################################################################################################
 QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
 {
-  mass.table<-matrix(0, dim(grid.points)[1], 4)
+  mass.table <- matrix(0, dim(grid.points)[1], 4)
   null.distribution.CDF <- PDFToCDF2d(null.distribution, data) 
   
   for(i in seq(1, dim(grid.points)[1],1))
@@ -290,32 +303,32 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
 # compute Expect[Qi(p_j)] for 1<=i<=4, and all j, given a grid of points using permutations
 # Parameters: 
 # data - 2*n array (X,Y)
-# P - n*n table representing permutations # Permutations - set of permutations
-# grid.points - centers of partitions
+# P - n*n table representing permutations probabilities Pr(pi(i)=j) (# Permutations - set of permutations)
+# grid.points - centers of partitions 2*k array 
 #
 # Output: 
 # mass.table - a 4*#grid-points table with quadrants expectation
 ###################################################################################################
 QuarterProbFromPermutations <- function(data, P, grid.points) #Permutations
 {
-#  num.permutations <- dim(Permutations)[2]
-#  n <- dim(data)[1]
-#  P <- matrix(0, n, n) # matrix with P[i]=j estimate
-#  for(i in 1:num.permutations) 
-#    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
-#  P <- P / num.permutations # normalize 
+  #  num.permutations <- dim(Permutations)[2]
+  #  n <- dim(data)[1]
+  #  P <- matrix(0, n, n) # matrix with P[i]=j estimate
+  #  for(i in 1:num.permutations) 
+  #    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
+  #  P <- P / num.permutations # normalize 
   
   #next each point has its probability of being selected we evaluate Expect[Qi(p_j)] by summation
   mass.table<-matrix(0, dim(grid.points)[1], 4)
   for(i in seq(1, dim(grid.points)[1],1))
   {
     x<-grid.points[i,]
-    mass.table[i,1]<-sum(P[data[,1]>x[1], data[,2]>x[2]])
-    mass.table[i,2]<-sum(P[data[,1]>x[1], data[,2]<=x[2]])
-    mass.table[i,3]<-sum(P[data[,1]<=x[1], data[,2]<=x[2]])
-    mass.table[i,4]<-sum(P[data[,1]<=x[1], data[,2]>x[2]])
+    mass.table[i,1] <- sum(P[data[,1]>x[1], data[,2]>x[2]])
+    mass.table[i,2] <- sum(P[data[,1]>x[1], data[,2]<=x[2]])
+    mass.table[i,3] <- sum(P[data[,1]<=x[1], data[,2]<=x[2]])
+    mass.table[i,4] <- sum(P[data[,1]<=x[1], data[,2]>x[2]])
   } 
-#  mass.table<-mass.table+0.000001
+  #  mass.table<-mass.table+0.000001
   return(mass.table)
 }
 
@@ -394,7 +407,7 @@ PDFToCDF2d <- function(pdf.2d, data)
   Px <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
   Py <- sort(data[,2], index.return=TRUE)
   cdf.2d <- apply(apply(pdf.2d[Px$ix, Py$ix], 2, cumsum), 1, cumsum)  # cumsum on rows and columns 
-
+  
   # Use data to deal with ties (not working yet)
   #  ties.x <- which(data[-1,1] == head(data[,1], -1))
   #  ties.y <- which(data[-1,2] == head(data[,2], -1))
@@ -452,7 +465,7 @@ PlotBiasedData <- function(dependence.type, biased.data, prms)
              xy <- data.frame(cbind(x.ind[w.ind], y.ind[w.ind]))   # sample from estiamted marginals
            }, 
            'all_scatter' = { # here plot both biased and original samples 
-              xy <- data.frame(biased.data)             
+             xy <- data.frame(biased.data)             
            }
     ) # end switch 
     if(plot.type=='KM_marginal')
@@ -474,8 +487,8 @@ PlotBiasedData <- function(dependence.type, biased.data, prms)
                scale_color_discrete(labels=lapply(sprintf(c("\\hat{F}_X", "\\hat{F}_Y", "F_X=F_Y")), TeX)) )
     else # new: plot two scatters on same datasets 
       print( ggplot(xy, aes(x=xy[,1], y=xy[,2])) + 
-#               geom_point(aes(x=xy[,1], y=xy[,2], col="original")) + 
-#               geom_point(shape=3, aes(x=xy[,3], y=xy[,4], col="biased")) + 
+               #               geom_point(aes(x=xy[,1], y=xy[,2], col="original")) + 
+               #               geom_point(shape=3, aes(x=xy[,3], y=xy[,4], col="biased")) + 
                geom_point() + 
                ggtitle(TeX(rep(paste0( gsub("_", '-', dependence.type), " $(\\theta = ", prms$rho, " )$"), prms$title))) + 
                xlab("X") + ylab("Y") +
@@ -512,4 +525,83 @@ GaussianDensityProduct <- function(mu1, mu2, sigma1, sigma2)
 
 
 
-
+# Read real dataset 
+ReadDataset <- function(data_str)
+{
+  switch(data_str,  # read dataset 
+         'huji'={
+           load('../data/APage_APtime.RData')
+           input.data <- HUJI.dat
+         },
+         'AIDS'={
+           library(DTDA)
+           data("AIDS")
+           input.data <- AIDS[,2:3]
+         },
+         'ICU'={  # this dataset is not part of the released package
+           input.data <- read.table("../data/ICU_data.txt", header = TRUE)
+           input.data <- input.data[,c(1:2)]  # discard third column 
+           input.data[,2] <- input.data[,2]-0.02 # correction: reduce by 1: the truncation criterion is L<TU (L==TU is removed)
+         }, 
+         'Infection'={ # this dataset is not part of the released package
+           load('../data/ICU_INF.Rdata')
+           input.data <- cbind(X,Y)
+           W.max[d] <- max(X)+max(Y)
+         }, 
+         'Dementia'={ # this dataset is not part of the released package
+           # DEMENTIA DATA
+           
+           if(first_time) ### Get data.
+           {
+             prevdata<-read.csv("C:/Users/mm/Dropbox/marco/Nonparametric bivariate estimation/Old folder/Data analysis/cshaforRCSV.csv"); # change to relative path 
+             ### Clean data.
+             badindex<-which(prevdata$duration-prevdata$truncation<=0);
+             prevdata<-prevdata[-badindex,];
+             
+             ### Order data according to disease duration.
+             x<-prevdata$AAO;
+             v<-prevdata$duration;
+             w<-prevdata$AAO+prevdata$truncation;
+             delta<-prevdata$death;
+             order.v<-order(v);
+             x<-x[order.v];
+             v<-v[order.v];
+             w<-w[order.v];
+             delta<-delta[order.v];
+             
+             ### Create data frame.
+             cshadata <- data.frame(list("x"=x,"v"=v,"w"=w,"delta"=delta))  # cshadata
+             
+             # the risk set vanishes before the last observation. 
+             # remove the largest 3 v's to take care of that.
+             id.rs <- which(cshadata$v>25)
+             cshadata1 <- cshadata[-id.rs,] 
+             
+             # before ommiting the largest 3
+             KM <- survfit(Surv(v-(w-x),!delta) ~ 1,data=cshadata)
+             Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
+             Srv.C2 <- stepfun(KM$time,c(1,KM$surv))
+             w.fun1 <- function(x,y){(x<y)*Srv.C1(y-x)}
+             w.fun2 <- function(x,y){(x<y)*Srv.C2(y-x)}
+             x.csha <- cshadata$w-cshadata$x
+             y.csha <- cshadata$v
+             delta.csha <- cshadata$delta
+             input.data <- data.frame(x.csha[delta.csha],y.csha[delta.csha])  # csha.delta1
+             
+             # Save data frame (next time we can load only this)
+             save(input.data, KM, file='../data/Dementia.Rdata')          
+           }                
+           else
+           {
+             load('../data/Dementia.Rdata')
+             Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
+             w.fun[d] <- function(x,y){(x<y)*Srv.C1(y-x)}  # modify w.fun 
+           }
+           #           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
+         }
+  ) # end switch 
+  if(!is.numeric(input.data))   # unlist and keep dimensions for data 
+    input.data <- array(as.numeric(unlist(input.data)), dim(input.data))  
+  
+  return(input.data) 
+}

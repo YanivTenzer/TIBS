@@ -3,6 +3,8 @@
 # Due to privacy issues, the data files for the ICU datasets are not part of the released package. 
 # Please contact the authors if you are interested in them. 
 
+rm(list=ls())
+gc()
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 path = getwd()
 
@@ -12,14 +14,16 @@ source('simulate_biased_sample.R')
 source('marginal_estimation.R')
 source('Tsai_test.R')
 source('utilities.R') 
-source('utilities_cpp.R')  # cpp code inside R file  
+# source('utilities_cpp.R')  # cpp code inside R file  
 Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
+Rcpp::sourceCpp("C/utilities_ToR.cpp")
 library(lubridate)
 library(permDep)
 library(tictoc)
 library(xtable)
 library(ggplot2)
 library(Matrix)
+library(Rcpp)
 
 # example of a cpp function
 cppFunction('NumericVector timesTwo(NumericVector x) {
@@ -37,7 +41,6 @@ test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests t
 datasets <- c('huji', 'AIDS', 'ICU', 'Infection', 'Dementia')
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
 w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
-prms = c()
 W.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
 n.datasets <- length(datasets)
 n.tests <- length(test.type)
@@ -45,79 +48,16 @@ Hyperplane.prms<-c(-1,1,0)
 test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 test.time <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 
-for(d in 1:n.datasets) # loop on datasets.
+for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
 {
 #    if(datasets[d] %in% c('ICU', 'Infection'))  # these datasets are available by request. Uncomment this line if you don't have them 
 #      next
-    switch(datasets[d],  # read dataset 
-         'huji'={
-           load('../data/APage_APtime.RData')
-           input.data <- HUJI.dat
-         },
-         'AIDS'={
-           library(DTDA)
-           data("AIDS")
-           input.data <- AIDS[,2:3]
-         },
-         'ICU'={  # this dataset is not part of the released package
-           input.data <- read.table("../data/ICU_data.txt", header = TRUE)
-           input.data <- input.data[,c(1:2)]  # discard third column 
-           input.data[,2] <- input.data[,2]-0.02 # correction: reduce by 1: the truncation criterion is L<TU (L==TU is removed)
-         }, 
-         'Infection'={ # this dataset is not part of the released package
-           load('../data/ICU_INF.Rdata')
-           input.data <- cbind(X,Y)
-           W.max[d] <- max(X)+max(Y)
-         }, 
-         'Dementia'={ # this dataset is not part of the released package
-           # DEMENTIA DATA
-
-           ### Get data.
-           prevdata<-read.csv("C:/Users/mm/Dropbox/marco/Nonparametric bivariate estimation/Old folder/Data analysis/cshaforRCSV.csv"); # change to relative path 
-           ### Clean data.
-           badindex<-which(prevdata$duration-prevdata$truncation<=0);
-           prevdata<-prevdata[-badindex,];
-           
-           ### Order data according to disease duration.
-           x<-prevdata$AAO;
-           v<-prevdata$duration;
-           w<-prevdata$AAO+prevdata$truncation;
-           delta<-prevdata$death;
-           order.v<-order(v);
-           x<-x[order.v];
-           v<-v[order.v];
-           w<-w[order.v];
-           delta<-delta[order.v];
-           
-           ### Create data frame.
-           cshadata <- data.frame(list("x"=x,"v"=v,"w"=w,"delta"=delta))
-            
-           # Save data frame (next time we can load only this)
-           
-                      
-           # the risk set vanishes before the last observation. 
-           # remove the largest 3 v's to take care of that.
-           id.rs <- which(cshadata$v>25)
-           cshadata1 <- cshadata[-id.rs,] 
-           
-           # before ommiting the largest 3
-           KM <- survfit(Surv(v-(w-x),!delta) ~ 1,data=cshadata)
-           Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
-           Srv.C2 <- stepfun(KM$time,c(1,KM$surv))
-           w.fun1 <- function(x,y){(x<y)*Srv.C1(y-x)}
-           w.fun2 <- function(x,y){(x<y)*Srv.C2(y-x)}
-           x.csha <- cshadata$w-cshadata$x
-           y.csha <- cshadata$v
-           delta.csha <- cshadata$delta
-           csha.delta1 <- data.frame(x.csha[delta.csha],y.csha[delta.csha])
-           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
-           
-         }
-  ) # end switch 
+  input.data <- ReadDataset(datasets[d]) # read dataset 
   
   prms <- list(B = 100)
   prms$W.max <- W.max[d] 
-  for(t in 1:n.tests) # run all tests 
+  prms$use.cpp <- 1 # New! enable one to run with c++ code 
+  for(t in 1:3) # n.tests) # run all tests 
   {
     if((!(w.fun[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
       next  # these tests run only for truncation 
@@ -129,6 +69,7 @@ for(d in 1:n.datasets) # loop on datasets.
     start.time <- Sys.time()
     results.test<-TIBS(input.data, w.fun[d], test.type[t], prms)
     test.time[d,t] <- Sys.time() - start.time
+    print(test.time[d,t])
     test.pvalue[d,t] <- results.test$Pvalue 
     cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')
     if(plot.flag & (t==2)) # permutations

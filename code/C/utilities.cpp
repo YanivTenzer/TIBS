@@ -10,9 +10,11 @@
 #include <time.h>
 #include <math.h>
 #include "utilities.h"
+#include "Rcpp.h" // for including R with Rcpp
 
 
 using namespace std;
+using namespace Rcpp;  // for including R with Rcpp 
 
 // sort with indexes. From here: https://stackoverflow.com/questions/1577475/c-sorting-and-keeping-track-of-indexes
 template <typename T>
@@ -49,6 +51,63 @@ vector<size_t> sort_indexes(const vector<T>& v) {
 //   ------
 //   3 | 2
 //##################################################################################################
+double ComputeStatistic_rcpp(long n, Rcpp::NumericMatrix data, Rcpp::NumericMatrix grid_points, Rcpp::NumericMatrix null_expectations_table)
+{
+	double Obs[4] = { 0 };
+	double Exp[4] = { 0 };
+	long i, j;
+	double Statistic = 0.0;
+	long* Rx = new long[n];
+	long* Ry = new long[n];
+
+	for (i = 0; i < n; i++) // Slow loop on grid points
+	{
+		for (j = 0; j < 4; j++) // loop on quadrants
+		{
+			Exp[j] = null_expectations_table[j][i];
+//			if (i < 10)
+//				cout << "Ind: " << i << " " << j << " Exp: " << Exp[j] << endl;
+		}
+
+		for (j = 0; j < n; j++)  // loop on data points  
+		{
+			Rx[j] = data[0][j] > grid_points[0][i];
+			Ry[j] = data[1][j] > grid_points[1][i];
+			Obs[0] += double(Rx[j] * Ry[j]);
+			Obs[1] += Rx[j];
+			Obs[3] += Ry[j];
+		}
+		Obs[1] -= Obs[0];
+		Obs[3] -= Obs[0];
+		Obs[2] = n - Obs[0] - Obs[1] - Obs[3];
+
+		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
+		{
+//			cout << "Update Statistic" << pow((Obs[j] - Exp[j]), 2) / Exp[j];
+			for (j = 0; j < 4; j++)
+				Statistic += pow((Obs[j] - Exp[j]), 2) / Exp[j];  // set valid statistic when expected is 0 or very small
+		}
+	} // end loop on grid points
+
+	return(Statistic);
+}
+
+
+// Hoeffding's test in Rcpp
+
+//##################################################################################################
+// Compute the modified Hoeffding's test statistic, for the permutation test
+// Parameters:
+// n - number of samples
+// data - n * 2 matrix with(x, y) sample
+// grid_points - all possible(x_i, y_j) points.size
+// null.expectations.table - 4 * n mass table with pre - computed mass estimates
+// 
+//  Quardants convension :
+//   4 | 1
+//   ------
+//   3 | 2
+//##################################################################################################
 double ComputeStatistic(long n, double** data, double** grid_points, double *null_expectations_table[4])
 {
 	double Obs[4] = { 0 };
@@ -58,30 +117,6 @@ double ComputeStatistic(long n, double** data, double** grid_points, double *nul
 	long *Rx = new long[n];
 	long *Ry = new long[n];
 
-//	double* obs_table[4];
-//	for (j = 0; j < 4; j++)  // loop on quadrants
-//		obs_table[j] = new double[n];
-
-/*
- Statistic <- 0
-  for (i in 1:dim(grid.points)[1])  # Slow loop on grid points
-  {
-	Exp <- null.expectations.table[i,]
-	Rx <- data[,1]>grid.points[i,1]
-	Ry <- data[,2]>grid.points[i,2]
-	Obs[1] <- sum(Rx*Ry)
-	Obs[2] <- sum(Rx)-Obs[1]
-	Obs[4] <- sum(Ry)-Obs[1]
-	Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)])
-	obs.table[i,] <- Obs
-	if (min(Exp)>1) {
-	Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small
-	}
-  } # end loop on grid points
-*/
-
-
-//	cout << "Inside Start Hoeffding\n";
 	for (i = 0; i < n; i++) // Slow loop on grid points
 	{
 		for (j = 0; j < 4; j++) // loop on quadrants
@@ -98,14 +133,11 @@ double ComputeStatistic(long n, double** data, double** grid_points, double *nul
 			Obs[0] += double(Rx[j] * Ry[j]);
 			Obs[1] += Rx[j];
 			Obs[3] += Ry[j];
-		}
-		
+		}		
 		Obs[1] -= Obs[0];
 		Obs[3] -= Obs[0];
 		Obs[2] = n - Obs[0] - Obs[1] - Obs[3];
 
-//		for (j = 0; j < 4; j++)
-//			obs_table[j][i] = -Obs[j];
 		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
 		{
 			cout << "Update Statistic" << pow((Obs[j] - Exp[j]), 2) / Exp[j];
@@ -493,15 +525,16 @@ long count_lines_in_file(string file_name)
 
 long sort_with_indexes(double* data, long n, long* sort_perm)
 {
+	unsigned long i;
 	vector<int> index(n, 0);
-	for (int i = 0; i != index.size(); i++)
+	for (i = 0; i != index.size(); i++)
 		index[i] = i;
 	sort(index.begin(), index.end(),
 		[&](const int& a, const int& b) {
 			return (data[a] < data[b]);
 		}
 	);
-	for (int i = 0; i != index.size(); i++)
+	for (i = 0; i != index.size(); i++)
 		sort_perm[i] = index[i];
 	return(TRUE);
 

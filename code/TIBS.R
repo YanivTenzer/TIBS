@@ -1,10 +1,16 @@
 Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
+Rcpp::sourceCpp("C/utilities_ToR.cpp")
+
+#' @export
+add.one.sqrt <- function(x) {
+  add_one_sqrt(x)
+}
 
 ########################################################################
 # Perform Test for Independence under general Biased Sampling (TIBS)
 # 
 # Parameters: 
-# data - n*2 array of (x,y) samples
+# data - n*2 array of (x,y) samples (NOT LIST!)
 # w.fun - biased sampling function W 
 # test.type - test to perform 
 # prms - additional parameters (needed for bootstrap) including B - number of bootstrap/permutation samples to perform 
@@ -22,9 +28,11 @@ TIBS <- function(data, w.fun, test.type, prms)
   source('simulate_biased_sample.R')
   source('marginal_estimation.R')
   
-  use_cpp <- 0 # new: a flag for using c++ code 
-  
+
   # Set defaults
+  if(!('use.cpp' %in% names(prms)))  # new: a flag for using c++ code 
+    prms$use.cpp <- 0
+  
   if(!('fast.bootstrap' %in% names(prms)))
     prms$fast.bootstrap <- 0
   if(!('minp.eps' %in% names(prms)))
@@ -33,13 +41,15 @@ TIBS <- function(data, w.fun, test.type, prms)
     prms$PL.expectation <- FALSE
   if(!('naive.expectation' %in% names(prms)))
     prms$naive.expectation <- 0
-  
+  if(!('delta' %in% names(prms)))
+    prms$delta <- NA
+    
   #################################################################
   # 1.Compute weights matrix W: (not needed here, just for permutations test)
 #  w.mat=w_fun_to_mat(data, w.fun)
   # 2.Create a grid of points, based on the data:
-  grid.points <- cbind(data[,1], data[,2])  # keep original points 
-  grid.points <- unique.matrix(grid.points)  # set unique for ties? for discrete data
+#  grid.points <- cbind(data[,1], data[,2])  # keep original points 
+  grid.points <- unique.matrix(data)  # set unique for ties? for discrete data
  
   switch(test.type,
          'bootstrap_inverse_weighting'={
@@ -47,7 +57,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            w.mat = w_fun_to_mat(marginals$xy, w.fun) 
            null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
            TrueT <- ComputeStatistic_inverse_weighting(data, grid.points, w.mat)$Statistic
-           
+             
            statistics.under.null=matrix(0, prms$B, 1)
            for(ctr in 1:prms$B) 
            {
@@ -81,12 +91,12 @@ TIBS <- function(data, w.fun, test.type, prms)
            }
 
            #1. First compute the statistic based on the original data set:
-           if(use_cpp)  # new: use cpp
+           if(prms$use.cpp)  # new: use cpp
            {
-             print("USE C")
-             TrueT=ComputeStatistic_cpp(n, data, grid.points, expectations.table)
+             print("USE CPP")
+             n <- dim(data)[1]
+             TrueT=ComputeStatistic_rcpp(n, data, grid.points, expectations.table)
            }
-           
            else
            {
              print("USE R")
@@ -100,9 +110,11 @@ TIBS <- function(data, w.fun, test.type, prms)
            null.distribution.bootstrap<-null.distribution
            for(ctr in 1:prms$B) 
            {
-             if(mod(ctr,100)==0)
-               print(paste0("Run Boots=", ctr))
+#             if(mod(ctr,100)==0)
+#               print(paste0("Run Boots=", ctr))
              bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
+#             print(paste0("After Boots=", ctr))
+             
              if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
              {
                marginals.bootstrap <- EstimateMarginals(bootstrap.sample, w.fun)  # Why are the marginals estimated each time? 
@@ -116,7 +128,9 @@ TIBS <- function(data, w.fun, test.type, prms)
                expectations.table <- QuarterProbFromBootstrap(
                  marginals.bootstrap$xy, null.distribution.bootstrap$null.distribution, grid.points)
              } 
-             NullT <- ComputeStatistic(bootstrap.sample, grid.points, expectations.table)
+#             print(paste0("Compute Stat Boots=", ctr))
+             
+                          NullT <- ComputeStatistic(bootstrap.sample, grid.points, expectations.table)
              # null.obs.table <- NullT$obs.table
              statistics.under.null[ctr] <- NullT$Statistic
            }
@@ -127,6 +141,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            Permutations=PermutationsMCMC(w.mat, dim(data)[1], prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
            P=Permutations$P
            Permutations=Permutations$Permutations
+           permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
            if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
            {
              marginals <- EstimateMarginals(data, 'naive')           
@@ -143,7 +158,19 @@ TIBS <- function(data, w.fun, test.type, prms)
              } else
                expectations.table <- QuarterProbFromPermutations(data, P, grid.points)  # Permutations
            }
-           TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
+           
+           if(prms$use.cpp)  # new: use cpp
+           {
+             n <- dim(data)[1]
+             print("USE CPP")
+             print(n)
+             TrueT=ComputeStatistic_rcpp(n, data, grid.points, expectations.table) 
+           } else
+           {
+             print("Use R")
+             TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
+           }
+
            
            #Compute the statistics value for each permutation:
            statistics.under.null = matrix(0, prms$B, 1)
@@ -176,29 +203,32 @@ TIBS <- function(data, w.fun, test.type, prms)
            }
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations with inverse weighting test 
-         'tsai' = {result <- TsaiTestTies(data[,1],data[,2]) # Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
+         'tsai' = {result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
          output <- list(Pvalue=result[2])
          },
          'minP2' = { library(permDep)  #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
            require(survival)  
            # library(permDep) # use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
-           if(!is.na(prms$delta))
+           if(!is.na(prms$delta)) # when running minP we must have a delta parameter 
            {
-              dat<-data.frame(list(trun = data[,1], obs = data[,2], delta = prms$delta))
+              dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = prms$delta))
            }
            else{
-              dat<-data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
+              dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
            }
            
-           results<- permDep(dat$trun, dat$obs, prms$B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
+           results <- permDep(dat$trun, dat$obs, prms$B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
 ##                                      sampling = 'conditional') #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
-           output <-list(Pvalue=results$p.valueMinp2)
+           output <- list(Pvalue=results$p.valueMinp2)
          }, 
          'importance.sampling' = {  # new importance sampling permutations test (not working yet)
            results <- IS.permute(dat, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          }
   )
-  output$permuted.data <- NA #temp.data # add example of permuted data 
+  if(exists("permuted.data"))
+    output$permuted.data <- permuted.data
+  else
+    output$permuted.data <- NA
   if(!("Pvalue" %in% names(output))) # Compute empirical P-value
     output$Pvalue <- length(which(output$statistics.under.null>=output$TrueT))/prms$B
   return(output)

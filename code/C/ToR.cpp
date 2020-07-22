@@ -2,7 +2,12 @@
 
 using namespace Rcpp;
 
-RcppExport SEXP helloA2() {
-	printf("Hello World!\n");
-	return(R_NilValue);
+// This is a simple example of exporting a C++ function to R. You can
+// source this function into an R session using the Rcpp::sourceCpp
+// function (or via the Source button on the editor toolbar). ...
+// [[Rcpp::export]]
+int timesFour(int x) {
+	return x * 4;
 }
+
+

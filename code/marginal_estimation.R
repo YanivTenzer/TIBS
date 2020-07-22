@@ -23,7 +23,8 @@ EstimateMarginals<-function(data, w.fun, prms=c())
     w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun)
     Fx <- Fy <- w.inv / sum(w.inv) # normalize 
     PDF.table = as.data.frame(cbind(Fx, Fy))
-    CDF.table = NULL  # why null?
+#    print("Null CDF!!")
+    CDF.table = PDFToCDFMarginals(data, PDF.table)  # why null?
   } else{ 
     if(w.fun %in% c('survival'))  # what is the definition of w here? 
     {
@@ -34,6 +35,7 @@ EstimateMarginals<-function(data, w.fun, prms=c())
       x.srv <- Surv(time=-data[,2], time2=-data[,1], event = rep(1,n))
       Fx <- survfit(x.srv~1)
       Fy <- survfit(y.srv~1)
+#      print("Survival CDF!!")
       CDF.table <- cbind(rev(Fx$surv), 1-Fy$surv)
       data <- cbind(rev(-Fx$time), Fy$time)
     } else {  
@@ -45,9 +47,14 @@ EstimateMarginals<-function(data, w.fun, prms=c())
       } else {  # general biased sampling function (w.fun can be a function not a string) with exchangable distributions
         #case 2: left truncation, use the estimator of Proposition 1 in the paper for exchangable distributions
         # Augment data to include both x and y values for each axis (due to symmetry)
+#        print("DIM DATA BEFORE")
+        print(dim(data))
         augment.data <- 1 # new: add xy values 
         if(augment.data) # duplicate x and y values 
           data <- cbind(union(data[,1], data[,2]), union(data[,1], data[,2]))
+        
+#        print("DIM DATA AFTER")
+        print(dim(data))
         F1<-ecdf(data[,1])
         F2<-ecdf(data[,2])
         Fx<-(F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y
@@ -55,9 +62,9 @@ EstimateMarginals<-function(data, w.fun, prms=c())
         CDF.table<-cbind(Fx,Fy)
       }
     } # end if 
+#    print('Estimating PDF marginal! returning!')
+    PDF.table <- CDFToPDFMarginals(CDF.table)
   }  # else on w.fun type 
-  print('Estimating PDF marginal! returning!')
-  PDF.table <- CDFToPDFMarginals(CDF.table)
   save(data, PDF.table, CDF.table, file='cdfpdf.Rdata')
   return( list(xy=data, CDFs=CDF.table, PDFs=PDF.table) ) # new: return also x,y (might be different than original)
 }
