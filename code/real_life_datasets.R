@@ -55,7 +55,7 @@ for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
   input.data <- ReadDataset(datasets[d]) # read dataset 
   
   prms <- list(B = 100)
-  prms$W.max <- W.max[d] 
+  prms$W.max <- max(W.max[d], max(w_fun_to_mat(input.data, w.fun[d]))) # update max 
   prms$use.cpp <- 1 # New! enable one to run with c++ code 
   for(t in 1:3) # n.tests) # run all tests 
   {

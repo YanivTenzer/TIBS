@@ -206,23 +206,23 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
   #  print("Inside Bootstrap")
   if(is.null(n))
     n = dim(data)[1]
-  #  print(dim(data))
+  print(dim(data))
   boot.sample<-matrix(-1,n,2)
   k <- 0
   while(k<n) 
   {   # sampling n-k together
-    #    print("Inside Bootstrap sample x")
+       print("Inside Bootstrap sample x")
     x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X from Fx
-    #    print("Inside Bootstrap sample y")
+       print("Inside Bootstrap sample y")
     y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y from Fy
-    #    print("Inside Bootstrap keep")
+        print("Inside Bootstrap keep")
     keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$W.max)))
-    #    print(keep)
+        print(keep)
     if(isempty(keep))
       next
     boot.sample[1:length(keep)+k,] <- cbind(x[keep],y[keep]) 
     k <- k+length(keep)
-    #    print(k)
+     print(k)
   }    
   return(boot.sample)
 }
@@ -546,7 +546,7 @@ ReadDataset <- function(data_str)
          'Infection'={ # this dataset is not part of the released package
            load('../data/ICU_INF.Rdata')
            input.data <- cbind(X,Y)
-           W.max[d] <- max(X)+max(Y)
+           W.max <- max(X)+max(Y)
          }, 
          'Dementia'={ # this dataset is not part of the released package
            # DEMENTIA DATA
@@ -581,7 +581,7 @@ ReadDataset <- function(data_str)
              KM <- survfit(Surv(v-(w-x),!delta) ~ 1,data=cshadata)
              Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
              Srv.C2 <- stepfun(KM$time,c(1,KM$surv))
-             w.fun1 <- function(x,y){(x<y)*Srv.C1(y-x)}
+             w.fun <- function(x,y){(x<y)*Srv.C1(y-x)}
              w.fun2 <- function(x,y){(x<y)*Srv.C2(y-x)}
              x.csha <- cshadata$w-cshadata$x
              y.csha <- cshadata$v

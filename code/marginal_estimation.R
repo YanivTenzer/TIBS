@@ -48,13 +48,13 @@ EstimateMarginals<-function(data, w.fun, prms=c())
         #case 2: left truncation, use the estimator of Proposition 1 in the paper for exchangable distributions
         # Augment data to include both x and y values for each axis (due to symmetry)
 #        print("DIM DATA BEFORE")
-        print(dim(data))
+#        print(dim(data))
         augment.data <- 1 # new: add xy values 
         if(augment.data) # duplicate x and y values 
           data <- cbind(union(data[,1], data[,2]), union(data[,1], data[,2]))
         
 #        print("DIM DATA AFTER")
-        print(dim(data))
+#        print(dim(data))
         F1<-ecdf(data[,1])
         F2<-ecdf(data[,2])
         Fx<-(F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y

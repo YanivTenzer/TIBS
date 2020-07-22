@@ -93,17 +93,19 @@ TIBS <- function(data, w.fun, test.type, prms)
            #1. First compute the statistic based on the original data set:
            if(prms$use.cpp)  # new: use cpp
            {
-             print("USE CPP")
+             print("USE CPP BOOT")
              n <- dim(data)[1]
              TrueT=ComputeStatistic_rcpp(n, data, grid.points, expectations.table)
            }
            else
            {
-             print("USE R")
-             TrueT=ComputeStatistic(data, grid.points, expectations.table)
+             print("USE R BOOT")
+             TrueT=ComputeStatistic(data, grid.points, expectations.table)$Statistic
+             # obs.table <- TrueT$obs.table
+             # TrueT <- TrueT$Statistic
            }
-           # obs.table <- TrueT$obs.table
-           TrueT <- TrueT$Statistic
+           print("TrueT=")
+           print(TrueT)
 
            #2. Compute statistic for bootstrap sample:
            statistics.under.null=matrix(0, prms$B, 1)
@@ -111,7 +113,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            for(ctr in 1:prms$B) 
            {
 #             if(mod(ctr,100)==0)
-#               print(paste0("Run Boots=", ctr))
+               print(paste0("Run Boots=", ctr))
              bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
 #             print(paste0("After Boots=", ctr))
              
@@ -162,12 +164,12 @@ TIBS <- function(data, w.fun, test.type, prms)
            if(prms$use.cpp)  # new: use cpp
            {
              n <- dim(data)[1]
-             print("USE CPP")
+             print("USE CPP PERM")
              print(n)
              TrueT=ComputeStatistic_rcpp(n, data, grid.points, expectations.table) 
            } else
            {
-             print("Use R")
+             print("Use R PERM")
              TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
            }
 

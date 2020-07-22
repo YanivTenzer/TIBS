@@ -14,15 +14,15 @@ library(binom)  # for binomial confidence intervals
 # 
 simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun='truncation',
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
-                              B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0)
+                              prms) # B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0)
 {
   print(paste0("rho.inside=", prms.rho))
-  prms = list(B = B)
+#  prms = list(B = B)
   run.flag = 1
   num.tests <- length(test.type)
   
   output.file <- paste0('results/', dependence.type, '_all_tests_results_B_', 
-                        B, '_iters_', iterations, '_n_', sample.size, '_rho_', paste(prms.rho, collapse = '_')) # set output file name
+                        B, '_iters_', prms$iterations, '_n_', prms$sample.size, '_rho_', paste(prms.rho, collapse = '_')) # set output file name
   num.prms <- length(prms.rho)
   if((!run.flag) & file.exists(paste0(output.file, '.Rdata')))
     load(file=paste0(output.file, '.Rdata'))
@@ -77,7 +77,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         start.time <- Sys.time()
 
         # new! run sequencial tests and stop early for bootstrap/permutations
-        if(sequential.stopping)
+        if(prms$sequential.stopping)
         {
           block.size <- 50
           prms$B <- block.size
@@ -94,7 +94,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
             
             # test if we should stop! 
 #            print(paste('cur.pval=', round(cur.pvalue/b, 3), 'conf.int=(', round(cur.conf.int$lower, 3), ', ', round(cur.conf.int$upper, 3), ') alpha=', alpha))
-            if((alpha < cur.conf.int$lower) ||  (alpha > cur.conf.int$upper))   # here stop early !!! 
+            if((prms$alpha < cur.conf.int$lower) ||  (prms$alpha > cur.conf.int$upper))   # here stop early !!! 
             {
               print(paste0('early stopping after ', b*block.size, ' ', cur.test.type, ' out of ', B, ' saving: ', round(100*(1-b*block.size/B), 1), '% of work!'))
               stop.flag <- 1
@@ -116,13 +116,13 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
       } # end loop on tests 
     }  # end loop on iterations (parallel collection). Simulation and testing for one parameter (i.prm)
     prms$title <- as.integer(dependence.type != 'UniformStrip') # s>1) 
-    if(plot.flag) # plot example 
+    if(prms$plot.flag) # plot example 
       PlotBiasedData(dependence.type, biased.data, prms)
     
     # New: save intermediate results also for latex format 
     
     # Compute power (this is also type-1-error alpha under the null)
-    test.power <- apply(test.pvalue<alpha, 1, rowMeans) 
+    test.power <- apply(test.pvalue<prms$alpha, 1, rowMeans) 
     # Save results in one file per dataset 
     test.output <- t(cbind(test.power, colSums(rowSums(test.time, dims=2))))
     colnames(test.output) <- test.type
