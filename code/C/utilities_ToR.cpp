@@ -161,7 +161,6 @@ double ComputeStatistic_rcpp(long n, Rcpp::NumericMatrix data, Rcpp::NumericMatr
 			Exp[j] = null_expectations_table(i, j);
 			Obs[j] = 0;
 		}
-
 		for (j = 0; j < n; j++)  // loop on data points  
 		{
 			Rx[j] = data(j, 0) > grid_points(i, 0);
@@ -175,12 +174,11 @@ double ComputeStatistic_rcpp(long n, Rcpp::NumericMatrix data, Rcpp::NumericMatr
 		Obs[2] = n - Obs[0] - Obs[1] - Obs[3];
 
 		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
-		{
 			for (j = 0; j < 4; j++)
 				Statistic += pow((Obs[j] - Exp[j]), 2) / Exp[j];  // set valid statistic when expected is 0 or very small
-		}
 	} // end loop on grid points
 
+//	cout << "Return Stat: " << Statistic << endl;
 	return(Statistic);
 }
 
@@ -189,13 +187,14 @@ double ComputeStatistic_rcpp(long n, Rcpp::NumericMatrix data, Rcpp::NumericMatr
 //double GetNullDistribution(double* pdfs[2], double** w_mat, long n, double** null_distribution)
 
 // [[Rcpp::export]]
-List GetNullDistribution_rcpp(long n, Rcpp::NumericMatrix pdfs, Rcpp::NumericMatrix w_mat) // why null distribution is used?
+List GetNullDistribution_rcpp(Rcpp::NumericMatrix pdfs, Rcpp::NumericMatrix w_mat) // why null distribution is used?
 {
-	NumericMatrix null_distribution(n, n);  // set size 
+	long n = pdfs.nrow();
 	// Compute the normalizing factor under the null :
 	long i, j;
 	double z = 0.0;
-	
+	NumericMatrix null_distribution(n, n);  // set size 
+
 	if (w_mat.nrow() == 1)  // same w for all 
 	{
 //		cout << "One WMAT" << endl;
@@ -662,11 +661,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun, NumericVector para
 
 // Next Estimate Marginals: 
 // List of needed functions here: 
-// EstimateMarginals <- function(data, w.fun, prms=c())  - Tough (complicated) Depends on many functions 
-// CDFToPDFMarginals <- function(CDF.table)
-// PDFToCDFMarginals <- function(data, PDF.table)
 // PermutationsMCMC <- function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
-// accumulate 
+// accumulate - NOT NEEDED !
 
 // Completed (?) 
 // (V) empirical_cdf
@@ -675,6 +671,9 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun, NumericVector para
 // (V) double PDFToCDF2d(double** pdf_2d, double* data[2], long n, double** cdf_2d)
 // (V) QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
 // (V) QuarterProbFromPermutations <- function(data, P, grid.points) #Permutations
+// (V) CDFToPDFMarginals <- function(CDF.table)
+// (V) PDFToCDFMarginals <- function(data, PDF.table)
+// (V) EstimateMarginals <- function(data, w.fun, prms=c())  - Tough (complicated) Depends on many functions 
 
 
 

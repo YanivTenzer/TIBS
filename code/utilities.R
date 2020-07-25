@@ -423,6 +423,10 @@ PDFToCDFMarginals <- function(data, PDF.table)
 ###################################################################################################
 PDFToCDF2d <- function(pdf.2d, data)
 {
+#  print("DIM PDF.2D:")
+#  print(dim(pdf.2d))
+#  print("DIM DATA:")
+#  print(dim(data))
   Px <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
   Py <- sort(data[,2], index.return=TRUE)
   cdf.2d <- apply(apply(pdf.2d[Px$ix, Py$ix], 2, cumsum), 1, cumsum)  # cumsum on rows and columns 

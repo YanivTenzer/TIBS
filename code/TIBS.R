@@ -86,17 +86,23 @@ TIBS <- function(data, w.fun, test.type, prms)
            {
              marginals.naive <- EstimateMarginals(data, 'naive')
              if(prms$use.cpp)
-               null.distribution <- GetNullDistribution_rcpp(n, marginals.naive$PDF, 1)
+               null.distribution <- GetNullDistribution_rcpp(marginals.naive$PDF, 1)
              else
                null.distribution <- GetNullDistribution(marginals.naive$PDF, 1)
              expectations.table <- QuarterProbFromBootstrap(
                marginals.naive$xy, null.distribution$distribution, grid.points)
            } else
            {
+             print("Get Null Distribution USE-CPP=")
+             print(prms$use.cpp)
+             start.time <- Sys.time()
              if(prms$use.cpp)
-               null.distribution <- GetNullDistribution_rcpp(n, marginals$PDF, w.mat)
+               null.distribution <- GetNullDistribution_rcpp(marginals$PDF, w.mat)
              else
                null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
+             print(difftime(Sys.time(), start.time, units='secs'))
+             print(dim(marginals$PDF))
+             print(dim(null.distribution$distribution))
              
              expectations.table <- QuarterProbFromBootstrap(
                marginals$xy, null.distribution$distribution, grid.points)             
@@ -105,13 +111,17 @@ TIBS <- function(data, w.fun, test.type, prms)
            #1. First compute the statistic based on the original data set:
            if(prms$use.cpp)  # new: use cpp
            {
-             print("USE CPP BOOT")
-             TrueT=ComputeStatistic_rcpp(n, data, grid.points, expectations.table)
+             print("USE CPP BOOT, Time:")
+             start.time <- Sys.time()
+             TrueT = ComputeStatistic_rcpp(n, data, grid.points, expectations.table)
+             print(difftime(Sys.time(), start.time, units='secs'))
            }
            else
            {
-             print("USE R BOOT")
-             TrueT=ComputeStatistic(data, grid.points, expectations.table)$Statistic
+             print("USE R BOOT, Time:")
+             start.time <- Sys.time()
+             TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
+             print(difftime(Sys.time(), start.time, units='secs'))
              # obs.table <- TrueT$obs.table
              # TrueT <- TrueT$Statistic
            }
@@ -138,7 +148,7 @@ TIBS <- function(data, w.fun, test.type, prms)
                  w.mat.bootstrap <- w_fun_to_mat(marginals.bootstrap$xy, w.fun)
                #4. Estimate W(x,y)*Fx*FY/normalizing.factor
                if(prms$use.cpp)
-                 null.distribution.bootstrap <- GetNullDistribution_rcpp(n, marginals.bootstrap$PDFs, w.mat.bootstrap)
+                 null.distribution.bootstrap <- GetNullDistribution_rcpp(marginals.bootstrap$PDFs, w.mat.bootstrap)
                else
                  null.distribution.bootstrap <- GetNullDistribution(marginals.bootstrap$PDFs, w.mat.bootstrap)
                
@@ -164,7 +174,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            {
              marginals <- EstimateMarginals(data, 'naive')           
              if(prms$use.rcpp)
-               null.distribution <- GetNullDistribution_rcpp(n, marginals$PDF, 1)
+               null.distribution <- GetNullDistribution_rcpp(marginals$PDF, 1)
              else
                null.distribution <- GetNullDistribution(marginals$PDF, 1)
              
@@ -176,7 +186,7 @@ TIBS <- function(data, w.fun, test.type, prms)
                marginals <- EstimateMarginals(data, w.fun)
                w.mat = w_fun_to_mat(marginals$xy, w.fun)
                if(prms$use.rcpp)
-                 null.distribution <- GetNullDistribution_rcpp(n, marginals$PDF, W)
+                 null.distribution <- GetNullDistribution_rcpp(marginals$PDF, W)
                else
                  null.distribution <- GetNullDistribution(marginals$PDF, W)
                expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)
@@ -188,12 +198,15 @@ TIBS <- function(data, w.fun, test.type, prms)
            {
              n <- dim(data)[1]
              print("USE CPP PERM")
-             print(n)
+             start.time <- Sys.time()
              TrueT=ComputeStatistic_rcpp(n, data, grid.points, expectations.table) 
+             print(difftime(Sys.time(), start.time, units='secs'))
            } else
            {
              print("Use R PERM")
+             start.time <- Sys.time()
              TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
+             print(difftime(Sys.time(), start.time, units='secs'))
            }
            
            
