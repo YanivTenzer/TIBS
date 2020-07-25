@@ -13,11 +13,11 @@
 #   3 | 2
 ##################################################################################################
 
-ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
+ComputeStatistic.W <- function(data, grid.points, w=function(x){1}){
   W <- apply(data,1,w)
   n.w <- sum(1/W)
-  obs.table<-exp.table <- matrix(0, dim(grid.points)[1], 4)
-  Obs<-Exp<-matrix(0,4,1) # observed & expected
+  obs.table <- exp.table <- matrix(0, dim(grid.points)[1], 4)
+  Obs <- Exp <- matrix(0,4,1) # observed & expected
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
@@ -34,7 +34,7 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
     obs.table[i,] <- Obs
     exp.table[i,] <- Exp
     if (min(Exp)>(1/dim(data)[1])) {
-      Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+      Statistic <- Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
     } 
   } # end loop on grid points 
   
@@ -58,7 +58,7 @@ IS.permute <- function(data,B,w=function(x){1}){
   for (b in 1:B){
     perm <- sample(n)
     dat.b <- data.frame(x=data[1:n,1],y=data[perm,2]) # permuted data
-    T.b <- ComputeStatistic.W(dat.b,dat.b,w=w)$Statistic # grid depends on permuted data
+    T.b <- ComputeStatistic.W(dat.b, dat.b, w=w)$Statistic # grid depends on permuted data
     W <- apply(data,1,w)
     p.w <- prod(W)   
     reject <- reject+(T.b>=T.obs)/p.w
@@ -67,11 +67,12 @@ IS.permute <- function(data,B,w=function(x){1}){
   return(list(p.val=reject/sum.p, T.obs=T.obs))
 }
 
+#############################################################
 # simulation for w(x,y)=x+y
 # rep - number of replicaions
 # B - number of permutations
 # r - correlation (must be non-negative)
-
+#############################################################
 simul <- function(rep=100,B=2000,r=0){
   prep <- c()
   for (i in 1:rep){

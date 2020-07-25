@@ -123,7 +123,7 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
 # PermutationsTable - A matrix representing the sampled permutations 
 # P - An n*n matrix with P(i,j) = Pr(pi(i)=j) over the sampled permutations 
 #########################################################################################
-PermutationsMCMC<-function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
+PermutationsMCMC <- function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
 { 
   P <- matrix(0, N, N) # New! matrix with P[i]=j estimate
   #  for(i in 1:num.permutations) 
@@ -187,7 +187,10 @@ GetNullDistribution <- function(pdfs, w_mat)
   null.distribution <- w_mat * (pdfs[,1] %*% t(pdfs[,2]))
   Z <- sum(null.distribution)
   null.distribution <- null.distribution/Z
-  return( list(null.distribution=null.distribution, normalizing.factors=Z) )
+  
+#  print("NULL DIM")
+#  print(dim(null.distribution))
+  return( list(distribution=null.distribution, Z=Z) )
 }
 
 ############################################################################################
@@ -206,23 +209,23 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
   #  print("Inside Bootstrap")
   if(is.null(n))
     n = dim(data)[1]
-  print(dim(data))
+#  print(dim(data))
   boot.sample<-matrix(-1,n,2)
   k <- 0
   while(k<n) 
   {   # sampling n-k together
-       print("Inside Bootstrap sample x")
+#       print("Inside Bootstrap sample x")
     x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X from Fx
-       print("Inside Bootstrap sample y")
+#       print("Inside Bootstrap sample y")
     y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y from Fy
-        print("Inside Bootstrap keep")
+#        print("Inside Bootstrap keep")
     keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$W.max)))
-        print(keep)
+#        print(keep)
     if(isempty(keep))
       next
     boot.sample[1:length(keep)+k,] <- cbind(x[keep],y[keep]) 
     k <- k+length(keep)
-     print(k)
+#     print(k)
   }    
   return(boot.sample)
 }
@@ -286,6 +289,9 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
 {
   mass.table <- matrix(0, dim(grid.points)[1], 4)
+  
+#  print("NULL-DIST-DIM:")
+#  print(dim(null.distribution))
   null.distribution.CDF <- PDFToCDF2d(null.distribution, data) 
   
   for(i in seq(1, dim(grid.points)[1],1))
@@ -363,9 +369,13 @@ CDFToPDFMarginals <- function(CDF.table)
 {
   n<-dim(CDF.table)[1]  # number of samples 
   PDF.table <- array(0L, dim(CDF.table))  # matrix(0, num.samples, num.variables)
+#  print("DIM CDF -> PDF:")
+#  print(dim(PDF.table))
   for(i in 1:dim(CDF.table)[2])  # loop on variables 
   {
     sorted.CDF<-sort(CDF.table[,i], index.return=TRUE)
+#    print("sorted.CDF:")
+#    print(sorted.CDF)
     PDF.table[sorted.CDF$ix,i] <- c(sorted.CDF$x[1], sorted.CDF$x[-1]-sorted.CDF$x[-n])
   }
   return(PDF.table)
@@ -385,10 +395,19 @@ PDFToCDFMarginals <- function(data, PDF.table)
 {
   n<-dim(PDF.table)[1]  # number of samples 
   CDF.table <- array(0L, dim(PDF.table))  # matrix(0, num.samples, num.variables)
+#  print("DIM PDF -> CDF:")
+#  print(dim(PDF.table))
   for(i in 1:dim(PDF.table)[2])  # loop on variables 
   {
     Px <- sort(data[,i], index.return=TRUE)  # Permute to order x_i, y_i 
+#    print("Px=")
+#    print(Px)
     CDF.table[Px$ix,i] <- cumsum(PDF.table[Px$ix,i])
+#    print("idx:")
+#    print(Px$ix)
+#    print("cumsum:")
+#    print(CDF.table[Px$ix,i])
+        
   }
   return(CDF.table)
 }
@@ -600,6 +619,7 @@ ReadDataset <- function(data_str)
            #           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
          }
   ) # end switch 
+
   if(!is.numeric(input.data))   # unlist and keep dimensions for data 
     input.data <- array(as.numeric(unlist(input.data)), dim(input.data))  
   

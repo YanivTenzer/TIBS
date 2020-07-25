@@ -3,11 +3,13 @@
 # Due to privacy issues, the data files for the ICU datasets are not part of the released package. 
 # Please contact the authors if you are interested in them. 
 
+
 rm(list=ls())
 gc()
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 path = getwd()
 
+# Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
 source('TIBS.R')
 source('simulate_biased_sample.R')
@@ -23,15 +25,12 @@ library(tictoc)
 library(xtable)
 library(ggplot2)
 library(Matrix)
-library(Rcpp)
+
 
 # example of a cpp function
 cppFunction('NumericVector timesTwo(NumericVector x) {
   return x * 2;
 }')
-
-
-
 
 
 B = 100 # 10000 # number of permutations/bootstrap samples 
@@ -56,7 +55,7 @@ for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
   
   prms <- list(B = 100)
   prms$W.max <- max(W.max[d], max(w_fun_to_mat(input.data, w.fun[d]))) # update max 
-  prms$use.cpp <- 1 # New! enable one to run with c++ code 
+  prms$use.cpp <- 0 # New! enable one to run with c++ code 
   for(t in 1:3) # n.tests) # run all tests 
   {
     if((!(w.fun[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))

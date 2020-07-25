@@ -10,7 +10,7 @@
 # CDFs - cdf of the estimated marginals
 # PDFs - pdfs of the estimated marginals 
 ##############################################################################
-EstimateMarginals<-function(data, w.fun, prms=c())
+EstimateMarginals <- function(data, w.fun, prms=c())
 {
   if(!missing(prms))
   {
@@ -22,9 +22,9 @@ EstimateMarginals<-function(data, w.fun, prms=c())
   { #case 1: strictly positive W, use ML estimator
     w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun)
     Fx <- Fy <- w.inv / sum(w.inv) # normalize 
-    PDF.table = as.data.frame(cbind(Fx, Fy))
+    PDF.table = cbind(Fx, Fy)
 #    print("Null CDF!!")
-    CDF.table = PDFToCDFMarginals(data, PDF.table)  # why null?
+    CDF.table = PDFToCDFMarginals(data, PDF.table)  
   } else{ 
     if(w.fun %in% c('survival'))  # what is the definition of w here? 
     {
@@ -51,14 +51,14 @@ EstimateMarginals<-function(data, w.fun, prms=c())
 #        print(dim(data))
         augment.data <- 1 # new: add xy values 
         if(augment.data) # duplicate x and y values 
-          data <- cbind(union(data[,1], data[,2]), union(data[,1], data[,2]))
+          data <- cbind(union(data[,1], data[,2]), union(data[,1], data[,2])) # change data size: n-> 2*n 
         
 #        print("DIM DATA AFTER")
 #        print(dim(data))
-        F1<-ecdf(data[,1])
-        F2<-ecdf(data[,2])
-        Fx<-(F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y
-        Fy<-(F1(data[,2])+F2(data[,2]))/2   
+        F1 <- ecdf(data[,1])
+        F2 <- ecdf(data[,2])
+        Fx <- (F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y
+        Fy <- (F1(data[,2])+F2(data[,2]))/2   
         CDF.table<-cbind(Fx,Fy)
       }
     } # end if 
