@@ -145,8 +145,9 @@ double w_fun_eval(double x, double y, string w_fun)
 //   3 | 2
 //##################################################################################################
 // [[Rcpp::export]]
-double ComputeStatistic_rcpp(long n, Rcpp::NumericMatrix data, Rcpp::NumericMatrix grid_points, Rcpp::NumericMatrix null_expectations_table)
+double ComputeStatistic_rcpp(Rcpp::NumericMatrix data, Rcpp::NumericMatrix grid_points, Rcpp::NumericMatrix null_expectations_table)
 {
+	long n = data.nrow();
 	double Obs[4] = { 0 };
 	double Exp[4] = { 0 };
 	long i, j;
@@ -215,14 +216,15 @@ List GetNullDistribution_rcpp(Rcpp::NumericMatrix pdfs, Rcpp::NumericMatrix w_ma
 				z += null_distribution(i, j);
 			}
 	}
+	cout << "Z inside: " << z << endl;
 	for (i = 0; i < n; i++)
 		for (j = 0; j < n; j++)
 			null_distribution(i, j) /= z;  // normalize 
 
 	List ret;
-	ret["z"] = z;
+	ret["Z"] = z; // uppercase Z
 	ret["distribution"] = null_distribution;
-	return(ret); //	return(z);
+	return(ret); 
 }
 
 
@@ -246,10 +248,11 @@ IntegerVector sort_indexes_rcpp(NumericVector data)
 
 // double PDFToCDF2d(double** pdf_2d, double* data[2], long n, double** cdf_2d)
 // [[Rcpp::export]]
-NumericMatrix PDFToCDF2d_rcpp(long n, NumericMatrix pdf_2d, NumericMatrix data)
+NumericMatrix PDFToCDF2d_rcpp(NumericMatrix pdf_2d, NumericMatrix data)
 {
 	long i, j;
 
+	long n = pdf_2d.nrow();
 	IntegerVector Px(n);
 	IntegerVector Py(n);
 
@@ -260,45 +263,52 @@ NumericMatrix PDFToCDF2d_rcpp(long n, NumericMatrix pdf_2d, NumericMatrix data)
 	Py = sort_indexes_rcpp(data1); //  data(_, 1));
 
 	NumericMatrix cdf_2d(n, n);
+	NumericMatrix cdf_2d_ret(n, n);
+
+	cout << "Px: ";
+	for (i = 0; i < 5; i++)
+		cout << Px[i] << " ";
+	cout << endl;
 
 	// cumulative sum on rows 
 	for (i = 0; i < n; i++)
 	{
-		cdf_2d(Py[0], Px[i]) = pdf_2d(Py[0], Px[i]);
+		cdf_2d(Px[i], Py[0]) = pdf_2d(Px[i], Py[0]);
 		for (j = 1; j < n; j++)
-			cdf_2d(Py[j], Px[i]) = cdf_2d(Py[j - 1], Px[i]) + pdf_2d(Py[j], Px[i]);
+			cdf_2d(Px[i], Py[j]) = cdf_2d(Px[i], Py[j - 1]) + pdf_2d(Px[i], Py[j]);
 	}
 	// cumulative sum on columns 
-	for (j = 0; j < n; j++)
-	{
-		cdf_2d(Py[j], Px[0]) = pdf_2d(Py[j], Px[0]);
-		for (i = 1; i < n; i++)
-			cdf_2d(Py[j], Px[i]) = cdf_2d(Py[j], Px[i - 1]) + pdf_2d(Py[j], Px[i]);
-	}
-
-	// copy results permuted
-	for (i = 0; i < n; i++)
+	for (i = 1; i < n; i++)
 		for (j = 0; j < n; j++)
-			cdf_2d(Py[j], Px[i]) = cdf_2d(j, i);
-	return(cdf_2d);
+			cdf_2d(Px[i], Py[j]) = cdf_2d(Px[i - 1], Py[j]) + cdf_2d(Px[i], Py[j]);
 
+
+	cout << " First Element: I" << Px[0] << " " << Py[0] << endl; 
+
+	// copy results permuted. Problem! can't use the same array twice !!! 
+//	for (i = 0; i < n; i++)
+//		for (j = 0; j < n; j++)
+//			cdf_2d_ret(Px[i], Py[j]) = cdf_2d(i, j);  // try switching Px, Py 
+//	return(cdf_2d_ret); // copy to a new array 
+	return(cdf_2d); // temp !! don't permute back (for debugging)
 }
 
 
 
 // double GetQuarterExpectedProb(double Point[2], long QId, double* data[2], double** null_distribution_CDF, long n)
 // [[Rcpp::export]]
-double GetQuarterExpectedProb_rcpp(long n, NumericVector Point, long QId, NumericMatrix data, NumericMatrix null_distribution_CDF)
+double GetQuarterExpectedProb_rcpp(NumericVector Point, long QId, NumericMatrix data, NumericMatrix null_distribution_CDF)
 {
 	// convert below R to C++:
 	long idx_x = -1, idx_y = -1, i;
-	double S;
+	double S = 0.0;
+	long n = data.nrow();
 
-	if ((QId == 0) || (QId == 1)) // change to 0-3 coordinates for quadrants !!
+	if ((QId == 0) || (QId == 1)) // work with 0-3 coordinates for quadrants
 	{
 		for (i = 0; i < n; i++)
 			if (data(i, 0) > Point[0])
-				if ((idx_x == -1) || (data(idx_x, 0) > data(i, 0)))
+				if ((idx_x == -1) || (data(idx_x, 0) > data(i, 0)))  // take minimal value larger than Point[0]
 					idx_x = i;
 	}
 	else
@@ -323,6 +333,8 @@ double GetQuarterExpectedProb_rcpp(long n, NumericVector Point, long QId, Numeri
 					idx_y = i;
 	}
 
+//	Rcout << "Idx chosen: idx_x=" << idx_x << " idx_y=" << idx_y << endl; 
+
 	if ((idx_x == -1) || (idx_y == -1))
 		return(0);
 
@@ -334,14 +346,24 @@ double GetQuarterExpectedProb_rcpp(long n, NumericVector Point, long QId, Numeri
 	long idx_y_max = which_max(data(_, 1));
 
 	switch (QId) { // different quardants
-	case 0: {S = null_distribution_CDF(idx_y_max, idx_x_max) + null_distribution_CDF(idx_y, idx_x) -
-		null_distribution_CDF(idx_y_max, idx_x) - null_distribution_CDF(idx_y, idx_x_max); break; } // "huji" prints "1",
-	case 1: {S = -null_distribution_CDF(idx_y, idx_x_max) - null_distribution_CDF(idx_y, idx_x); break; }
-	case 2: {S = -null_distribution_CDF(idx_y, idx_x); break; }
-	case 3: {S = -null_distribution_CDF(idx_y_max, idx_x) - null_distribution_CDF(idx_y, idx_x); break; }
+	case 0: {S = null_distribution_CDF(idx_x_max, idx_y_max) + null_distribution_CDF(idx_x, idx_y) -
+		null_distribution_CDF(idx_x, idx_y_max) - null_distribution_CDF(idx_x_max, idx_y); break; } // "huji" prints "1",
+	case 1: {S = null_distribution_CDF(idx_x_max, idx_y) - null_distribution_CDF(idx_x, idx_y); break; }
+	case 2: {S = null_distribution_CDF(idx_x, idx_y); break; }
+	case 3: {S = null_distribution_CDF(idx_x, idx_y_max) - null_distribution_CDF(idx_x, idx_y); break; }
 	} // end switch 
+	
+	/**
+	if ((idx_x < 0) || (idx_x >= n))
+		Rcout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
+	if ((idx_y < 0) || (idx_y >= n))
+		Rcout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
+	if ((idx_x_max < 0) || (idx_x_max >= n))
+		Rcout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
+	if ((idx_y_max < 0) || (idx_y_max >= n))
+		Rcout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
+**/	
 
-	cout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
 	return(S);
 }
 
@@ -349,32 +371,41 @@ double GetQuarterExpectedProb_rcpp(long n, NumericVector Point, long QId, Numeri
 //double QuarterProbFromBootstrap(double* data[2], double** null_distribution, double* grid_points[2], long n,
 //	double* mass_table[4])
 // [[Rcpp::export]]
-double QuarterProbFromBootstrap_rcpp(long n, NumericMatrix data, NumericMatrix null_distribution, NumericMatrix grid_points, NumericMatrix mass_table)
+NumericMatrix QuarterProbFromBootstrap_rcpp(NumericMatrix data, NumericMatrix null_distribution, NumericMatrix grid_points)
 {
 	long i, j;
+	long n = data.nrow();
+	long n_grid = grid_points.nrow();
 	NumericMatrix null_distribution_CDF(n, n);
 	NumericVector cur_grid_points(2);
+	NumericMatrix mass_table(n_grid, 4);
 
-	//	cout << "Inside DO PDFToCDF2d\n";
-	null_distribution_CDF = PDFToCDF2d_rcpp(n, null_distribution, data);  // convert PDF to CDF 
+//	cout << "Inside DO PDFToCDF2d\n" << endl; 
+	null_distribution_CDF = PDFToCDF2d_rcpp(null_distribution, data);  // convert PDF to CDF 
+//	cout << "Check PDF->CDF 2D:" << endl;
+//	for (i = 0; i < 5; i++)  // loop on grid-points
+//	{
+//		for (j = 0; j < 5; j++)
+//			cout << "(" << null_distribution_CDF(i, j) << ", " << null_distribution(i, j) << ") ";
+//		cout << endl;
+//	}
+//	cout << "Inside DO GetQuarterExpectedProb" << endl;
 
-//	cout << "Inside DO GetQuarterExpectedProb\n";
-	for (i = 0; i < n; i++)  // loop on grid-points
+//	cout << "n: " << n << " n_grid: " << n_grid << " null-dist: " << null_distribution.nrow() << ", " << null_distribution.ncol() << endl;
+	for (i = 0; i < n_grid; i++)  // loop on grid-points
 	{
-		cur_grid_points[0] = grid_points(i,0);
-		cur_grid_points[1] = grid_points(i,1);
+		cur_grid_points = grid_points(i,_);// 		cur_grid_points[1] = grid_points(i,1);
 //		cout << "cur-grid-points i=" << i << " " << cur_grid_points[0] << ", " << cur_grid_points[1] << endl;
 		for (j = 0; j < 3; j++)
-			mass_table(i,j) = GetQuarterExpectedProb_rcpp(n, cur_grid_points, j, data, null_distribution_CDF);
-		mass_table(i,3) = 1 - mass_table(i,2) - mass_table(i,1) - mass_table(i,0);
-		//		cout << "Inside Finished i=" << i << endl;
+			mass_table(i, j) = n * GetQuarterExpectedProb_rcpp(cur_grid_points, j, data, null_distribution_CDF);
+		mass_table(i,3) = n - mass_table(i,2) - mass_table(i,1) - mass_table(i,0);
 	}
+//	cout << "Finished loop on mass_table" << endl;
+//	for (i = 0; i < n_grid; i++)  //  normalize to counts
+//		for (j = 0; j < 4; j++)
+//			mass_table(i,j) *= n;
 
-	for (j = 0; j < 4; j++)
-		for (i = 0; i < n; i++)  //  normalize to counts
-			mass_table(i,j) *= n;
-
-	return(TRUE);
+	return(mass_table);
 }  // end function QuarterProbFromBootstrap
 
 
@@ -408,7 +439,8 @@ QuarterProbFromPermutations < -function(data, P, grid.points) #Permutations
 **/
 
 
-NumericMatrix QuarterProbFromPermutations(NumericMatrix data, NumericMatrix P, NumericMatrix grid_points)
+// [[Rcpp::export]]
+NumericMatrix QuarterProbFromPermutations_rcpp(NumericMatrix data, NumericMatrix P, NumericMatrix grid_points)
 {
 	long i, j, k, a, b;
 	long n = data.nrow();
@@ -544,7 +576,7 @@ CDFToPDFMarginals < -function(CDF.table)
 
 
 // [[Rcpp::export]]
-List EstimateMarginals_rcpp(NumericMatrix data, string w_fun, NumericVector params)  // inputs  //	double* xy[2], double* PDFs[2], double* CDFs[2])  // outputs 
+List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	double* xy[2], double* PDFs[2], double* CDFs[2])  // outputs 
 {
 	List ret;
 	

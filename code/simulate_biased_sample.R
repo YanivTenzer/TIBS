@@ -94,8 +94,8 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms)
         all.data <- rbind(all.data, xy)
       all.k <- all.k+1
     }
-  }    
-#  return(data)  
+  } # end while   k <= n
+
   if(prms$keep.all)
   {
     return(list(data=data, all.data=all.data[1:(all.k-1),]))

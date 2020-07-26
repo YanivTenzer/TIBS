@@ -22,12 +22,12 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   num.tests <- length(test.type)
   
   output.file <- paste0('results/', dependence.type, '_all_tests_results_B_', 
-                        B, '_iters_', prms$iterations, '_n_', prms$sample.size, '_rho_', paste(prms.rho, collapse = '_')) # set output file name
+                        prms$B, '_iters_', prms$iterations, '_n_', prms$sample.size, '_rho_', paste(prms.rho, collapse = '_')) # set output file name
   num.prms <- length(prms.rho)
   if((!run.flag) & file.exists(paste0(output.file, '.Rdata')))
     load(file=paste0(output.file, '.Rdata'))
   else
-    test.pvalue <- test.time <- array(-1, c(num.prms, num.tests, iterations)) 
+    test.pvalue <- test.time <- array(-1, c(num.prms, num.tests, prms$iterations)) 
   
   for(i.prm in 1:num.prms) # loop on different simulation parameters - should plot for each of them? 
   {
@@ -37,11 +37,11 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     prms$keep.all <- 0 # set to 1 for plotting
     
     ## Parallel on multiple cores 
-    ##    results.table<- foreach(i=seq(iterations), .combine=rbind) %dopar%{ 
+    ##    results.table<- foreach(i=seq(prms$iterations), .combine=rbind) %dopar%{ 
     ##      iteration_result <- matrix(0, 4, B+1)
-    for(i in 1:iterations) # run simulations multiple times 
+    for(i in 1:prms$iterations) # run simulations multiple times 
     { 
-      biased.data <- SimulateBiasedSample(sample.size, dependence.type, w.fun, prms) 
+      biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
       all.data <- biased.data$all.data
       biased.data <- biased.data$data 
       if((!run.flag) & file.exists(paste0(output.file, '.Rdata'))) # simulate only once 
@@ -85,7 +85,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
 #          prms$z_gamma <- abs(qnorm(prms$gamma/2))
           cur.pvalue <- 0
           stop.flag <- 0
-          for(b in 1:(B/block.size))  # run block.size permutations each time 
+          for(b in 1:(prms$B/block.size))  # run block.size permutations each time 
           {
             cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
             cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
@@ -96,10 +96,10 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
 #            print(paste('cur.pval=', round(cur.pvalue/b, 3), 'conf.int=(', round(cur.conf.int$lower, 3), ', ', round(cur.conf.int$upper, 3), ') alpha=', alpha))
             if((prms$alpha < cur.conf.int$lower) ||  (prms$alpha > cur.conf.int$upper))   # here stop early !!! 
             {
-              print(paste0('early stopping after ', b*block.size, ' ', cur.test.type, ' out of ', B, ' saving: ', round(100*(1-b*block.size/B), 1), '% of work!'))
+              print(paste0('early stopping after ', b*block.size, ' ', cur.test.type, ' out of ', prms$B, ' saving: ', round(100*(1-b*block.size/B), 1), '% of work!'))
               stop.flag <- 1
             }
-            if(stop.flag || (b == B/block.size)) # reached last value!
+            if(stop.flag || (b == prms$B/block.size)) # reached last value!
             {
               test.results <- c()
               test.results$Pvalue <- cur.pvalue / b
@@ -112,7 +112,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue
         print(paste0(dependence.type, ', rho=', prms$rho, '. Test: ', test.type[t], 
-                     ' i=', i, ' of ', iterations, '. Pval=', round(test.pvalue[i.prm, t, i], 3), '. Time (sec.)=', round(test.time[i.prm, t, i], 2)))
+                     ' i=', i, ' of ', prms$iterations, '. Pval=', round(test.pvalue[i.prm, t, i], 3), '. Time (sec.)=', round(test.time[i.prm, t, i], 2)))
       } # end loop on tests 
     }  # end loop on iterations (parallel collection). Simulation and testing for one parameter (i.prm)
     prms$title <- as.integer(dependence.type != 'UniformStrip') # s>1) 
@@ -132,12 +132,12 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     print('save results:') # save partial results for cases of script crashing
     if(i.prm < num.prms) # intermediate loops 
     {
-      save(test.pvalue, test.time, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.partial.Rdata'))
+      save(test.pvalue, test.time, prms.rho, prms$sample.size, B, prms$iterations, file=paste0(output.file, '.partial.Rdata'))
       print(xtable(test.output[c(1:i.prm, i.prm+2),], type = "latex", digits=3), 
             file = paste0(output.file, '.partial.tex'), size="\\tiny") # save in latex format
     } else #    if(i.prm == num.prms) # final loop 
     {
-      save(test.pvalue, test.time, test.power, prms.rho, sample.size, B, iterations, file=paste0(output.file, '.Rdata'))  
+      save(test.pvalue, test.time, test.power, prms.rho, prms$sample.size, B, prms$iterations, file=paste0(output.file, '.Rdata'))  
       print(xtable(test.output, type = "latex", digits=3), 
             file = paste0(output.file, '.tex'), size="\\tiny") # save in latex format 
     }

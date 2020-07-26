@@ -1,8 +1,8 @@
 path = 'C:/Users/Or Zuk/Documents/GitHub/TIBS/code'  # change to your path
 
-
 setwd(path)
 args=commandArgs(trailingOnly = TRUE)
+# Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
 source('simulate_and_test.R')
 source('simulate_biased_sample.R')
@@ -75,7 +75,5 @@ for(s in run.dep) # Run all on the farm
   T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], w.fun[s], test.type, prms) # run all tests 
 
 } # end loop on dependency types
-
-
 
 

@@ -41,6 +41,7 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
   
   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
 }
+
 #########################################################################################
 ComputeStatistic_inverse_weighting<- function(data, grid.points, W)
 {
@@ -80,6 +81,7 @@ ComputeStatistic_inverse_weighting<- function(data, grid.points, W)
   
   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
 }
+
 #########################################################################################
 ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
   W <- apply(data,1,w)
@@ -99,8 +101,8 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
     Obs[2] <- sum(Rx*(!Ry)/W)/n.w
     Obs[4] <- sum((!Rx)*Ry/W)/n.w
     Obs[3] <- sum((!Rx)*(!Ry)/W)/n.w
-    print(Exp)
-    print(Obs)
+#    print(Exp)
+#    print(Obs)
     obs.table[i,] <- Obs
     exp.table[i,] <- Exp
     if (min(Exp)>(1/dim(data)[1])) {
@@ -111,68 +113,69 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
   return(list(Statistic=Statistic, obs.table=obs.table,exp.table=exp.table)) 
   # returns also expected and observed tables for diagnostics
 }
-#################################################################
-# sample permutations, using MCMC, over the set of valid permutations, 
-# with respect to the distribution appears in Eq 8
-# Parameters: 
-# W - matrix with weights 
-# B - number of permutations to draw
-# N - sample size (can be read from data or W?)
-# 
-# Output: 
-# PermutationsTable - A matrix representing the sampled permutations 
-# P - An n*n matrix with P(i,j) = Pr(pi(i)=j) over the sampled permutations 
-#########################################################################################
-PermutationsMCMC <- function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
-{ 
-  P <- matrix(0, N, N) # New! matrix with P[i]=j estimate
-  #  for(i in 1:num.permutations) 
-  #    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
-  
-  
-  
-  # Set mcmc default sampling parameters 
-  if(!('B' %in% names(prms)))
-    prms$B <- 1000
-  if(!('burn.in' %in% names(prms)))
-    prms$burn.in <- 2*N
-  if(!('Cycle' %in% names(prms)))
-    prms$Cycle <- N
-  
-  Idx <- ctr <- 1
-  PermutationsTable = matrix(0,N,prms$B)
-  Perm = 1:N
-  while(Idx<=prms$B)
-  {
+
+  #################################################################
+  # sample permutations, using MCMC, over the set of valid permutations, 
+  # with respect to the distribution appears in Eq 8
+  # Parameters: 
+  # W - matrix with weights 
+  # B - number of permutations to draw
+  # N - sample size (can be read from data or W?)
+  # 
+  # Output: 
+  # PermutationsTable - A matrix representing the sampled permutations 
+  # P - An n*n matrix with P(i,j) = Pr(pi(i)=j) over the sampled permutations 
+  #########################################################################################
+  PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
+  { 
+    n <- dim(w.mat)[1];
+    P <- matrix(0, n, n) # New! matrix with P[i]=j estimate
+    #  for(i in 1:num.permutations) 
+    #    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
     
-    # A Metropolis Hastings algorithm with target stationary distribution \pi
-    # Choose the two indices to be switched
-    switchIdx = sample(1:N, 2, replace = FALSE)  
-    i = switchIdx[1]
-    j = switchIdx[2]
-    ratio = W[i,Perm[j]]*W[j,Perm[i]]/(W[i,Perm[i]]*W[j,Perm[j]]) 
     
-    if(rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
+    
+    # Set mcmc default sampling parameters 
+    if(!('B' %in% names(prms)))
+      prms$B <- 1000
+    if(!('burn.in' %in% names(prms)))
+      prms$burn.in <- 2*n
+    if(!('Cycle' %in% names(prms)))
+      prms$Cycle <- n
+    
+    Idx <- ctr <- 1
+    PermutationsTable = matrix(0, n, prms$B)
+    Perm = 1:n
+    while(Idx<=prms$B)
     {
-      temp <- Perm[i] # SWAP 
-      Perm[i] <- Perm[j]
-      Perm[j] <- temp
-      if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in))
+      
+      # A Metropolis Hastings algorithm with target stationary distribution \pi
+      # Choose the two indices to be switched
+      switchIdx = sample(1:n, 2, replace = FALSE)  
+      i = switchIdx[1]
+      j = switchIdx[2]
+      ratio = w.mat[i,Perm[j]]*w.mat[j,Perm[i]]/(w.mat[i,Perm[i]]*w.mat[j,Perm[j]]) 
+      
+      if(rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
       {
-        PermutationsTable[,Idx]=Perm;
-        Idx = Idx+1;
-        if(mod(Idx,100)==0)
-          print(c("Sample Perm=", Idx))
+        temp <- Perm[i] # SWAP 
+        Perm[i] <- Perm[j]
+        Perm[j] <- temp
+        if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in))
+        {
+          PermutationsTable[,Idx]=Perm;
+          Idx = Idx+1;
+          if(mod(Idx,100)==0)
+            print(c("Sample Perm=", Idx))
+        }
+        P[cbind(1:n, Perm)] <- P[cbind(1:n, Perm)]+1 # Update table P
+        ctr <- ctr+1;  # update counter only after swap 
       }
-      P[cbind(1:N, Perm)] <- P[cbind(1:N, Perm)]+1 # Update table P
-      ctr <- ctr+1;  # update counter only after swap 
-    }
-  }  # end while
-  P <- P / (ctr-1) # normalize 
-  
-  return(list(PermutationsTable=PermutationsTable, P=P)) # New: return also P
-  # To do: return also a matrix P with estimates of Pi[i]=j. Can use consecutive permutations not only every cycle.
-}
+    }  # end while
+    P <- P / (ctr-1) # normalize 
+    
+    return(list(PermutationsTable=PermutationsTable, P=P)) # New: return also P, a matrix with Pr(pi(i)=j)
+  }
 
 ###################################################################################
 # Estimate the null distribution fx*fy*W (given the estimated PDFs f_x, f_y)
@@ -238,6 +241,8 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
 # QId - which quadrant 1,2,3,4
 # data - 2*n array of (x,y)
 # null.distribution.CDF - n*n table of 2d cumulative of Fx*Fy*w (problem with ties)
+# Output: 
+# S - expected probability at the quardant QId centered at Point for the distribution defined by null.distribution.CDF and data 
 ###################################################################################################
 GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 {
@@ -265,11 +270,10 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
   m <- which.max(data[,1])
   n <- which.max(data[,2])
   
-  
   switch(QId, # First sample from Fxy
          {S <- null.distribution.CDF[m, n] + null.distribution.CDF[idx.x, idx.y] - 
            null.distribution.CDF[idx.x, n] - null.distribution.CDF[m, idx.y]}, # 1
-         {S <- null.distribution.CDF[m, idx.y] - null.distribution.CDF[idx.x, idx.y]}, # 1
+         {S <- null.distribution.CDF[m, idx.y] - null.distribution.CDF[idx.x, idx.y]}, # 2
          {S <- null.distribution.CDF[idx.x, idx.y]}, # 3
          {S <- null.distribution.CDF[idx.x, n] - null.distribution.CDF[idx.x, idx.y]}) # 4
   return(S)       
@@ -429,7 +433,7 @@ PDFToCDF2d <- function(pdf.2d, data)
 #  print(dim(data))
   Px <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
   Py <- sort(data[,2], index.return=TRUE)
-  cdf.2d <- apply(apply(pdf.2d[Px$ix, Py$ix], 2, cumsum), 1, cumsum)  # cumsum on rows and columns 
+  cdf.2d <- apply(apply(pdf.2d[Px$ix, Py$ix], 1, cumsum), 1, cumsum)  # cumsum on rows and columns 
   
   # Use data to deal with ties (not working yet)
   #  ties.x <- which(data[-1,1] == head(data[,1], -1))
@@ -438,8 +442,14 @@ PDFToCDF2d <- function(pdf.2d, data)
   #    cdf.2d[,i] <- cdf.2d[,i+1]
   #  for(i in rev(ties.x))
   #    cdf.2d[i,] <- cdf.2d[i+1,]
-  
-  return( t(cdf.2d[invPerm(Py$ix), invPerm(Px$ix)]))  
+
+  # This part is equivalent to the returned matrix 
+#  n = length(Px$ix)  
+#  cdf.3d <- matrix(0, nrow=n, ncol=n)
+#  cdf.3d[Px$ix, Py$ix] = cdf.2d
+#  return (cdf.3d)
+#  return(cdf.2d)
+  return( cdf.2d[invPerm(Px$ix), invPerm(Py$ix)] )  # why Py first and then Px? 
 }
 
 ###################################################################################################
