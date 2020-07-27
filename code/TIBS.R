@@ -92,7 +92,7 @@ TIBS <- function(data, w.fun, test.type, prms)
              if(prms$use.cpp)
              {
                marginals.naive <- EstimateMarginals_rcpp(data, 'naive')
-               null.distribution <- GetNullDistribution_rcpp(marginals.naive$PDF, 1)
+               null.distribution <- GetNullDistribution_rcpp(marginals.naive$PDF, as.matrix(1.0))
                expectations.table <- QuarterProbFromBootstrap_rcpp(marginals.naive$xy, null.distribution$distribution, grid.points)
              } else
              {
@@ -188,7 +188,7 @@ TIBS <- function(data, w.fun, test.type, prms)
              if(prms$use.cpp)
              {
                marginals <- EstimateMarginals_rcpp(data, 'naive')           
-               null.distribution <- GetNullDistribution_rcpp(marginals$PDF, 1)
+               null.distribution <- GetNullDistribution_rcpp(marginals$PDF, as.matrix(1.0))
                expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points) 
              }
              else
