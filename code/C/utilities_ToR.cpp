@@ -91,7 +91,6 @@ NumericVector empirical_cdf_rcpp(NumericVector x)
 double w_fun_eval_rcpp(double x, double y, string w_fun)
 {
 	double r = 0.0;
-	// const char* w_fun_c = w_fun.c_str();
 
 	// allow only string for now 
 	// different bias functions (instead of switch)
@@ -100,6 +99,8 @@ double w_fun_eval_rcpp(double x, double y, string w_fun)
 	if (w_fun == "Hyperplane_Truncation")
 		r = x < y;
 	if (w_fun == "exp")
+		r = exp((-abs(x) - abs(y)) / 4);
+	if (w_fun == "exponent_minus_sum_abs")
 		r = exp((-abs(x) - abs(y)) / 4);
 	if (w_fun == "stritcly_positive")
 		r = exp((-abs(x) - abs(y)) / 4);
@@ -460,8 +461,6 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 	for (i = 0; i < 2; i++)
 		if (w_fun == naive_w[i])
 			naive_flag = TRUE;
-
-//	Rcout << "POS FLAG=" << pos_flag << " NAIVE FLAG=" << naive_flag << endl;
 
 	if (pos_flag) // w_fun % in % c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) // for w(x, y) > 0 cases
 	{ // case 1: strictly positive W, use ML estimator

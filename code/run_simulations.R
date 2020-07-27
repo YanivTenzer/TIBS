@@ -40,13 +40,13 @@ exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) # is exchan
 # sample.size <- c(500, 100, 100, 100, 100, 100, 100, 100) # set all sample.sizes to 100 
 prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
-test.type <- c('tsai', # 'minP2', # other's tests 
+test.type <- c('tsai',  'minP2', # other's tests. minP2 is slower 
                'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations') # different tests to run - new: add 
 # test.type <- c('tsai', 'permutations', 'bootstrap') #  'importance.sampling')  # for fast simulations . Add new importance sampling test 
 
 if(run.flag == 1)
 {
-  run.dep <- c(5) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  run.dep <- (2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   iterations = 4   # for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
   B = 150  # number of permtuations or bootstrap samples. Shared by all simulations 
   
@@ -63,7 +63,7 @@ if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
 
 for(s in run.dep) # Run all on the farm  
 {
-  prms = list(B=1000, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=1) # set running parameters here ! 
+  prms = list(B=1000, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=1) # set running parameters here ! 
   
   if(run.flag != 1)
     prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
