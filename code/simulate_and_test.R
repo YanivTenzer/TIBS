@@ -79,8 +79,9 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         # new! run sequencial tests and stop early for bootstrap/permutations
         if(prms$sequential.stopping)
         {
-          block.size <- 50
-          prms$B <- block.size
+          block.size <- 50  # must divide prms$B !!! 
+          prms$B <- ceil(prms$B / block.size) * block.size  # set a multiplication of block size 
+          # prms$B <- block.size # wtf?
           prms$gamma <- 0.0001  # chance that we miss being below/above alpha at an early stop - 1/10000 for each block
 #          prms$z_gamma <- abs(qnorm(prms$gamma/2))
           cur.pvalue <- 0
@@ -96,7 +97,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
 #            print(paste('cur.pval=', round(cur.pvalue/b, 3), 'conf.int=(', round(cur.conf.int$lower, 3), ', ', round(cur.conf.int$upper, 3), ') alpha=', alpha))
             if((prms$alpha < cur.conf.int$lower) ||  (prms$alpha > cur.conf.int$upper))   # here stop early !!! 
             {
-              print(paste0('early stopping after ', b*block.size, ' ', cur.test.type, ' out of ', prms$B, ' saving: ', round(100*(1-b*block.size/B), 1), '% of work!'))
+              print(paste0('early stopping after ', b*block.size, ' ', cur.test.type, ' out of ', prms$B, ' saving: ', round(100*(1.0-(b*block.size)/prms$B), 1), '% of work!'))
               stop.flag <- 1
             }
             if(stop.flag || (b == prms$B/block.size)) # reached last value!
@@ -132,12 +133,12 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     print('save results:') # save partial results for cases of script crashing
     if(i.prm < num.prms) # intermediate loops 
     {
-      save(test.pvalue, test.time, prms.rho, prms$sample.size, B, prms$iterations, file=paste0(output.file, '.partial.Rdata'))
+      save(test.pvalue, test.time, prms.rho, prms, file=paste0(output.file, '.partial.Rdata'))
       print(xtable(test.output[c(1:i.prm, i.prm+2),], type = "latex", digits=3), 
             file = paste0(output.file, '.partial.tex'), size="\\tiny") # save in latex format
     } else #    if(i.prm == num.prms) # final loop 
     {
-      save(test.pvalue, test.time, test.power, prms.rho, prms$sample.size, B, prms$iterations, file=paste0(output.file, '.Rdata'))  
+      save(test.pvalue, test.time, test.power, prms.rho, prms, file=paste0(output.file, '.Rdata'))  
       print(xtable(test.output, type = "latex", digits=3), 
             file = paste0(output.file, '.tex'), size="\\tiny") # save in latex format 
     }

@@ -37,13 +37,13 @@ TIBS <- function(data, w.fun, test.type, prms)
   if(!('use.cpp' %in% names(prms)))  # new: a flag for using c++ code 
     prms$use.cpp <- 0
   if(!('fast.bootstrap' %in% names(prms)))
-    prms$fast.bootstrap <- 0
+    prms$fast.bootstrap <- FALSE
   if(!('minp.eps' %in% names(prms)))
     prms$minp.eps <- NULL # default: let permDep algorithm select minp.eps
   if(!('PL.expectation' %in% names(prms)))  # get expectation form the bootstrap: product-limit estimator
     prms$PL.expectation <- FALSE
   if(!('naive.expectation' %in% names(prms)))
-    prms$naive.expectation <- 0
+    prms$naive.expectation <- FALSE
   if(!('delta' %in% names(prms)))
     prms$delta <- NA
   n <- dim(data)[1]
@@ -78,29 +78,31 @@ TIBS <- function(data, w.fun, test.type, prms)
          },
          'bootstrap'={
            #3. Estimate the marginals
-           marginals <- EstimateMarginals(data, w.fun)
+           if(prms$use.cpp)
+           {
+             marginals <- EstimateMarginals_rcpp(data, w.fun)
+           } else
+           {
+             marginals <- EstimateMarginals(data, w.fun)
+           }
            w.mat = w_fun_to_mat(marginals$xy, w.fun) # compute W again for augmented data
-           
            #4. Estimate W(x,y)*Fx*Fy/normalizing.factor
            if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
            {
-             marginals.naive <- EstimateMarginals(data, 'naive')
              if(prms$use.cpp)
              {
+               marginals.naive <- EstimateMarginals_rcpp(data, 'naive')
                null.distribution <- GetNullDistribution_rcpp(marginals.naive$PDF, 1)
                expectations.table <- QuarterProbFromBootstrap_rcpp(marginals.naive$xy, null.distribution$distribution, grid.points)
-           }
-             else
+             } else
              {
+               marginals.naive <- EstimateMarginals(data, 'naive')
                null.distribution <- GetNullDistribution(marginals.naive$PDF, 1)
                expectations.table <- QuarterProbFromBootstrap(marginals.naive$xy, null.distribution$distribution, grid.points)
              }
            } else
            {
-             print("Get Null Distribution USE-CPP=")
-             print(prms$use.cpp)
-             start.time <- Sys.time()
-             
+#             print(c("Bootstrap Get Null Distribution USE-CPP=", prms$use.cpp))
              if(prms$use.cpp)
              {
                null.distribution <- GetNullDistribution_rcpp(marginals$PDF, w.mat)
@@ -111,61 +113,23 @@ TIBS <- function(data, w.fun, test.type, prms)
                null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
                expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)             
              }
-#             null_distribution_CDF.cpp = PDFToCDF2d_rcpp(null.distribution$distribution, marginals$xy)
-#            null_distribution_CDF = PDFToCDF2d(null.distribution$distribution, marginals$xy)
-#             Px.cpp = sort_indexes_rcpp(marginals$xy[,1])
-#             Py.cpp = sort_indexes_rcpp(marginals$xy[,2])
-#             Px <- sort(marginals$xy[,1], index.return=TRUE)
-#             Py <- sort(marginals$xy[,2], index.return=TRUE)
-#             max(abs(sort(null_distribution_CDF)-sort(null_distribution_CDF.cpp)))
-#             max(abs(null_distribution_CDF - null_distribution_CDF.cpp))
-#             expectations.table.cpp <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)             
-#             expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)            
-#             max(abs(expectations.table - expectations.table.cpp))
-#             
-#             GetQuarterExpectedProb_rcpp(grid.points[1,], 0, marginals$xy, null_distribution_CDF)
-#             GetQuarterExpectedProb(grid.points[1,], 1, marginals$xy, null_distribution_CDF)
-             
-             
-             #             print("Dims: xy, distribution, grid.points, expectations.table")
-#             print(dim(marginals$xy))
-#             print(dim(null.distribution$distribution))
-#             print(dim(grid.points))
-#             print(dim(expectations.table))
-
-#             print("SUM-EXP-TABLE: ")
-#             print(sum(expectations.table))
-             
-#             print(difftime(Sys.time(), start.time, units='secs'))
-#             print(dim(marginals$PDF))
-#             print(dim(null.distribution$distribution))
-             
            }
            
            #1. First compute the statistic based on the original data set:
            if(prms$use.cpp)  # new: use cpp
            {
-#             print("USE CPP BOOT, Time:")
-#             start.time <- Sys.time()
              TrueT = ComputeStatistic_rcpp(data, grid.points, expectations.table)
-#             print(difftime(Sys.time(), start.time, units='secs'))
            }
            else
            {
-#             print("USE R BOOT, Time:")
-#             start.time <- Sys.time()
              TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
-#             print(difftime(Sys.time(), start.time, units='secs'))
-             # obs.table <- TrueT$obs.table
-             # TrueT <- TrueT$Statistic
            }
-#           print("TrueT=")
-#           print(TrueT)
-           
+
            #2. Compute statistic for bootstrap sample:
            statistics.under.null = matrix(0, prms$B, 1)
            null.distribution.bootstrap <- null.distribution
-           for(ctr in 1:prms$B) 
+#           print("Start heavy bootstrap loop")
+           for(ctr in 1:prms$B) # heavy loop: run on bootstrap 
            {
              #             if(mod(ctr,100)==0)
 #             print(paste0("Run Boots=", ctr))
@@ -174,7 +138,10 @@ TIBS <- function(data, w.fun, test.type, prms)
              
              if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
              {
-               marginals.bootstrap <- EstimateMarginals(bootstrap.sample, w.fun)  # Why are the marginals estimated each time? 
+               if(prms$use.cpp)
+                 marginals.bootstrap <- EstimateMarginals_rcpp(bootstrap.sample, w.fun)  # Why are the marginals estimated each time? 
+               else
+                 marginals.bootstrap <- EstimateMarginals(bootstrap.sample, w.fun)  # Why are the marginals estimated each time?
                #3. Compute weights matrix W:    
                if(prms$naive.expectation)
                  w.mat.bootstrap <- 1   # here we ignore W (using statistic for unbiased sampling)
@@ -193,18 +160,26 @@ TIBS <- function(data, w.fun, test.type, prms)
                  expectations.table <- QuarterProbFromBootstrap(
                    marginals.bootstrap$xy, null.distribution.bootstrap$distribution, grid.points)
                }
-             } 
+             } # if fast bootstrap  
              #             print(paste0("Compute Stat Boots=", ctr))
+             if(prms$use.cpp)
+               NullT <- ComputeStatistic_rcpp(bootstrap.sample, grid.points, expectations.table)
+             else
+               NullT <- ComputeStatistic(bootstrap.sample, grid.points, expectations.table)$Statistic
              
-             NullT <- ComputeStatistic(bootstrap.sample, grid.points, expectations.table)
              # null.obs.table <- NullT$obs.table
-             statistics.under.null[ctr] <- NullT$Statistic
+             statistics.under.null[ctr] <- NullT
            }
+#           print("Finish heavy bootstrap loop")
+           
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null)
          },
          'permutations'={
            w.mat=w_fun_to_mat(data, w.fun)
-           Permutations=PermutationsMCMC(w.mat, prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
+           if(prms$use.cpp)
+             Permutations=PermutationsMCMC_rcpp(w.mat, prms)
+           else
+             Permutations=PermutationsMCMC(w.mat, prms)
            P=Permutations$P
            Permutations=Permutations$Permutations
            permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
@@ -229,13 +204,13 @@ TIBS <- function(data, w.fun, test.type, prms)
                if(prms$use.cpp)
                {
                  marginals <- EstimateMarginals_rcpp(data, w.fun)
-                 null.distribution <- GetNullDistribution_rcpp(marginals$PDF, W)
+                 null.distribution <- GetNullDistribution_rcpp(marginals$PDF, w.mat)
                  expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)
                }
                else
                {
                  marginals <- EstimateMarginals(data, w.fun)
-                 null.distribution <- GetNullDistribution(marginals$PDF, W)
+                 null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
                  expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)
                }
                w.mat = w_fun_to_mat(marginals$xy, w.fun)
@@ -253,7 +228,7 @@ TIBS <- function(data, w.fun, test.type, prms)
              n <- dim(data)[1]
 #             print("USE CPP PERM")
 #             start.time <- Sys.time()
-             TrueT=ComputeStatistic_rcpp(data, grid.points, expectations.table) 
+             TrueT = ComputeStatistic_rcpp(data, grid.points, expectations.table) 
 #             print(difftime(Sys.time(), start.time, units='secs'))
            } else
            {
@@ -267,8 +242,8 @@ TIBS <- function(data, w.fun, test.type, prms)
            statistics.under.null = matrix(0, prms$B, 1)
            for(ctr in 1:prms$B) 
            {
-             if(mod(ctr,100)==0)
-               print(paste0("Comp. Stat. Perm=", ctr))
+#             if(mod(ctr,100)==0)
+#               print(paste0("Comp. Stat. Perm=", ctr))
              if(prms$use.cpp)  # new: use cpp
                statistics.under.null[ctr] <- ComputeStatistic_rcpp(
                cbind(data[,1], data[Permutations[,ctr],2]), grid.points, expectations.table)

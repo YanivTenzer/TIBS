@@ -2,7 +2,7 @@ path = 'C:/Users/Or Zuk/Documents/GitHub/TIBS/code'  # change to your path
 
 setwd(path)
 args=commandArgs(trailingOnly = TRUE)
-# Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
 source('simulate_and_test.R')
 source('simulate_biased_sample.R')
@@ -37,7 +37,7 @@ w.fun <- c('truncation', 'truncation', 'truncation', 'truncation',
                'truncation', 'truncation', 'truncation', 'exponent_minus_sum_abs') # not good that we have only one simulation with positive W. Should add X+Y?
 monotone.type <- c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE) # is monotone
 exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) # is exchangeable
-sample.size <- c(500, 100, 100, 100, 100, 100, 100, 100) # set all sample.sizes to 100 
+# sample.size <- c(500, 100, 100, 100, 100, 100, 100, 100) # set all sample.sizes to 100 
 prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 test.type <- c('tsai', 'minP2', # other's tests 
@@ -63,7 +63,7 @@ if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
 
 for(s in run.dep) # Run all on the farm  
 {
-  prms = list(B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # NEW! Use RCPP 
+  prms = list(B=1000, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # set running parameers here ! 
   
   if(run.flag != 1)
     prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
@@ -71,9 +71,8 @@ for(s in run.dep) # Run all on the farm
   print(paste0("rho=", prms.rho[[s]]))
   set.seed(1) # set for randomization 
   # Call function. # run simulations function 
-  print(paste("n=", sample.size[s]))
+  print(paste("n=", prms$sample.size))
   T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], w.fun[s], test.type, prms) # run all tests 
-
 } # end loop on dependency types
 
 

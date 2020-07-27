@@ -165,8 +165,8 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
         {
           PermutationsTable[,Idx]=Perm;
           Idx = Idx+1;
-          if(mod(Idx,100)==0)
-            print(c("Sample Perm=", Idx))
+#          if(mod(Idx,100)==0)
+#            print(c("Sample Perm=", Idx))
         }
         P[cbind(1:n, Perm)] <- P[cbind(1:n, Perm)]+1 # Update table P
         ctr <- ctr+1;  # update counter only after swap 
@@ -213,14 +213,14 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
   if(is.null(n))
     n = dim(data)[1]
 #  print(dim(data))
-  boot.sample<-matrix(-1,n,2)
+  boot.sample <- matrix(-1, n, 2)
   k <- 0
   while(k<n) 
   {   # sampling n-k together
 #       print("Inside Bootstrap sample x")
-    x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X from Fx
+    x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X ~ Fx
 #       print("Inside Bootstrap sample y")
-    y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y from Fy
+    y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y ~ Fy
 #        print("Inside Bootstrap keep")
     keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$W.max)))
 #        print(keep)

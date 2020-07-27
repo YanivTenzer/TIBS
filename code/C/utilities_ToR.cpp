@@ -1,13 +1,4 @@
-//#include <stdio.h>
-//#include <stdlib.h> 
 #include <iostream>
-//#include <fstream>
-//#include <sstream>
-//#include <vector>
-//#include <numeric>      // std::iota
-//#include <algorithm>    // std::sort, std::stable_sort
-
-//#include <time.h>
 #include <math.h>
 // #include <Rcpp.h> // for including R with Rcpp
 #include <RcppArmadillo.h>
@@ -20,8 +11,6 @@ using namespace std;
 using namespace arma;
 using namespace Rcpp;  // for including R with Rcpp 
 
-
-
 // This is a simple example of exporting a C++ function to R. You can
 // source this function into an R session using the Rcpp::sourceCpp
 // function (or via the Source button on the editor toolbar). ...
@@ -30,12 +19,10 @@ int timesEight(int x) {
 	return x * 8;
 }
 
-
 // [[Rcpp::export]]
 int plusFive(int x) {
 	return x + 5;
 }
-
 
 // [[Rcpp::export]]
 Rcpp::NumericVector add_one_sqrt(NumericVector x) {
@@ -43,7 +30,6 @@ Rcpp::NumericVector add_one_sqrt(NumericVector x) {
 	y = sqrt(x + 1.0);
 	return y;
 }
-
 
 // [[Rcpp::export]]
 arma::vec arma_sort(arma::vec x, arma::vec y) {
@@ -56,7 +42,6 @@ NumericVector stl_sort(NumericVector x) {
 	std::sort(y.begin(), y.end());
 	return y;
 }
-
 
 
 /*
@@ -72,7 +57,7 @@ int binary_search_rcpp(NumericVector array, double pattern) {
 	while (i <= j) {
 		int k = (i + j) / 2;
 		if (array[k] == pattern) {
-			return k;
+			return k; // return index 
 		}
 		else if (array[k] < pattern) {
 			i = k + 1;
@@ -83,7 +68,6 @@ int binary_search_rcpp(NumericVector array, double pattern) {
 	}
 	return -1;
 }
-
 
 
 // compute empirical cdf 
@@ -104,7 +88,7 @@ NumericVector empirical_cdf_rcpp(NumericVector x)
 
 
 // [[Rcpp::export]]
-double w_fun_eval(double x, double y, string w_fun)
+double w_fun_eval_rcpp(double x, double y, string w_fun)
 {
 	double r = 0.0;
 	// const char* w_fun_c = w_fun.c_str();
@@ -216,7 +200,7 @@ List GetNullDistribution_rcpp(Rcpp::NumericMatrix pdfs, Rcpp::NumericMatrix w_ma
 				z += null_distribution(i, j);
 			}
 	}
-	cout << "Z inside: " << z << endl;
+//	cout << "Z inside: " << z << endl;
 	for (i = 0; i < n; i++)
 		for (j = 0; j < n; j++)
 			null_distribution(i, j) /= z;  // normalize 
@@ -265,11 +249,6 @@ NumericMatrix PDFToCDF2d_rcpp(NumericMatrix pdf_2d, NumericMatrix data)
 	NumericMatrix cdf_2d(n, n);
 	NumericMatrix cdf_2d_ret(n, n);
 
-	cout << "Px: ";
-	for (i = 0; i < 5; i++)
-		cout << Px[i] << " ";
-	cout << endl;
-
 	// cumulative sum on rows 
 	for (i = 0; i < n; i++)
 	{
@@ -282,15 +261,7 @@ NumericMatrix PDFToCDF2d_rcpp(NumericMatrix pdf_2d, NumericMatrix data)
 		for (j = 0; j < n; j++)
 			cdf_2d(Px[i], Py[j]) = cdf_2d(Px[i - 1], Py[j]) + cdf_2d(Px[i], Py[j]);
 
-
-	cout << " First Element: I" << Px[0] << " " << Py[0] << endl; 
-
-	// copy results permuted. Problem! can't use the same array twice !!! 
-//	for (i = 0; i < n; i++)
-//		for (j = 0; j < n; j++)
-//			cdf_2d_ret(Px[i], Py[j]) = cdf_2d(i, j);  // try switching Px, Py 
-//	return(cdf_2d_ret); // copy to a new array 
-	return(cdf_2d); // temp !! don't permute back (for debugging)
+	return(cdf_2d); // don't permute back
 }
 
 
@@ -333,14 +304,8 @@ double GetQuarterExpectedProb_rcpp(NumericVector Point, long QId, NumericMatrix 
 					idx_y = i;
 	}
 
-//	Rcout << "Idx chosen: idx_x=" << idx_x << " idx_y=" << idx_y << endl; 
-
 	if ((idx_x == -1) || (idx_y == -1))
 		return(0);
-
-//	cout << "Data for max-index:";
-//	for (i = 0; i < 10; i++)
-//		cout << data[0][i] << " , " << data[1][i] << endl;
 
 	long idx_x_max = which_max(data(_, 0));
 	long idx_y_max = which_max(data(_, 1));
@@ -353,17 +318,6 @@ double GetQuarterExpectedProb_rcpp(NumericVector Point, long QId, NumericMatrix 
 	case 3: {S = null_distribution_CDF(idx_x, idx_y_max) - null_distribution_CDF(idx_x, idx_y); break; }
 	} // end switch 
 	
-	/**
-	if ((idx_x < 0) || (idx_x >= n))
-		Rcout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
-	if ((idx_y < 0) || (idx_y >= n))
-		Rcout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
-	if ((idx_x_max < 0) || (idx_x_max >= n))
-		Rcout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
-	if ((idx_y_max < 0) || (idx_y_max >= n))
-		Rcout << "Mass Table Indexes: idx_x=" << idx_x << ", idx_y=" << idx_y << ", idx_x_max=" << idx_x_max << ", idx_y_max=" << idx_y_max << " S=" << S << endl;
-**/	
-
 	return(S);
 }
 
@@ -380,63 +334,21 @@ NumericMatrix QuarterProbFromBootstrap_rcpp(NumericMatrix data, NumericMatrix nu
 	NumericVector cur_grid_points(2);
 	NumericMatrix mass_table(n_grid, 4);
 
-//	cout << "Inside DO PDFToCDF2d\n" << endl; 
 	null_distribution_CDF = PDFToCDF2d_rcpp(null_distribution, data);  // convert PDF to CDF 
-//	cout << "Check PDF->CDF 2D:" << endl;
-//	for (i = 0; i < 5; i++)  // loop on grid-points
-//	{
-//		for (j = 0; j < 5; j++)
-//			cout << "(" << null_distribution_CDF(i, j) << ", " << null_distribution(i, j) << ") ";
-//		cout << endl;
-//	}
-//	cout << "Inside DO GetQuarterExpectedProb" << endl;
 
 //	cout << "n: " << n << " n_grid: " << n_grid << " null-dist: " << null_distribution.nrow() << ", " << null_distribution.ncol() << endl;
 	for (i = 0; i < n_grid; i++)  // loop on grid-points
 	{
-		cur_grid_points = grid_points(i,_);// 		cur_grid_points[1] = grid_points(i,1);
-//		cout << "cur-grid-points i=" << i << " " << cur_grid_points[0] << ", " << cur_grid_points[1] << endl;
+		cur_grid_points = grid_points(i,_); // 		cur_grid_points[1] = grid_points(i,1);
 		for (j = 0; j < 3; j++)
 			mass_table(i, j) = n * GetQuarterExpectedProb_rcpp(cur_grid_points, j, data, null_distribution_CDF);
 		mass_table(i,3) = n - mass_table(i,2) - mass_table(i,1) - mass_table(i,0);
 	}
-//	cout << "Finished loop on mass_table" << endl;
-//	for (i = 0; i < n_grid; i++)  //  normalize to counts
-//		for (j = 0; j < 4; j++)
-//			mass_table(i,j) *= n;
 
 	return(mass_table);
 }  // end function QuarterProbFromBootstrap
 
 
-
-/** R-version 
-###################################################################################################
-# compute Expect[Qi(p_j)] for 1 <= i <= 4, and all j, given a grid of points using permutations
-# Parameters:
-# data - 2 * n array(X, Y)
-# P - n * n table representing permutations probabilities Pr(pi(i) = j) (# Permutations - set of permutations)
-# grid.points - centers of partitions 2 * k array
-#
-# Output:
-# mass.table - a 4 * #grid - points table with quadrants expectation
-###################################################################################################
-QuarterProbFromPermutations < -function(data, P, grid.points) #Permutations
-{
-
-  #next each point has its probability of being selected we evaluate Expect[Qi(p_j)] by summation
-  mass.table < -matrix(0, dim(grid.points)[1], 4)
-  for (i in seq(1, dim(grid.points)[1],1))
-  {
-	x < -grid.points[i,]
-	mass.table[i,1] < -sum(P[data[,1] > x[1], data[,2] > x[2]])
-	mass.table[i,2] < -sum(P[data[,1] > x[1], data[,2] <= x[2]])
-	mass.table[i,3] < -sum(P[data[,1] <= x[1], data[,2] <= x[2]])
-	mass.table[i,4] < -sum(P[data[,1] <= x[1], data[,2] > x[2]])
-  }
-  return(mass.table)
-}
-**/
 
 
 // [[Rcpp::export]]
@@ -461,22 +373,6 @@ NumericMatrix QuarterProbFromPermutations_rcpp(NumericMatrix data, NumericMatrix
 }
 
 
-/**
-  // next each point has its probability of being selected we evaluate Expect[Qi(p_j)] by summation
-  mass.table < -matrix(0, dim(grid.points)[1], 4)
-
-	
-  for (i in seq(1, dim(grid.points)[1],1))
-  {
-	x < -grid.points[i,]
-	mass.table[i,1] < -sum(P[data[,1] > x[1], data[,2] > x[2]])
-	mass.table[i,2] < -sum(P[data[,1] > x[1], data[,2] <= x[2]])
-	mass.table[i,3] < -sum(P[data[,1] <= x[1], data[,2] <= x[2]])
-	mass.table[i,4] < -sum(P[data[,1] <= x[1], data[,2] > x[2]])
-  }
-  return(mass.table)
-}
-**/
 
 /****************************************************************************************************************************/
 // Here we add ALL function files from multiple files into a single cpp file (to enable easier compilation with sourcecpp).
@@ -512,20 +408,8 @@ NumericMatrix PDFToCDFMarginals_rcpp(NumericMatrix data, NumericMatrix PDFs)
 	return(CDFs);
 }
 
-/**
-PDFToCDFMarginals < -function(data, PDF.table)
-{
-	n < -dim(PDF.table)[1]  # number of samples
-		CDF.table < -array(0L, dim(PDF.table))  # matrix(0, num.samples, num.variables)
-		for (i in 1 : dim(PDF.table)[2])  # loop on variables
-		{
-		  Px < -sort(data[,i], index.return = TRUE)  # Permute to order x_i, y_i
-		  CDF.table[Px$ix,i] < -cumsum(PDF.table[Px$ix,i])
-		}
-			return(CDF.table)
-} **/
 
-
+// [[Rcpp::export]]
 NumericMatrix CDFToPDFMarginals_rcpp(NumericMatrix CDFs)
 {
 	long c, i;
@@ -549,31 +433,6 @@ NumericMatrix CDFToPDFMarginals_rcpp(NumericMatrix CDFs)
 
 
 
-/**
-##############################################################################
-# Convert marginal PDF to PDF from data
-# Parameters:
-# CDF.table - matrix with every column a vector of CDF of each variable
-# Output:
-# PDF.table - matrix with every column a vector of PDF of each variable
-##############################################################################
-CDFToPDFMarginals < -function(CDF.table)
-{
-	n < -dim(CDF.table)[1]  # number of samples
-		PDF.table < -array(0L, dim(CDF.table))  # matrix(0, num.samples, num.variables)
-		print("DIM CDF -> PDF:")
-		print(dim(PDF.table))
-		for (i in 1 : dim(CDF.table)[2])  # loop on variables
-		{
-		  sorted.CDF < -sort(CDF.table[,i], index.return = TRUE)
-		  print("sorted.CDF:")
-		  print(sorted.CDF)
-		  PDF.table[sorted.CDF$ix,i] < -c(sorted.CDF$x[1], sorted.CDF$x[-1] - sorted.CDF$x[-n])
-		}
-			return(PDF.table)
-}
-**/
-
 
 // [[Rcpp::export]]
 List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	double* xy[2], double* PDFs[2], double* CDFs[2])  // outputs 
@@ -586,11 +445,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 	NumericVector w_inv(n); //	double* w_inv = new double[n];
 	double w_inv_sum = 0.0;
 
-	NumericVector Fx(n);
-	NumericVector Fy(n);
-	NumericMatrix xy(n, 2);
-	NumericMatrix PDFs(n, 2);
-	NumericMatrix CDFs(n, 2);
+	NumericMatrix PDFs(2*n, 2);
+	NumericMatrix CDFs(2*n, 2);
 
 	long naive_flag = FALSE, pos_flag = FALSE;
 	string pos_w[3] = { "sum", "sum_coordinates", "exponent_minus_sum_abs" };
@@ -603,17 +459,18 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 		if (w_fun == naive_w[i])
 			naive_flag = TRUE;
 
-	cout << "POS FLAG=" << pos_flag << " NAIVE FLAG=" << naive_flag << endl;
+//	Rcout << "POS FLAG=" << pos_flag << " NAIVE FLAG=" << naive_flag << endl;
 
 	if (pos_flag) // w_fun % in % c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) // for w(x, y) > 0 cases
 	{ // case 1: strictly positive W, use ML estimator
 		for (i = 0; i < n; i++)
 		{
-			w_inv[i] = 1.0 / w_fun_eval(data(i, 0), data(i, 1), w_fun); // NEED TO IMPLEMENT
+			w_inv[i] = 1.0 / w_fun_eval_rcpp(data(i, 0), data(i, 1), w_fun); 
 			w_inv_sum += w_inv[i];
 		}
 		for (i = 0; i < n; i++)   // normalize
 			PDFs(i, 0) = PDFs(i, 1) = w_inv[i] / w_inv_sum;
+		PDFs = PDFs(Range(0, n-1), _);
 		CDFs = PDFToCDFMarginals_rcpp(data, PDFs);  // why null ?
 		ret["xy"] = data;
 	}
@@ -621,6 +478,7 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 		// skip survival 
 		if (naive_flag) // no bias(assume W(x, y) = 1)
 		{
+			CDFs = CDFs(Range(0, n - 1), _);
 			CDFs(_, 0) = empirical_cdf_rcpp(data(_, 0));
 			CDFs(_, 1) = empirical_cdf_rcpp(data(_, 1));
 			ret["xy"] = data;
@@ -654,7 +512,9 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 			Px = sort_indexes_rcpp(new_data(_, 0));
 			Py = sort_indexes_rcpp(new_data(_, 1));
 
-			for (i = 0; i < 2*n; i++) // loop only up to n? 
+	//		Rcout << "Generated Px, Py" << endl; 
+
+			for (i = 0; i < 2*n; i++) // copy sorted 
 			{
 				new_data_sorted(i, 0) = new_data(Px[i], 0);
 				new_data_sorted(i, 1) = new_data(Py[i], 1);
@@ -663,40 +523,113 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 			NumericVector F1 = empirical_cdf_rcpp(new_data(_, 1));
 
 			long F01, F10;
-			for (i = 0; i < 2*n; i++) // loop to n or 2*n? 
+			for (i = 0; i < 2*n; i++) // loop to 2*n
 			{
-				F01 = binary_search_rcpp(new_data_sorted(_, 0), new_data(i, 1));
+				F01 = binary_search_rcpp(new_data_sorted(_, 0), new_data(i, 1));  // binary_search_rcpp returns the index 
 				F10 = binary_search_rcpp(new_data_sorted(_, 1), new_data(i, 0));
-//				F01 = binary_search_rcpp(new_data_sorted(Range(0, n), 0), new_data(i, 1));
-//				F10 = binary_search_rcpp(new_data_sorted(Range(0, n), 1), new_data(i, 0));
 
-				CDFs(i, 0) = (F01 + F10) / 2;
-				CDFs(i, 1) = (F01 + F10) / 2;  // need to change !!! 
+				CDFs(i, 0) = ((F01 + F10) / 2.0 + 1.0) / (2*n);
+				CDFs(i, 1) = ((F01 + F10) / 2.0 + 1.0) / (2*n);  // need to change !!! 
+
+//				Rcout << "Set i=" << i << endl; 
 			}
 			ret["xy"] = new_data;
 		} // end if naive w
+
+//		Rcout << " Now CDF-PDF Marginals" << endl; 
 		PDFs = CDFToPDFMarginals_rcpp(CDFs); // convert 
 	} // end if positive w
 
-	
 	ret["PDFs"] = PDFs;
-	ret["CDFs"] = CDFs;
-	
+	ret["CDFs"] = CDFs;	
 	return(ret);
 
 }  // end function 
 
 
+/**
+#################################################################
+# sample permutations, using MCMC, over the set of valid permutations,
+# with respect to the distribution appears in Eq 8
+# Parameters:
+# W - matrix with weights
+# B - number of permutations to draw
+# N - sample size(can be read from data or W ? )
+# 
+# Output:
+# PermutationsTable - A matrix representing the sampled permutations
+# P - An n * n matrix with P(i, j) = Pr(pi(i) = j) over the sampled permutations
+#########################################################################################
+**/
+
+// [[Rcpp::export]]
+List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle = NA)  # New: allow non - default burn - in
+{
+	long n = w_mat.nrow();
+	NumericMatrix P(n, n);  // New!matrix with P[i] = j estimate
+	long i, j, temp;
+	double ratio;
+
+	// Set mcmc default sampling parameters
+	if (!prms.containsElementNamed("B")) //   ('B' % in % names(prms)))
+		prms["B"] = 1000;
+	if (!prms.containsElementNamed("burn_in")) //  ('burn.in' % in % names(prms)))
+		prms["burn_in"] = 2 * n;
+	if (!prms.containsElementNamed("Cycle")) // (!('Cycle' % in % names(prms)))
+		prms["Cycle"] = n;
+
+	long Idx = 0, ctr = 1;
+	NumericMatrix PermutationsTable(n, long(prms["B"]));
+	IntegerVector Perm = seq(0, n);  // 1 to N-1 
+	NumericVector switchIdx(2);
+	while (Idx < long(prms["B"]))
+	{
+
+	// A Metropolis Hastings algorithm with target stationary distribution \pi
+	// Choose the two indices to be switched
+		switchIdx[0] = rand() % n; 
+		switchIdx[1] = switchIdx[0];
+		while (switchIdx[1] == switchIdx[0])
+			switchIdx[1] = rand() % n; // sample without replacement form 0 to n-1
+		i = switchIdx[1];
+		j = switchIdx[2];
+		ratio = w_mat(i, Perm[j]) * w_mat(j, Perm[i]) / (w_mat(i, Perm[i]) * w_mat(j, Perm[j]));
+
+
+		if(	double(rand()) / RAND_MAX < fmin(1.0, ratio) ) // we accept the transition with probability min(1, ratio)
+		{
+			temp = Perm[i];  // SWAP
+			Perm[i] = Perm[j];
+			Perm[j] = temp;
+			if (ctr == long(prms["burn_in"]) || ((ctr % long(prms["Cycle"]) == 0) && (ctr > long(prms["burn_in"]))))
+			{
+				for(i=0; i<n; i++)
+					PermutationsTable(i,Idx) = Perm[i] + 1;  // add 1 to move from C zero-based indexing to R-one based indexing
+				Idx++; 
+//				if (Idx%100 == 0)
+//					Rcout << "Sample Perm=" << Idx << endl;
+			}
+			for (i = 0; i < n; i++)
+				P(i, Perm[i])++; // Update table counts P
+			ctr++;   // update counter only after swap
+		}
+	}  // end while
+	for (i = 0; i < n; i++)
+		for (j = 0; j < n; j++)
+			P(i, j) = P(i, j) / (ctr - 1); //  normalize
+
+	List ret;
+	ret["PermutationsTable"] = PermutationsTable;
+	ret["P"] = P;
+	return(ret); // return list with also P
+}
 
 
 
-
-// Next Estimate Marginals: 
 // List of needed functions here: 
-// PermutationsMCMC <- function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
 // accumulate - NOT NEEDED !
-
 // Completed (?) 
+// (V) PermutationsMCMC <- function(W, N, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
 // (V) empirical_cdf
 // (V) w_fun_eval
 // (V) binary_search 

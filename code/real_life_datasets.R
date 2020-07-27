@@ -8,17 +8,14 @@ rm(list=ls())
 gc()
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 path = getwd()
-
-# Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+# Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
+Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
 source('TIBS.R')
 source('simulate_biased_sample.R')
 source('marginal_estimation.R')
 source('Tsai_test.R')
 source('utilities.R') 
-# source('utilities_cpp.R')  # cpp code inside R file  
-Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
-Rcpp::sourceCpp("C/utilities_ToR.cpp")
 library(lubridate)
 library(permDep)
 library(tictoc)
