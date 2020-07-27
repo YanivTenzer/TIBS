@@ -81,7 +81,7 @@ NumericVector empirical_cdf_rcpp(NumericVector x)
 
 	Px = sort_indexes_rcpp(x); 
 	for (i = 0; i < n; i++)
-		ecdf[Px[i]] = i / n;
+		ecdf[Px[i]] = double(i+1) / double(n); // use double division here
 	return(ecdf);
 }
 
@@ -399,7 +399,7 @@ NumericMatrix PDFToCDFMarginals_rcpp(NumericMatrix data, NumericMatrix PDFs)
 
 	for (c = 0; c < PDFs.ncol(); c++)
 	{
-		cout << "Run Column: " << c << endl;
+//		cout << "Run Column: " << c << endl;
 		Px = sort_indexes_rcpp(data(_, c)); // get indexes permute to order x_i, y_i
 		CDFs(Px[0], c) = PDFs(Px[0], c);
 		for(i = 1; i < n; i++)
@@ -447,6 +447,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 
 	NumericMatrix PDFs(2*n, 2);
 	NumericMatrix CDFs(2*n, 2);
+
+//	NumericMatrix CDFs_alt(2 * n, 2);
 
 	long naive_flag = FALSE, pos_flag = FALSE;
 	string pos_w[3] = { "sum", "sum_coordinates", "exponent_minus_sum_abs" };
@@ -519,9 +521,13 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 				new_data_sorted(i, 0) = new_data(Px[i], 0);
 				new_data_sorted(i, 1) = new_data(Py[i], 1);
 			}
-			NumericVector F0 = empirical_cdf_rcpp(new_data(_, 0));
+			NumericVector F0 = empirical_cdf_rcpp(new_data(_, 0)); // can be used instead of binary search 
 			NumericVector F1 = empirical_cdf_rcpp(new_data(_, 1));
+			// alternative: take average of F0 and F1
+			CDFs(_, 0) = (F0 + F1) / 2;
+			CDFs(_, 1) = CDFs(_, 0); //  (F0 + F1) / 2;
 
+			/** binary search not needed
 			long F01, F10;
 			for (i = 0; i < 2*n; i++) // loop to 2*n
 			{
@@ -533,6 +539,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 
 //				Rcout << "Set i=" << i << endl; 
 			}
+			**/
+
 			ret["xy"] = new_data;
 		} // end if naive w
 
@@ -542,6 +550,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 
 	ret["PDFs"] = PDFs;
 	ret["CDFs"] = CDFs;	
+//	ret["CDFs_alt"] = CDFs_alt;
+
 	return(ret);
 
 }  // end function 
