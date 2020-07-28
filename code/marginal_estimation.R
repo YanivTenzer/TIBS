@@ -78,13 +78,13 @@ EstimateMarginals <- function(data, w.fun, prms=c())
 # Output: 
 # 
 ##############################################################################
-iterative_marginal_estimation<-function(data, w.fun)
+iterative_marginal_estimation <- function(data, w.fun)  
 {
   epsilon <- 0.00000001
   iters <- 1000 
   f_x <- rep(0, n)
   f_y <- rep(0, n)
-  w.mat <- w_fun_eval(data[,1], data[,2], w.fun)
+  w.mat <- w_fun_to_mat(data[,1], data[,2], w.fun) # was w_fun_eval?
   
   for(t in 1:iters)
   {

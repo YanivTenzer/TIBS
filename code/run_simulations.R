@@ -40,7 +40,7 @@ exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) # is exchan
 # sample.size <- c(500, 100, 100, 100, 100, 100, 100, 100) # set all sample.sizes to 100 
 prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
-test.type <- c('tsai',  'minP2', # other's tests. minP2 is slower 
+test.type <- c('tsai',  # 'minP2', # other's tests. minP2 is slower 
                'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations') # different tests to run - new: add 
 # test.type <- c('tsai', 'permutations', 'bootstrap') #  'importance.sampling')  # for fast simulations . Add new importance sampling test 
 
