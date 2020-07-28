@@ -634,6 +634,67 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 }
 
 
+/**
+##############################################################################
+# Iterative Algorithm for marginal estimation from samples of F_{ XY }^ {(w)}
+# Parameters:
+# data - 2 * n array of(X, Y)
+# CDF.table - vector of CDF of X and Y
+# Output:
+# 
+##############################################################################
+**/
+// [[Rcpp::export]]
+iterative_marginal_estimation_rcpp(NumericMatrix data, string w_fun)
+{
+	long n = data.nrow();
+	double epsilon = 0.00000001;
+	long iters = 1000
+		NumericVector f_x(n);
+	NumericVector f_y(n);
+	NumericVector f_x_prev(n);
+	NumericVector f_y_prev(n);
+
+	NumericMatrix w_mat = w_fun_eval_rcpp(data(_, 0), data(_, 1), w_fun);
+
+	long t;
+	for (t = 0 ; t < iters; t++)
+	{
+		f_x_prev = f_x;
+		f_y_prev = f_y;
+			f_x = 1 / (w_mat * f_y);
+			f_y = 1 / (t(w_mat) * f_x);
+			if (sum(abs(f_x - f_x_prev)) + sum(abs(f_x - f_x_prev)) < epsilon)
+				break;
+	}
+	NumericMatrix f_xy(n, 2);
+	f_xy(_, 0) = f_x;
+	f_xy(_, 1) = f_y;
+	return(f_xy);  // PDF.table
+}
+
+/** R Version Below
+iterative_marginal_estimation < -function(data, w.fun)
+{
+	epsilon < -0.00000001
+		iters < -1000
+		f_x < -rep(0, n)
+		f_y < -rep(0, n)
+		w.mat < -w_fun_eval(data[, 1], data[, 2], w.fun)
+
+		for (t in 1 : iters)
+		{
+			f_x_prev < -f_x
+				f_y_prev < -f_y
+				f_x < -1 / (w.mat * f_y)
+				f_y < -1 / (t(w.mat) * f_x)
+				if (sum(abs(f_x - f_x_prev)) + sum(abs(f_x - f_x_prev)) < epsilon)
+					break
+		}
+	return(c(f_x, f_y)) # PDF.table
+}
+**/
+
 
 // List of needed functions here: 
 // accumulate - NOT NEEDED !
