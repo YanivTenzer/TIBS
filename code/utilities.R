@@ -139,13 +139,13 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
     if(!('B' %in% names(prms)))
       prms$B <- 1000
     if(!('burn.in' %in% names(prms)))
-      prms$burn.in <- 2*n
+      prms$burn.in <- 0  # 2*n  # set to n without burn.in, or 0 without burn.in to include the identity permutation 
     if(!('Cycle' %in% names(prms)))
       prms$Cycle <- n
     
     Idx <- ctr <- 1
     PermutationsTable = matrix(0, n, prms$B)
-    Perm = 1:n
+    Perm = 1:n # start with the identity 
     while(Idx<=prms$B)
     {
       

@@ -41,29 +41,25 @@ exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) # is exchan
 prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 test.type <- c('tsai',  # 'minP2', # other's tests. minP2 is slower 
-               'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations') # different tests to run - new: add 
+               'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations', 'permutations_inverse_weighting') # different tests to run - new: add 
 # test.type <- c('tsai', 'permutations', 'bootstrap') #  'importance.sampling')  # for fast simulations . Add new importance sampling test 
 
+num.sim <- length(dependence.type)
 if(run.flag == 1)
 {
-  run.dep <- (2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
-  iterations = 4   # for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
-  B = 150  # number of permtuations or bootstrap samples. Shared by all simulations 
-  
+  run.dep <- (8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
 } else  # run from command line 
 {
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   iterations = as.integer(args[2])  # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
   B =  as.integer(args[3])  # 10^2  # number of permtuations or bootstrap samples. Shared by all simulations 
-  
 }
-num.sim <- length(dependence.type)
 if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
   library(copula) # needed for most simulations 
 
 for(s in run.dep) # Run all on the farm  
 {
-  prms = list(B=1000, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=1) # set running parameters here ! 
+  prms = list(B=100, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=1) # set running parameters here ! 
   
   if(run.flag != 1)
     prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 

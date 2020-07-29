@@ -52,8 +52,11 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         prms$naive.expectation <- 0 # Check test with standard expectations
         # Skip irrelevant tests 
         if((!(w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & 
-           (test.type[t] %in% c("tsai", 'minP2')))
+           (test.type[t] %in% c('tsai', 'minP2')))
           next  # these tests run only for truncation 
+        
+        if( !(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) & (test.type[t] %in% c("permutations_inverse_weighting")) )  # run only for positive distributions 
+          next
         if(test.type[t] == 'bootstrap')
         {
           if(w.fun == 'huji')
@@ -62,7 +65,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           #          if((w.fun[s] %in% c('truncation', 'Hyperplane_Truncation')) & (!exchange.type[s]))
           #            next # can't run bootstrap because w can be zero, unless we assume exchangability !!! 
         }      
-        if((t %in% c(5:7)) & !(dependence.type %in% c('Gaussian', 'Clayton', 'Gumbel', 'LD')))
+        if((test.type[t] %in% c('fast-bootstrap', 'naive-bootstrap', 'naive-permutations')) & !(dependence.type %in% c('Gaussian', 'Clayton', 'Gumbel', 'LD')))
           next # try comparison with naive settings only for Gaussian case and other cases in Table 1 
         cur.test.type <- test.type[t]
         switch(test.type[t], # Set test type
