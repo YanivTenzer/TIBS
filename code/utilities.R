@@ -43,11 +43,11 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
 }
 
 #########################################################################################
-ComputeStatistic_inverse_weighting<- function(data, grid.points, W)
+ComputeStatistic_inverse_weighting<- function(data, grid.points, w_mat)
 {
   obs.table<-matrix(0, dim(grid.points)[1], 4)
   Obs<-Exp<-matrix(0,4,1) # observed & expected
-  n_tilde <- sum(1/diag(W))
+  n_tilde <- sum(1/diag(w_mat))
   Statistic <- 0  
   min_Exp<-1/dim(data)[1]
   
@@ -57,19 +57,19 @@ ComputeStatistic_inverse_weighting<- function(data, grid.points, W)
     Ry <- data[,2]>grid.points[i,2]
     
     idx1 <- which(Rx*Ry==1)
-    Obs[1] <- sum(1/diag(W)[idx1])
+    Obs[1] <- sum(1/diag(w_mat)[idx1])
     idx2 <- which(Rx*(!Ry)==1)
-    Obs[2] <- sum(1/diag(W)[idx2])
+    Obs[2] <- sum(1/diag(w_mat)[idx2])
     idx3 <- which((!Rx)*(!Ry)==1)
-    Obs[3] <- sum(1/diag(W)[idx3])
+    Obs[3] <- sum(1/diag(w_mat)[idx3])
     idx4 <- which(Ry*(!Rx)==1)
-    Obs[4] <- sum(1/diag(W)[idx4])
+    Obs[4] <- sum(1/diag(w_mat)[idx4])
     Obs <- Obs*(n_tilde^(-1))
     
-    Exp[1] <- sum(1/diag(W)[Rx])*sum(1/diag(W)[Ry])
-    Exp[2] <- sum(1/diag(W)[Rx])*sum(1/diag(W)[which(!Ry==1)])
-    Exp[3] <- sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[which(!Ry==1)])
-    Exp[4] <- sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[Ry])
+    Exp[1] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[Ry])
+    Exp[2] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[which(!Ry==1)])
+    Exp[3] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[which(!Ry==1)])
+    Exp[4] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[Ry])
     Exp <- Exp*(n_tilde^(-2))
     
     obs.table[i,] <- Obs

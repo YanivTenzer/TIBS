@@ -10,296 +10,303 @@ add.one.sqrt <- function(x) {
   add_one_sqrt(x)
 }
 
-########################################################################
-# Perform Test for Independence under general Biased Sampling (TIBS)
-# 
-# Parameters: 
-# data - n*2 array of (x,y) samples (NOT LIST!)
-# w.fun - biased sampling function W 
-# test.type - test to perform 
-# prms - additional parameters (needed for bootstrap) including B - number of bootstrap/permutation samples to perform 
-# 
-# Output:
-# TrueT - test statistic for the data
-# statistics.under.null - vector of statistics under the null 
-########################################################################
-TIBS <- function(data, w.fun, test.type, prms)
-{  
-  library(PerMallows) # distance between permutations 
-  library(pracma)
-  source('utilities.R')
-  source('Tsai_test.R')
-  source('simulate_biased_sample.R')
-  source('marginal_estimation.R')
-  
-  
-  # Set defaults
-  if(!('use.cpp' %in% names(prms)))  # new: a flag for using c++ code 
-    prms$use.cpp <- 0
-  if(!('fast.bootstrap' %in% names(prms)))
-    prms$fast.bootstrap <- FALSE
-  if(!('minp.eps' %in% names(prms)))
-    prms$minp.eps <- NULL # default: let permDep algorithm select minp.eps
-  if(!('PL.expectation' %in% names(prms)))  # get expectation form the bootstrap: product-limit estimator
-    prms$PL.expectation <- FALSE
-  if(!('naive.expectation' %in% names(prms)))
-    prms$naive.expectation <- FALSE
-  if(!('delta' %in% names(prms)))
-    prms$delta <- NA
-  n <- dim(data)[1]
-  
-  
-  #################################################################
-  # 1.Compute weights matrix W: (not needed here, just for permutations test)
-  #  w.mat=w_fun_to_mat(data, w.fun)
-  # 2.Create a grid of points, based on the data:
-  #  grid.points <- cbind(data[,1], data[,2])  # keep original points 
-  grid.points <- unique.matrix(data)  # set unique for ties? for discrete data
-  
-  switch(test.type,
-         'bootstrap_inverse_weighting'={
-           marginals <- EstimateMarginals(data, w.fun)
-           w.mat = w_fun_to_mat(marginals$xy, w.fun) 
-           null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
-           TrueT <- ComputeStatistic_inverse_weighting(data, grid.points, w.mat)$Statistic
-           
-           statistics.under.null=matrix(0, prms$B, 1)
-           for(ctr in 1:prms$B) 
-           {
-             if(mod(ctr,100)==0)
-               print(paste0("Run Boots=", ctr))
-             
-             bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
-             w.mat.bootstrap <- w_fun_to_mat(bootstrap.sample, w.fun)
-             NullT <- ComputeStatistic_inverse_weighting(bootstrap.sample, grid.points, w.mat.bootstrap)
-             statistics.under.null[ctr] <- NullT$Statistic
-           }
-           output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
-         },
-         'bootstrap'={
-           #3. Estimate the marginals
-           if(prms$use.cpp)
-           {
-             marginals <- EstimateMarginals_rcpp(data, w.fun)
-           } else
-           {
-             marginals <- EstimateMarginals(data, w.fun)
-           }
-           w.mat = w_fun_to_mat(marginals$xy, w.fun) # compute W again for augmented data
-           #4. Estimate W(x,y)*Fx*Fy/normalizing.factor
-           if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
-           {
+  ########################################################################
+  # Perform Test for Independence under general Biased Sampling (TIBS)
+  # 
+  # Parameters: 
+  # data - n*2 array of (x,y) samples (NOT LIST!)
+  # w.fun - biased sampling function W 
+  # test.type - test to perform 
+  # prms - additional parameters (needed for bootstrap) including B - number of bootstrap/permutation samples to perform 
+  # 
+  # Output:
+  # TrueT - test statistic for the data
+  # statistics.under.null - vector of statistics under the null 
+  ########################################################################
+  TIBS <- function(data, w.fun, test.type, prms)
+  {  
+    library(PerMallows) # distance between permutations 
+    library(pracma)
+    source('utilities.R')
+    source('Tsai_test.R')
+    source('simulate_biased_sample.R')
+    source('marginal_estimation.R')
+    
+    
+    # Set defaults
+    if(!('use.cpp' %in% names(prms)))  # new: a flag for using c++ code 
+      prms$use.cpp <- 0
+    if(!('fast.bootstrap' %in% names(prms)))
+      prms$fast.bootstrap <- FALSE
+    if(!('minp.eps' %in% names(prms)))
+      prms$minp.eps <- NULL # default: let permDep algorithm select minp.eps
+    if(!('PL.expectation' %in% names(prms)))  # get expectation form the bootstrap: product-limit estimator
+      prms$PL.expectation <- FALSE
+    if(!('naive.expectation' %in% names(prms)))
+      prms$naive.expectation <- FALSE
+    if(!('delta' %in% names(prms)))
+      prms$delta <- NA
+    n <- dim(data)[1]
+    
+    
+    #################################################################
+    # 1.Compute weights matrix W: (not needed here, just for permutations test)
+    #  w.mat=w_fun_to_mat(data, w.fun)
+    # 2.Create a grid of points, based on the data:
+    #  grid.points <- cbind(data[,1], data[,2])  # keep original points 
+    grid.points <- unique.matrix(data)  # set unique for ties? for discrete data
+    
+    switch(test.type,
+           'bootstrap_inverse_weighting'={
              if(prms$use.cpp)
              {
-               marginals.naive <- EstimateMarginals_rcpp(data, 'naive')
-               null.distribution <- GetNullDistribution_rcpp(marginals.naive$PDF, as.matrix(1.0))
-               expectations.table <- QuarterProbFromBootstrap_rcpp(marginals.naive$xy, null.distribution$distribution, grid.points)
-             } else
-             {
-               marginals.naive <- EstimateMarginals(data, 'naive')
-               null.distribution <- GetNullDistribution(marginals.naive$PDF, 1)
-               expectations.table <- QuarterProbFromBootstrap(marginals.naive$xy, null.distribution$distribution, grid.points)
-             }
-           } else
-           {
-#             print(c("Bootstrap Get Null Distribution USE-CPP=", prms$use.cpp))
-             if(prms$use.cpp)
-             {
+               marginals <- EstimateMarginals_rcpp(data, w.fun)
+               w.mat = w_fun_to_mat_rcpp(marginals$xy, w.fun) 
                null.distribution <- GetNullDistribution_rcpp(marginals$PDF, w.mat)
-               expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)             
-             }
-             else
-             {
+             } else {
+               marginals <- EstimateMarginals(data, w.fun)
+               w.mat = w_fun_to_mat(marginals$xy, w.fun) 
                null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
-               expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)             
              }
-           }
-           
-           #1. First compute the statistic based on the original data set:
-           if(prms$use.cpp)  # new: use cpp
-           {
-             TrueT = ComputeStatistic_rcpp(data, grid.points, expectations.table)
-           }
-           else
-           {
-             TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
-           }
-
-           #2. Compute statistic for bootstrap sample:
-           statistics.under.null = matrix(0, prms$B, 1)
-           null.distribution.bootstrap <- null.distribution
-#           print("Start heavy bootstrap loop")
-           for(ctr in 1:prms$B) # heavy loop: run on bootstrap 
-           {
-             #             if(mod(ctr,100)==0)
-#             print(paste0("Run Boots=", ctr))
-             bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
-             #             print(paste0("After Boots=", ctr))
+             TrueT <- ComputeStatistic_inverse_weighting(data, grid.points, w.mat)$Statistic
              
-             if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
+             statistics.under.null=matrix(0, prms$B, 1)
+             for(ctr in 1:prms$B) 
              {
-               if(prms$use.cpp)
-                 marginals.bootstrap <- EstimateMarginals_rcpp(bootstrap.sample, w.fun)  # Why are the marginals estimated each time? 
-               else
-                 marginals.bootstrap <- EstimateMarginals(bootstrap.sample, w.fun)  # Why are the marginals estimated each time?
-               #3. Compute weights matrix W:    
-               if(prms$naive.expectation)
-                 w.mat.bootstrap <- 1   # here we ignore W (using statistic for unbiased sampling)
-               else
-                 w.mat.bootstrap <- w_fun_to_mat(marginals.bootstrap$xy, w.fun)
-               #4. Estimate W(x,y)*Fx*FY/normalizing.factor
-               if(prms$use.cpp)
-               {
-                 null.distribution.bootstrap <- GetNullDistribution_rcpp(marginals.bootstrap$PDFs, w.mat.bootstrap)
-                 expectations.table <- QuarterProbFromBootstrap_rcpp(
-                   marginals.bootstrap$xy, null.distribution.bootstrap$distribution, grid.points)
-               }
-               else
-               {
-                 null.distribution.bootstrap <- GetNullDistribution(marginals.bootstrap$PDFs, w.mat.bootstrap)
-                 expectations.table <- QuarterProbFromBootstrap(
-                   marginals.bootstrap$xy, null.distribution.bootstrap$distribution, grid.points)
-               }
-             } # if fast bootstrap  
-             #             print(paste0("Compute Stat Boots=", ctr))
-             if(prms$use.cpp)
-               NullT <- ComputeStatistic_rcpp(bootstrap.sample, grid.points, expectations.table)
-             else
-               NullT <- ComputeStatistic(bootstrap.sample, grid.points, expectations.table)$Statistic
-             
-             # null.obs.table <- NullT$obs.table
-             statistics.under.null[ctr] <- NullT
-           }
-#           print("Finish heavy bootstrap loop")
-           
-           output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null)
-         },
-         'permutations'={
-           w.mat=w_fun_to_mat(data, w.fun)
-           if(prms$use.cpp)
-             Permutations=PermutationsMCMC_rcpp(w.mat, prms)
-           else
-             Permutations=PermutationsMCMC(w.mat, prms)
-           P=Permutations$P
-           Permutations=Permutations$Permutations
-           permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
-           if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
-           {
+               if(mod(ctr,100)==0)
+                 print(paste0("Run Boots=", ctr))
+               
+               bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
+               w.mat.bootstrap <- w_fun_to_mat(bootstrap.sample, w.fun)
+               NullT <- ComputeStatistic_inverse_weighting(bootstrap.sample, grid.points, w.mat.bootstrap)
+               statistics.under.null[ctr] <- NullT$Statistic
+             }
+             output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
+           },
+           'bootstrap'={
+             #3. Estimate the marginals
              if(prms$use.cpp)
              {
-               marginals <- EstimateMarginals_rcpp(data, 'naive')           
-               null.distribution <- GetNullDistribution_rcpp(marginals$PDF, as.matrix(1.0))
-               expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points) 
-             }
-             else
-             {
-               marginals <- EstimateMarginals(data, 'naive')           
-               null.distribution <- GetNullDistribution(marginals$PDF, 1)
-               expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points) 
-             }
-           } else
-           {
-             if(prms$PL.expectation)  # get expectations from the bootstrap estimator
-             {
-               if(prms$use.cpp)
-               {
-                 marginals <- EstimateMarginals_rcpp(data, w.fun)
-                 null.distribution <- GetNullDistribution_rcpp(marginals$PDF, w.mat)
-                 expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)
-               }
-               else
-               {
-                 marginals <- EstimateMarginals(data, w.fun)
-                 null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
-                 expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)
-               }
-               w.mat = w_fun_to_mat(marginals$xy, w.fun)
+               marginals <- EstimateMarginals_rcpp(data, w.fun)
              } else
              {
-               if(prms$use.cpp)
-                 expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
-               else
-                 expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
+               marginals <- EstimateMarginals(data, w.fun)
              }
-           }
-           
-           if(prms$use.cpp)  # new: use cpp
-           {
-             n <- dim(data)[1]
-#             print("USE CPP PERM")
-#             start.time <- Sys.time()
-             TrueT = ComputeStatistic_rcpp(data, grid.points, expectations.table) 
-#             print(difftime(Sys.time(), start.time, units='secs'))
-           } else
-           {
-#             print("Use R PERM")
-#             start.time <- Sys.time()
-             TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
-#             print(difftime(Sys.time(), start.time, units='secs'))
-           }
-           
-           #Compute the statistics value for each permutation:
-           statistics.under.null = matrix(0, prms$B, 1)
-           for(ctr in 1:prms$B) 
-           {
-#             if(mod(ctr,100)==0)
-#               print(paste0("Comp. Stat. Perm=", ctr))
-             if(prms$use.cpp)  # new: use cpp
-               statistics.under.null[ctr] <- ComputeStatistic_rcpp(
-               cbind(data[,1], data[Permutations[,ctr],2]), grid.points, expectations.table)
-             else
-               statistics.under.null[ctr] <- ComputeStatistic(
-                 cbind(data[,1], data[Permutations[,ctr],2]), grid.points, expectations.table)$Statistic
-           }
-           output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
-         },  # end permutations test 
-         'permutations_inverse_weighting'={
-           w.mat = w_fun_to_mat(data, w.fun)
-           TrueT = ComputeStatistic_inverse_weighting(data, grid.points, w.mat)$Statistic
-           
-           Permutations=PermutationsMCMC(w.mat, prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
-           Permutations=Permutations$Permutations
-           #Compute the statistics value for each permutation:
-           statistics.under.null = matrix(0, prms$B, 1)
-           for(ctr in 1:prms$B) 
-           {
-             if(mod(ctr,100)==0)
-               print(paste0("Comp. Stat. Perm=", ctr))
+             w.mat = w_fun_to_mat(marginals$xy, w.fun) # compute W again for augmented data
+             #4. Estimate W(x,y)*Fx*Fy/normalizing.factor
+             if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
+             {
+               if(prms$use.cpp)
+               {
+                 marginals.naive <- EstimateMarginals_rcpp(data, 'naive')
+                 null.distribution <- GetNullDistribution_rcpp(marginals.naive$PDF, as.matrix(1.0))
+                 expectations.table <- QuarterProbFromBootstrap_rcpp(marginals.naive$xy, null.distribution$distribution, grid.points)
+               } else
+               {
+                 marginals.naive <- EstimateMarginals(data, 'naive')
+                 null.distribution <- GetNullDistribution(marginals.naive$PDF, 1)
+                 expectations.table <- QuarterProbFromBootstrap(marginals.naive$xy, null.distribution$distribution, grid.points)
+               }
+             } else
+             {
+  #             print(c("Bootstrap Get Null Distribution USE-CPP=", prms$use.cpp))
+               if(prms$use.cpp)
+               {
+                 null.distribution <- GetNullDistribution_rcpp(marginals$PDF, w.mat)
+                 expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)             
+               }
+               else
+               {
+                 null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
+                 expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)             
+               }
+             }
              
-             permuted.sample =  cbind(data[,1], data[Permutations[,ctr],2])
-             w.mat.permutation=w_fun_to_mat(permuted.sample, w.fun)
-             NullT <- ComputeStatistic_inverse_weighting(permuted.sample, grid.points, w.mat.permutation)
-             statistics.under.null[ctr] <- NullT
+             #1. First compute the statistic based on the original data set:
+             if(prms$use.cpp)  # new: use cpp
+             {
+               TrueT = ComputeStatistic_rcpp(data, grid.points, expectations.table)
+             }
+             else
+             {
+               TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
+             }
+  
+             #2. Compute statistic for bootstrap sample:
+             statistics.under.null = matrix(0, prms$B, 1)
+             null.distribution.bootstrap <- null.distribution
+  #           print("Start heavy bootstrap loop")
+             for(ctr in 1:prms$B) # heavy loop: run on bootstrap 
+             {
+               #             if(mod(ctr,100)==0)
+  #             print(paste0("Run Boots=", ctr))
+               bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
+               #             print(paste0("After Boots=", ctr))
+               
+               if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
+               {
+                 if(prms$use.cpp)
+                   marginals.bootstrap <- EstimateMarginals_rcpp(bootstrap.sample, w.fun)  # Why are the marginals estimated each time? 
+                 else
+                   marginals.bootstrap <- EstimateMarginals(bootstrap.sample, w.fun)  # Why are the marginals estimated each time?
+                 #3. Compute weights matrix W:    
+                 if(prms$naive.expectation)
+                   w.mat.bootstrap <- 1   # here we ignore W (using statistic for unbiased sampling)
+                 else
+                   w.mat.bootstrap <- w_fun_to_mat(marginals.bootstrap$xy, w.fun)
+                 #4. Estimate W(x,y)*Fx*FY/normalizing.factor
+                 if(prms$use.cpp)
+                 {
+                   null.distribution.bootstrap <- GetNullDistribution_rcpp(marginals.bootstrap$PDFs, w.mat.bootstrap)
+                   expectations.table <- QuarterProbFromBootstrap_rcpp(
+                     marginals.bootstrap$xy, null.distribution.bootstrap$distribution, grid.points)
+                 }
+                 else
+                 {
+                   null.distribution.bootstrap <- GetNullDistribution(marginals.bootstrap$PDFs, w.mat.bootstrap)
+                   expectations.table <- QuarterProbFromBootstrap(
+                     marginals.bootstrap$xy, null.distribution.bootstrap$distribution, grid.points)
+                 }
+               } # if fast bootstrap  
+               #             print(paste0("Compute Stat Boots=", ctr))
+               if(prms$use.cpp)
+                 NullT <- ComputeStatistic_rcpp(bootstrap.sample, grid.points, expectations.table)
+               else
+                 NullT <- ComputeStatistic(bootstrap.sample, grid.points, expectations.table)$Statistic
+               
+               # null.obs.table <- NullT$obs.table
+               statistics.under.null[ctr] <- NullT
+             }
+  #           print("Finish heavy bootstrap loop")
+             
+             output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null)
+           },
+           'permutations'={
+             w.mat=w_fun_to_mat(data, w.fun)
+             if(prms$use.cpp)
+               Permutations=PermutationsMCMC_rcpp(w.mat, prms)
+             else
+               Permutations=PermutationsMCMC(w.mat, prms)
+             P=Permutations$P
+             Permutations=Permutations$Permutations
+             permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
+             if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
+             {
+               if(prms$use.cpp)
+               {
+                 marginals <- EstimateMarginals_rcpp(data, 'naive')           
+                 null.distribution <- GetNullDistribution_rcpp(marginals$PDF, as.matrix(1.0))
+                 expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points) 
+               }
+               else
+               {
+                 marginals <- EstimateMarginals(data, 'naive')           
+                 null.distribution <- GetNullDistribution(marginals$PDF, 1)
+                 expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points) 
+               }
+             } else
+             {
+               if(prms$PL.expectation)  # get expectations from the bootstrap estimator
+               {
+                 if(prms$use.cpp)
+                 {
+                   marginals <- EstimateMarginals_rcpp(data, w.fun)
+                   null.distribution <- GetNullDistribution_rcpp(marginals$PDF, w.mat)
+                   expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)
+                 }
+                 else
+                 {
+                   marginals <- EstimateMarginals(data, w.fun)
+                   null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
+                   expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)
+                 }
+                 w.mat = w_fun_to_mat(marginals$xy, w.fun)
+               } else
+               {
+                 if(prms$use.cpp)
+                   expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
+                 else
+                   expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
+               }
+             }
+             
+             if(prms$use.cpp)  # new: use cpp
+             {
+               n <- dim(data)[1]
+  #             print("USE CPP PERM")
+  #             start.time <- Sys.time()
+               TrueT = ComputeStatistic_rcpp(data, grid.points, expectations.table) 
+  #             print(difftime(Sys.time(), start.time, units='secs'))
+             } else
+             {
+  #             print("Use R PERM")
+  #             start.time <- Sys.time()
+               TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
+  #             print(difftime(Sys.time(), start.time, units='secs'))
+             }
+             
+             #Compute the statistics value for each permutation:
+             statistics.under.null = matrix(0, prms$B, 1)
+             for(ctr in 1:prms$B) 
+             {
+  #             if(mod(ctr,100)==0)
+  #               print(paste0("Comp. Stat. Perm=", ctr))
+               if(prms$use.cpp)  # new: use cpp
+                 statistics.under.null[ctr] <- ComputeStatistic_rcpp(
+                 cbind(data[,1], data[Permutations[,ctr],2]), grid.points, expectations.table)
+               else
+                 statistics.under.null[ctr] <- ComputeStatistic(
+                   cbind(data[,1], data[Permutations[,ctr],2]), grid.points, expectations.table)$Statistic
+             }
+             output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
+           },  # end permutations test 
+           'permutations_inverse_weighting'={
+             w.mat = w_fun_to_mat(data, w.fun)
+             TrueT = ComputeStatistic_inverse_weighting(data, grid.points, w.mat)$Statistic
+             
+             Permutations=PermutationsMCMC(w.mat, prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
+             Permutations=Permutations$Permutations
+             #Compute the statistics value for each permutation:
+             statistics.under.null = matrix(0, prms$B, 1)
+             for(ctr in 1:prms$B) 
+             {
+               if(mod(ctr,100)==0)
+                 print(paste0("Comp. Stat. Perm=", ctr))
+               
+               permuted.sample =  cbind(data[,1], data[Permutations[,ctr],2])
+               w.mat.permutation=w_fun_to_mat(permuted.sample, w.fun)
+               NullT <- ComputeStatistic_inverse_weighting(permuted.sample, grid.points, w.mat.permutation)
+               statistics.under.null[ctr] <- NullT
+             }
+             output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
+           },  # end permutations with inverse weighting test 
+           'tsai' = {result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
+           output <- list(Pvalue=result[4])
+           },
+           'minP2' = { library(permDep)  #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
+             require(survival)  
+             # library(permDep) # use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
+             if(!is.na(prms$delta)) # when running minP we must have a delta parameter 
+             {
+               dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = prms$delta))
+             }
+             else{
+               dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
+             }
+             
+             results <- permDep(dat$trun, dat$obs, prms$B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
+             ##                                      sampling = 'conditional') #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
+             output <- list(Pvalue=results$p.valueMinp2)
+           }, 
+           'importance.sampling' = {  # new importance sampling permutations test (not working yet)
+             results <- IS.permute(dat, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
            }
-           output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
-         },  # end permutations with inverse weighting test 
-         'tsai' = {result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
-         output <- list(Pvalue=result[4])
-         },
-         'minP2' = { library(permDep)  #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
-           require(survival)  
-           # library(permDep) # use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
-           if(!is.na(prms$delta)) # when running minP we must have a delta parameter 
-           {
-             dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = prms$delta))
-           }
-           else{
-             dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
-           }
-           
-           results <- permDep(dat$trun, dat$obs, prms$B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
-           ##                                      sampling = 'conditional') #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
-           output <- list(Pvalue=results$p.valueMinp2)
-         }, 
-         'importance.sampling' = {  # new importance sampling permutations test (not working yet)
-           results <- IS.permute(dat, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
-         }
-  )
-  if(exists("permuted.data"))
-    output$permuted.data <- permuted.data
-  else
-    output$permuted.data <- NA
-  if(!("Pvalue" %in% names(output))) # Compute empirical P-value
-    output$Pvalue <- length(which(output$statistics.under.null>=output$TrueT))/prms$B
-  return(output)
-}
+    )
+    if(exists("permuted.data"))
+      output$permuted.data <- permuted.data
+    else
+      output$permuted.data <- NA
+    if(!("Pvalue" %in% names(output))) # Compute empirical P-value
+      output$Pvalue <- length(which(output$statistics.under.null>=output$TrueT))/prms$B
+    return(output)
+  }
