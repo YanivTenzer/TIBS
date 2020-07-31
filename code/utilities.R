@@ -83,9 +83,10 @@ ComputeStatistic_inverse_weighting<- function(data, grid.points, w_mat)
 }
 
 #########################################################################################
-ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
-  W <- apply(data,1,w)
-  n.w <- sum(1/W)
+ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
+{
+  w.mat <- w_fun_to_mat(data, w.fun) # calculate w n*n matrix 
+  n.w <- sum(1/w.mat)
   obs.table <- exp.table <- matrix(0, dim(grid.points)[1], 4)
   Obs <- Exp <- matrix(0,4,1) # observed & expected
   Statistic <- 0 
@@ -93,16 +94,14 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
   {
     Rx <- data[,1]>grid.points[i,1]
     Ry <- data[,2]>grid.points[i,2]
-    Exp[1] <- sum(Rx/W)*sum(Ry/W)/n.w^2
-    Exp[2] <- sum(Rx/W)*sum((!Ry)/W)/n.w^2
-    Exp[4] <- sum((!Rx)/W)*sum(Ry/W)/n.w^2
-    Exp[3] <- sum((!Rx)/W)*sum((!Ry)/W)/n.w^2
-    Obs[1] <- sum(Rx*Ry/W)/n.w
-    Obs[2] <- sum(Rx*(!Ry)/W)/n.w
-    Obs[4] <- sum((!Rx)*Ry/W)/n.w
-    Obs[3] <- sum((!Rx)*(!Ry)/W)/n.w
-#    print(Exp)
-#    print(Obs)
+    Exp[1] <- sum(Rx/w.mat)*sum(Ry/w.mat)/n.w^2
+    Exp[2] <- sum(Rx/w.mat)*sum((!Ry)/w.mat)/n.w^2
+    Exp[4] <- sum((!Rx)/w.mat)*sum(Ry/w.mat)/n.w^2
+    Exp[3] <- sum((!Rx)/w.mat)*sum((!Ry)/w.mat)/n.w^2
+    Obs[1] <- sum(Rx*Ry/w.mat)/n.w
+    Obs[2] <- sum(Rx*(!Ry)/w.mat)/n.w
+    Obs[4] <- sum((!Rx)*Ry/w.mat)/n.w
+    Obs[3] <- sum((!Rx)*(!Ry)/w.mat)/n.w
     obs.table[i,] <- Obs
     exp.table[i,] <- Exp
     if (min(Exp)>(1/dim(data)[1])) {
@@ -110,7 +109,7 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
     } 
   } # end loop on grid points 
   
-  return(list(Statistic=Statistic, obs.table=obs.table,exp.table=exp.table)) 
+  return(list(Statistic=Statistic, obs.table=obs.table, exp.table=exp.table, w.mat=w.mat))  # New! return also w.mat 
   # returns also expected and observed tables for diagnostics
 }
 

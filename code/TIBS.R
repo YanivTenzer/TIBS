@@ -61,14 +61,14 @@ add.one.sqrt <- function(x) {
              if(prms$use.cpp)
              {
                marginals <- EstimateMarginals_rcpp(data, w.fun)
-               w.mat = w_fun_to_mat_rcpp(marginals$xy, w.fun) 
+#               w.mat = w_fun_to_mat_rcpp(marginals$xy, w.fun) 
                null.distribution <- GetNullDistribution_rcpp(marginals$PDF, w.mat)
              } else {
                marginals <- EstimateMarginals(data, w.fun)
-               w.mat = w_fun_to_mat(marginals$xy, w.fun) 
+#               w.mat = w_fun_to_mat(marginals$xy, w.fun) 
                null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
              }
-             TrueT <- ComputeStatistic_inverse_weighting(data, grid.points, w.mat)$Statistic
+             TrueT <- ComputeStatistic.W(data, grid.points, w.fun)$Statistic
              
              statistics.under.null=matrix(0, prms$B, 1)
              for(ctr in 1:prms$B) 
@@ -77,8 +77,8 @@ add.one.sqrt <- function(x) {
                  print(paste0("Run Boots=", ctr))
                
                bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
-               w.mat.bootstrap <- w_fun_to_mat(bootstrap.sample, w.fun)
-               NullT <- ComputeStatistic_inverse_weighting(bootstrap.sample, grid.points, w.mat.bootstrap)
+#               w.mat.bootstrap <- w_fun_to_mat(bootstrap.sample, w.fun)
+               NullT <- ComputeStatistic.W(bootstrap.sample, grid.points, w.fun)
                statistics.under.null[ctr] <- NullT$Statistic
              }
              output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
@@ -261,9 +261,11 @@ add.one.sqrt <- function(x) {
              output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
            },  # end permutations test 
            'permutations_inverse_weighting'={
-             w.mat = w_fun_to_mat(data, w.fun)
-             TrueT = ComputeStatistic_inverse_weighting(data, grid.points, w.mat)$Statistic
-             
+#             w.mat = w_fun_to_mat(data, w.fun)
+             TrueT = ComputeStatistic.W(data, grid.points, w.fun)
+             w.mat = TrueT$w.mat
+             TrueT = TrueT$Statistic
+
              Permutations=PermutationsMCMC(w.mat, prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
              Permutations=Permutations$Permutations
              #Compute the statistics value for each permutation:
@@ -274,8 +276,8 @@ add.one.sqrt <- function(x) {
                  print(paste0("Comp. Stat. Perm=", ctr))
                
                permuted.sample =  cbind(data[,1], data[Permutations[,ctr],2])
-               w.mat.permutation=w_fun_to_mat(permuted.sample, w.fun)
-               NullT <- ComputeStatistic_inverse_weighting(permuted.sample, grid.points, w.mat.permutation)
+#               w.mat.permutation=w_fun_to_mat(permuted.sample, w.fun)
+               NullT <- ComputeStatistic.W(permuted.sample, grid.points, w.fun)
                statistics.under.null[ctr] <- NullT
              }
              output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)

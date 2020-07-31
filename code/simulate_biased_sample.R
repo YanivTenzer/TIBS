@@ -145,3 +145,23 @@ w_fun_to_mat <- function(data, w.fun)
     w.mat[i,] <- w_fun_eval(data[i,1], data[,2], w.fun)
   return (w.mat)
 }
+
+
+#######################################################################
+# New: return a function A set of biased sampling functions to be used 
+# Input: 
+# w.fun - string indicating W type 
+# 
+# Output: 
+# w.fun - a real nonnegative function of two variables  
+########################################################################
+w_str_to_fun <- function(w.str)
+{
+  if(is.function(w.str))
+    return(w.str)
+  w.fun=function(x,y){
+    return(w_fun_eval(x, y, w.str))
+  }
+  return(w.fun)
+}
+

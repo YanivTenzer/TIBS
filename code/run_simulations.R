@@ -2,7 +2,7 @@ path = 'C:/Users/Or Zuk/Documents/GitHub/TIBS/code'  # change to your path
 
 setwd(path)
 args=commandArgs(trailingOnly = TRUE)
-Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+# Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
 source('simulate_and_test.R')
 source('simulate_biased_sample.R')
@@ -59,7 +59,7 @@ if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
 
 for(s in run.dep) # Run all on the farm  
 {
-  prms = list(B=100, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=1) # set running parameters here ! 
+  prms = list(B=100, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # set running parameters here ! 
   
   if(run.flag != 1)
     prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
