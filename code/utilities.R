@@ -43,43 +43,44 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
 }
 
 #########################################################################################
-ComputeStatistic_inverse_weighting<- function(data, grid.points, w_mat)
-{
-  obs.table<-matrix(0, dim(grid.points)[1], 4)
-  Obs<-Exp<-matrix(0,4,1) # observed & expected
-  n_tilde <- sum(1/diag(w_mat))
-  Statistic <- 0  
-  min_Exp<-1/dim(data)[1]
-  
-  for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
-  {
-    Rx <- data[,1]>grid.points[i,1]
-    Ry <- data[,2]>grid.points[i,2]
-    
-    idx1 <- which(Rx*Ry==1)
-    Obs[1] <- sum(1/diag(w_mat)[idx1])
-    idx2 <- which(Rx*(!Ry)==1)
-    Obs[2] <- sum(1/diag(w_mat)[idx2])
-    idx3 <- which((!Rx)*(!Ry)==1)
-    Obs[3] <- sum(1/diag(w_mat)[idx3])
-    idx4 <- which(Ry*(!Rx)==1)
-    Obs[4] <- sum(1/diag(w_mat)[idx4])
-    Obs <- Obs*(n_tilde^(-1))
-    
-    Exp[1] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[Ry])
-    Exp[2] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[which(!Ry==1)])
-    Exp[3] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[which(!Ry==1)])
-    Exp[4] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[Ry])
-    Exp <- Exp*(n_tilde^(-2))
-    
-    obs.table[i,] <- Obs
-    
-    if (min(Exp)>min_Exp){
-      Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
-    }
-  } # end loop on grid points 
-  
-  return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
+# Not UseD: 
+# ComputeStatistic_inverse_weighting<- function(data, grid.points, w_mat)
+# {
+#   obs.table<-matrix(0, dim(grid.points)[1], 4)
+#   Obs<-Exp<-matrix(0,4,1) # observed & expected
+#   n_tilde <- sum(1/diag(w_mat))  # why diag and not all w_mat?
+#   Statistic <- 0  
+#   min_Exp<-1/dim(data)[1]
+#   
+#   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
+#   {
+#     Rx <- data[,1]>grid.points[i,1]
+#     Ry <- data[,2]>grid.points[i,2]
+#     
+#     idx1 <- which(Rx*Ry==1)
+#     Obs[1] <- sum(1/diag(w_mat)[idx1])
+#     idx2 <- which(Rx*(!Ry)==1)
+#     Obs[2] <- sum(1/diag(w_mat)[idx2])
+#     idx3 <- which((!Rx)*(!Ry)==1)
+#     Obs[3] <- sum(1/diag(w_mat)[idx3])
+#     idx4 <- which(Ry*(!Rx)==1)
+#     Obs[4] <- sum(1/diag(w_mat)[idx4])
+#     Obs <- Obs*(n_tilde^(-1))
+#     
+#     Exp[1] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[Ry])
+#     Exp[2] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[which(!Ry==1)])
+#     Exp[3] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[which(!Ry==1)])
+#     Exp[4] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[Ry])
+#     Exp <- Exp*(n_tilde^(-2))
+#     
+#     obs.table[i,] <- Obs
+#     
+#     if (min(Exp)>min_Exp){
+#       Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+#     }
+#   } # end loop on grid points 
+#   
+#   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
 }
 
 #########################################################################################
