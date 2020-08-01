@@ -226,7 +226,7 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
 #        print(keep)
     if(isempty(keep))
       next
-    boot.sample[1:length(keep)+k,] <- cbind(x[keep],y[keep]) 
+    boot.sample[(1:length(keep))+k,] <- cbind(x[keep],y[keep]) 
     k <- k+length(keep)
 #     print(k)
   }    
