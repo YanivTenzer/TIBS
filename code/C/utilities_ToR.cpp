@@ -1093,6 +1093,8 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long n = data.nrow();
 	long i, j; 
 
+	Rcout << " Read Input TIBS_RCPP. TEST-TYPE: " << test_type << endl; 
+
 
 	// 1.Compute weights matrix W : (not needed here, just for permutations test)
 	// 2.Create a grid of points, based on the data :
@@ -1190,9 +1192,12 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	if(test_type == "permutations")
 	{
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
+
+		Rcout << "Run Perm MCMC RCPP" << endl;
 		List PermutationsList = PermutationsMCMC_rcpp(w_mat, prms);
 		NumericMatrix expectations_table;
 
+					
 		NumericMatrix P = PermutationsList["P"];
 		NumericMatrix Permutations = PermutationsList["Permutations"];
 		NumericMatrix permuted_data(n, 2); 

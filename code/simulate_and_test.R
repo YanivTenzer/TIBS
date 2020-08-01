@@ -91,7 +91,10 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           stop.flag <- 0
           for(b in 1:(prms$B/block.size))  # run block.size permutations each time 
           {
-            cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
+            if(prms$use.cpp)  # try running rcpp code 
+              cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet
+            else
+              cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
             cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
             
             cur.conf.int <- binom.confint(cur.pvalue*block.size, b*block.size, conf.level = 1-prms$gamma, method = "wilson")
@@ -112,7 +115,12 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           }
           
         } else   # run full test: just simulate all B permutations 
-            test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
+        {
+          if(prms$use.cpp)
+            test.results <- TIBS(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet 
+          else
+            test.results <- TIBS(biased.data, w.fun, cur.test.type, prms)
+        }
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue
         print(paste0(dependence.type, ', rho=', prms$rho, '. Test: ', test.type[t], 

@@ -81,8 +81,8 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
 #   } # end loop on grid points 
 #   
 #   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
-}
-
+#
+#
 #########################################################################################
 ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
 {
