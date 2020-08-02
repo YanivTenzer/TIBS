@@ -92,7 +92,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           for(b in 1:(prms$B/block.size))  # run block.size permutations each time 
           {
             if(prms$use.cpp)  # try running rcpp code 
-              cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet
+              cur.test.results<-TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet
             else
               cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
             cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
@@ -117,7 +117,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         } else   # run full test: just simulate all B permutations 
         {
           if(prms$use.cpp)
-            test.results <- TIBS(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet 
+            test.results <- TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet 
           else
             test.results <- TIBS(biased.data, w.fun, cur.test.type, prms)
         }

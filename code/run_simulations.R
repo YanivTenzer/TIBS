@@ -59,7 +59,7 @@ if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
 
 for(s in run.dep) # Run all on the farm  
 {
-  prms = list(B=100, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # set running parameters here ! 
+  prms = list(B=1000, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # set running parameters here ! 
   
   if(run.flag != 1)
     prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 

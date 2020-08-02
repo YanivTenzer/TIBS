@@ -118,12 +118,11 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
   # sample permutations, using MCMC, over the set of valid permutations, 
   # with respect to the distribution appears in Eq 8
   # Parameters: 
-  # W - matrix with weights 
-  # B - number of permutations to draw
-  # N - sample size (can be read from data or W?)
+  # w.mat - matrix with weights 
+  # prms - parameters, including B, number of permutations to draw
   # 
   # Output: 
-  # PermutationsTable - A matrix representing the sampled permutations 
+  # Permutations - A matrix representing the sampled permutations 
   # P - An n*n matrix with P(i,j) = Pr(pi(i)=j) over the sampled permutations 
   #########################################################################################
   PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
@@ -132,8 +131,6 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
     P <- matrix(0, n, n) # New! matrix with P[i]=j estimate
     #  for(i in 1:num.permutations) 
     #    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
-    
-    
     
     # Set mcmc default sampling parameters 
     if(!('B' %in% names(prms)))
@@ -144,11 +141,10 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
       prms$Cycle <- n
     
     Idx <- ctr <- 1
-    PermutationsTable = matrix(0, n, prms$B)
+    Permutations = matrix(0, n, prms$B)
     Perm = 1:n # start with the identity 
     while(Idx<=prms$B)
     {
-      
       # A Metropolis Hastings algorithm with target stationary distribution \pi
       # Choose the two indices to be switched
       switchIdx = sample(1:n, 2, replace = FALSE)  
@@ -163,7 +159,7 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
         Perm[j] <- temp
         if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in))
         {
-          PermutationsTable[,Idx]=Perm;
+          Permutations[,Idx]=Perm;
           Idx = Idx+1;
 #          if(mod(Idx,100)==0)
 #            print(c("Sample Perm=", Idx))
@@ -174,7 +170,7 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
     }  # end while
     P <- P / (ctr-1) # normalize 
     
-    return(list(PermutationsTable=PermutationsTable, P=P)) # New: return also P, a matrix with Pr(pi(i)=j)
+    return(list(Permutations=Permutations, P=P)) # New: return also P, a matrix with Pr(pi(i)=j)
   }
 
 ###################################################################################
@@ -215,6 +211,7 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
 #  print(dim(data))
   boot.sample <- matrix(-1, n, 2)
   k <- 0
+  ctr <- 0
   while(k<n) 
   {   # sampling n-k together
 #       print("Inside Bootstrap sample x")
@@ -227,9 +224,12 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
     if(isempty(keep))
       next
     boot.sample[(1:length(keep))+k,] <- cbind(x[keep],y[keep]) 
+    ctr <- ctr + n-k
     k <- k+length(keep)
+   
 #     print(k)
   }    
+#  print(paste0("Sampled in total k=", ctr, " to get n=", n, " samples"))
   return(boot.sample)
 }
 

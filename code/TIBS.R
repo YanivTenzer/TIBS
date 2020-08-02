@@ -75,7 +75,6 @@ add.one.sqrt <- function(x) {
              {
                if(mod(ctr,100)==0)
                  print(paste0("Run Boots=", ctr))
-               
                bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
 #               w.mat.bootstrap <- w_fun_to_mat(bootstrap.sample, w.fun)
                NullT <- ComputeStatistic.W(bootstrap.sample, grid.points, w.fun)
@@ -140,6 +139,7 @@ add.one.sqrt <- function(x) {
              {
                #             if(mod(ctr,100)==0)
   #             print(paste0("Run Boots=", ctr))
+#               print(paste0("w_max=", prms$W.max))
                bootstrap.sample <- Bootstrap(marginals$xy, marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
                #             print(paste0("After Boots=", ctr))
                

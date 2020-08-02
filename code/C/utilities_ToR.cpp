@@ -191,7 +191,7 @@ NumericVector empirical_cdf_rcpp(NumericVector x)
 }
 
 
-
+// should have a similar function for a vector !! 
 // [[Rcpp::export]]
 double w_fun_eval_rcpp(double x, double y, string w_fun)
 {
@@ -657,8 +657,6 @@ NumericMatrix CDFToPDFMarginals_rcpp(NumericMatrix CDFs)
 }
 
 
-
-
 // [[Rcpp::export]]
 List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	double* xy[2], double* PDFs[2], double* CDFs[2])  // outputs 
 {
@@ -666,10 +664,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)  // inputs  //	dou
 	
 	long i, j;
 	long n = data.nrow();
-
 	NumericVector w_inv(n); //	double* w_inv = new double[n];
 	double w_inv_sum = 0.0;
-
 	NumericMatrix PDFs(2*n, 2);
 	NumericMatrix CDFs(2*n, 2);
 
@@ -804,20 +800,25 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 	double ratio;
 
 	// Set mcmc default sampling parameters
-	if (!prms.containsElementNamed("B")) //   ('B' % in % names(prms)))
-		prms["B"] = 1000;
-	if (!prms.containsElementNamed("burn_in")) //  ('burn.in' % in % names(prms)))
-		prms["burn_in"] = 2 * n;
-	if (!prms.containsElementNamed("Cycle")) // (!('Cycle' % in % names(prms)))
-		prms["Cycle"] = n;
+	long B = 1000;
+	if (prms.containsElementNamed("B")) //   ('B' % in % names(prms)))
+		B = prms["B"];
+	long burn_in = 2 * n;
+	if (prms.containsElementNamed("burn_in")) //  ('burn.in' % in % names(prms)))
+		burn_in = prms["burn_in"];
+	long Cycle = n; 
+	if (prms.containsElementNamed("Cycle")) // (!('Cycle' % in % names(prms)))
+		Cycle = prms["Cycle"];
 
 	long Idx = 0, ctr = 1;
-	NumericMatrix PermutationsTable(n, long(prms["B"]));
+
+//	Rcout << "Perms dimensions: n=" << n << " B = " << B << endl;
+	NumericMatrix Permutations(n, long(B));
 	IntegerVector Perm = seq(0, n);  // 1 to N-1 
 	NumericVector switchIdx(2);
-	while (Idx < long(prms["B"]))
+	while (Idx < B)
 	{
-
+//		Rcout << "Draw Perm=" << Idx << endl; 
 	// A Metropolis Hastings algorithm with target stationary distribution \pi
 	// Choose the two indices to be switched
 		switchIdx[0] = rand() % n; 
@@ -828,16 +829,15 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 		j = switchIdx[2];
 		ratio = w_mat(i, Perm[j]) * w_mat(j, Perm[i]) / (w_mat(i, Perm[i]) * w_mat(j, Perm[j]));
 
-
 		if(	double(rand()) / RAND_MAX < fmin(1.0, ratio) ) // we accept the transition with probability min(1, ratio)
 		{
 			temp = Perm[i];  // SWAP
 			Perm[i] = Perm[j];
 			Perm[j] = temp;
-			if (ctr == long(prms["burn_in"]) || ((ctr % long(prms["Cycle"]) == 0) && (ctr > long(prms["burn_in"]))))
+			if (ctr == burn_in || ((ctr % Cycle == 0) && (ctr > burn_in)))
 			{
 				for(i=0; i<n; i++)
-					PermutationsTable(i,Idx) = Perm[i] + 1;  // add 1 to move from C zero-based indexing to R-one based indexing
+					Permutations(i,Idx) = Perm[i] + 1;  // add 1 to move from C zero-based indexing to R-one based indexing
 				Idx++; 
 //				if (Idx%100 == 0)
 //					Rcout << "Sample Perm=" << Idx << endl;
@@ -852,7 +852,7 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 			P(i, j) = P(i, j) / (ctr - 1); //  normalize
 
 	List ret;
-	ret["PermutationsTable"] = PermutationsTable;
+	ret["Permutations"] = Permutations;
 	ret["P"] = P;
 	return(ret); // return list with also P
 }
@@ -948,7 +948,7 @@ iterative_marginal_estimation < -function(data, w.fun)
 # (Problem: what if prob.(rejection) close to 1?)
 # Parameters:
 # data - n * 2 array with(X, Y) samples
-# pdfs - fx and fy
+# cdfs - fx and fy - cumulatives (not pdfs!)
 # w.fun - Biased sampling function w
 # prms - for w max
 # n - allow a different sample size
@@ -956,41 +956,58 @@ iterative_marginal_estimation < -function(data, w.fun)
 # an n*2 matrix of bootstrap sample 
 ############################################################################################**/
 // [[Rcpp::export]]
-NumericMatrix Bootstrap_rcpp(NumericMatrix data, NumericMatrix pdfs, string w_fun, List prms, long n=-1)  // n is optional 
+NumericMatrix Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fun, List prms, long n=-1)  // n is optional 
 {
 	if (n == -1) // is.null(n))
 		n = data.nrow();
 	NumericMatrix boot_sample = NumericMatrix(n, 2);
 //	NumericVector x(n), y(n);
 //	NumericVector keep(n);
-	double x, y; //  keep;
+	double x=0.0, y=0.0, r; //  keep;
 //	long n_keep = 0;
-	long k = 0;
-//	long i, j; 
-	double w_max = prms["W_max"];
-	random_device rd;
-	mt19937 gen(rd());
-	NumericVector v0 = pdfs(_, 0);
-	NumericVector v1 = pdfs(_, 1);
+	long k = 0, ctr=0;
+	long i; //  , j;
+	double w_max = prms["W.max"];
 
+//	Rcout << "w_max = " << w_max << endl; 
 
-	vector<double> p0 = as<std::vector<double> >(v0);
-	vector<double> p1 = as<std::vector<double> >(v1);
+//	random_device rd; // takes a long time?
+//	mt19937 gen(rd());
+//	NumericVector v0 = pdfs(_, 0);
+//	NumericVector v1 = pdfs(_, 1);
 
+//	vector<double> p0 = as<std::vector<double> >(v0);
+//	vector<double> p1 = as<std::vector<double> >(v1);
 
-	discrete_distribution<> d0(p0.begin(), p0.end()); //  pdfs(_, 0));
-	discrete_distribution<> d1(p1.begin(), p1.end()); //  pdfs(_, 1)); // weighted sampling 
+//	discrete_distribution<> d0(p0.begin(), p0.end()); //  pdfs(_, 0));
+//	discrete_distribution<> d1(p1.begin(), p1.end()); //  pdfs(_, 1)); // weighted sampling 
 	while (k < n)
-	{
-		x = data(d0(gen), 0); //  rand() % (n - k); // sample with replacement
-		y = data(d1(gen), 1); //  rand() % (n - k);
-		if (rand() < w_fun_eval_rcpp(x, y, w_fun) / w_max)
+	{/**
+		r = double(rand()) / RAND_MAX;
+		for(i=0; i<cdfs.nrow(); i++)
+			if (r <= cdfs(i, 0))
+			{
+				x = data(i,0);
+				break;
+			}
+		r = double(rand()) / RAND_MAX;
+		for (i = 0; i < cdfs.nrow(); i++)
+			if (r <= cdfs(i, 1))
+			{
+				y = data(i,1);
+				break;
+			} **/
+		x = data(binary_search_rcpp(cdfs(_,0), double(rand()) / RAND_MAX), 0); //		rand() data(d0(gen), 0); //  rand() % (n - k); // sample with replacement
+		y = data(binary_search_rcpp(cdfs(_, 0), double(rand()) / RAND_MAX), 1); //data(d1(gen), 1); //  rand() % (n - k);
+		if (double(rand()) / RAND_MAX < w_fun_eval_rcpp(x, y, w_fun) / w_max) //   exp((-abs(x) - abs(y)) / 4) / w_max) // w_fun_eval_rcpp(x, y, w_fun) / w_max)
 		{
 			boot_sample(k, 0) = x;
 			boot_sample(k++, 1) = y;
 		}
+		ctr++;
 	}
 
+//	cout << "Generated " << ctr << " pairs to get eventually " << n << " samples" << endl; 
 	/**
 		n_keep = 0;
 		// sampling n - k together
@@ -998,18 +1015,17 @@ NumericMatrix Bootstrap_rcpp(NumericMatrix data, NumericMatrix pdfs, string w_fu
 		{
 			x[j] = data(d0(gen), 0); //  rand() % (n - k); // sample with replacement
 			y[j] = data(d1(gen), 1); //  rand() % (n - k);
-			keep[j] = rand() < w_fun_eval_rcpp(x[j], y[j], w_fun) / prms["W_max"]);
+			keep[j] = rand() < w_fun_eval_rcpp(x[j], y[j], w_fun) / prms["W.max"]);
 			n_keep += keep[j];
 			if (keep[j])
 			{
 				boot_sample(k2, 0) = x[j];
 				boot_sample(k2, 0) = x[j];
-			}
-		
+			}		
 		}
 //		x = data(sample(pdfs.nrow(), n - k, prob = pdfs(_, 0), replace = TRUE), 0); // Sample X ~Fx
 //		y = data(sample(pdfs.nrow(), n - k, prob = pdfs(_, 1), replace = TRUE), 1); // Sample Y ~Fy
-//		keep = which(as.logical(rbinom(n - k, 1, w_fun_eval_rcpp(x, y, w_fun) / prms["W_max"])));
+//		keep = which(as.logical(rbinom(n - k, 1, w_fun_eval_rcpp(x, y, w_fun) / prms["W.max"])));
 
 		if (isempty(keep))
 			next;
@@ -1093,7 +1109,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long n = data.nrow();
 	long i, j; 
 
-	Rcout << " Read Input TIBS_RCPP. TEST-TYPE: " << test_type << endl; 
+//	Rcout << " Read Input TIBS_RCPP. TEST-TYPE: " << test_type << endl; 
 
 
 	// 1.Compute weights matrix W : (not needed here, just for permutations test)
@@ -1113,8 +1129,12 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	if(test_type == "bootstrap_inverse_weighting") 
 	{
 		List marginals = EstimateMarginals_rcpp(data, w_fun);
+
+//		for (i = 0; i < n; i++)
+	//		cout << "i: " << i << "PDF: " << as<NumericVector>(marginals["PDFs"])(i, 0) << ", " << as<NumericVector>(marginals["PDFs"])(i, 1) << 
+		//	" CDF: " << as<NumericVector>(marginals["CDFs"])(i, 0) << ", " << as<NumericVector>(marginals["CDFs"])(i, 1) << endl;
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(marginals["xy"], w_fun);
-		null_distribution = GetNullDistribution_rcpp(marginals["PDF"], w_mat);
+		null_distribution = GetNullDistribution_rcpp(marginals["PDFs"], w_mat);
 		TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun); //  $Statistic
 		NumericVector statistics_under_null(B);
 		NumericMatrix bootstrap_sample(n, 2);
@@ -1122,7 +1142,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		{
 			if (ctr % 100 == 0)
 				Rcout << "Run Boots=" << ctr << endl;
-			bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["PDF"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
+			bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
 			NumericMatrix w_mat_bootstrap = w_fun_to_mat_rcpp(bootstrap_sample, w_fun);
 			NullT = ComputeStatistic_w_rcpp(bootstrap_sample, grid_points, w_fun);
 			statistics_under_null[ctr] = NullT; //  ["Statistic"] ;
@@ -1133,8 +1153,10 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	/**/
 	if(test_type == "bootstrap") 
 	{
+//		Rcout << "Start TIBS RCPP Bootstrap" << endl;
 		// 3. Estimate the marginals
 		List marginals = EstimateMarginals_rcpp(data, w_fun);
+//		Rcout << "Estimated Marginals" << endl; 
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(marginals["xy"], w_fun); // compute W again for augmented data
 		NumericMatrix expectations_table;
 		NumericMatrix bootstrap_sample(n, 2);
@@ -1143,14 +1165,18 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		if (naive_expectation) // here we ignore W(using statistic for unbiased sampling)
 		{
 			List marginals_naive = EstimateMarginals_rcpp(data, "naive");
-			null_distribution = GetNullDistribution_rcpp(marginals_naive["PDF"], NumericMatrix(1.0)); // scalar matrix of 1
+			null_distribution = GetNullDistribution_rcpp(marginals_naive["PDFs"], NumericMatrix(1.0)); // scalar matrix of 1
 			expectations_table = QuarterProbFromBootstrap_rcpp(marginals_naive["xy"], null_distribution["distribution"], grid_points);
 		}
 		else
 		{
-			null_distribution = GetNullDistribution_rcpp(marginals["PDF"], w_mat);
+//			Rcout << "Get Null Distribution" << endl;
+//			Rcout << "w_mat dim=" << w_mat.nrow() << "Marginals PDFs Dim=" << as<NumericMatrix>(marginals["PDFs"]).nrow() << endl;
+			null_distribution = GetNullDistribution_rcpp(as<NumericMatrix>(marginals["PDFs"]), w_mat);
+//			Rcout << "Get Expectations Table" << endl;
 			expectations_table = QuarterProbFromBootstrap_rcpp(marginals["xy"], null_distribution["distribution"], grid_points);
 		}
+//		Rcout << "Compute Statistic" << endl;
 		// 1. First compute the statistic based on the original data set :
 		TrueT = ComputeStatistic_rcpp(data, grid_points, expectations_table);
 
@@ -1160,10 +1186,18 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericMatrix w_mat_bootstrap(1,1);
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{
-				bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["PDF"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
+	//			for (i = 0; i < n; i++)
+	//				cout << "i: " << i << "PDF: " << as<NumericVector>(marginals["PDFs"])(i, 0) << ", " << as<NumericVector>(marginals["PDFs"])(i, 1) <<
+	//				" CDF: " << as<NumericVector>(marginals["CDFs"])(i, 0) << ", " << as<NumericVector>(marginals["CDFs"])(i, 1) << endl;
+
+//				Rcout << "Draw Bootstrap Sample Under Null " << ctr << endl;
+
+				bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
 
 				if (!fast_bootstrap) // re - estimate marginals for null expectation for each bootstrap sample
 				{
+	//				Rcout << "Estimate Marginals Under Null " << ctr << endl;
+
 					List marginals_bootstrap = EstimateMarginals_rcpp(bootstrap_sample, w_fun);   // Why are the marginals estimated each time ?
 				  // 3. Compute weights matrix W :
 					if (naive_expectation)
@@ -1172,13 +1206,20 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 					}
 					else
 					{
+		//				Rcout << "Compute w_mat Under Null " << ctr << endl;
+
 						w_mat_bootstrap = w_fun_to_mat_rcpp(marginals_bootstrap["xy"], w_fun);
 					}
 					// 4. Estimate W(x,y) * Fx * FY / normalizing.factor
+		//			Rcout << "Get Null Distribution Under Null " << ctr << endl;
+
 					null_distribution_bootstrap = GetNullDistribution_rcpp(marginals_bootstrap["PDFs"], w_mat_bootstrap);
+			//		Rcout << "Compute Quarter Under Null " << ctr << endl;
+
 					expectations_table = QuarterProbFromBootstrap_rcpp(
 						marginals_bootstrap["xy"], null_distribution_bootstrap["distribution"], grid_points);
 				} // if fast bootstrap
+		//		Rcout << "Compute Bootstrap Statistic Under Null " << ctr << endl;
 				NullT = ComputeStatistic_rcpp(bootstrap_sample, grid_points, expectations_table);
 
 					// null.obs.table  = NullT$obs.table
@@ -1193,30 +1234,41 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	{
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
 
-		Rcout << "Run Perm MCMC RCPP" << endl;
+//		Rcout << "Run Perm MCMC RCPP" << endl;
 		List PermutationsList = PermutationsMCMC_rcpp(w_mat, prms);
+//		Rcout << "Finished Run Perm MCMC RCPP" << endl;
 		NumericMatrix expectations_table;
 
 					
 		NumericMatrix P = PermutationsList["P"];
+//		Rcout << "Copied Perm P, dim=" << P.nrow() << endl;
 		NumericMatrix Permutations = PermutationsList["Permutations"];
-		NumericMatrix permuted_data(n, 2); 
-		permuted_data(_, 0) = data(_, 0); 
-		for(i=0; i<n; i++)
+//		Rcout << "Copied Perm" << endl;
+		NumericMatrix permuted_data(n, 2);
+
+
+//		Rcout << "Fill Permuted Data " << endl;
+		permuted_data(_, 0) = data(_, 0);
+		for (i = 0; i < n; i++)
+		{
+//			Rcout << " Copy i=" << i << endl;
 			permuted_data(i, 1) = data(Permutations(i, 0), 1); // save one example
+		}
+//		Rcout << "Finished Permuted Data " << endl; 
 		if (naive_expectation) // here we ignore W(using statistic for unbiased sampling)
 		{
 			List marginals = EstimateMarginals_rcpp(data, "naive");
 			NumericMatrix w_mat_scalar(1, 1); w_mat_scalar(1, 1) = 1.0;
-			null_distribution = GetNullDistribution_rcpp(marginals["PDF"], w_mat_scalar);
+			null_distribution = GetNullDistribution_rcpp(marginals["PDFs"], w_mat_scalar);
 			expectations_table = QuarterProbFromBootstrap_rcpp(marginals["xy"], null_distribution["distribution"], grid_points);
 		}
 		else
 		{
+//			Rcout << "COmpute Expectations Table" << endl; 
 			if (PL_expectation)  // get expectations from the bootstrap estimator
 			{
 				List marginals = EstimateMarginals_rcpp(data, w_fun);
-				null_distribution = GetNullDistribution_rcpp(marginals["PDF"], w_mat);
+				null_distribution = GetNullDistribution_rcpp(marginals["PDFs"], w_mat);
 				expectations_table = QuarterProbFromBootstrap_rcpp(marginals["xy"], null_distribution["distribution"], grid_points);
 				w_mat = w_fun_to_mat_rcpp(marginals["xy"], w_fun);
 			}
@@ -1225,12 +1277,14 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 				expectations_table = QuarterProbFromPermutations_rcpp(data, P, grid_points);  // Permutations
 			}
 		}
+//		Rcout << "Compute Statistic" << endl;
 		TrueT = ComputeStatistic_rcpp(data, grid_points, expectations_table);
 
 		// Compute the statistics value for each permutation:
 		NumericVector statistics_under_null(B);
 		for (ctr = 0; ctr < B; ctr++)
 		{
+//			Rcout << "Compute Permutation Statistic Under Null " << ctr << endl;
 			permuted_data(_, 0) = data(_, 0);
 			for (i = 0; i < n; i++)
 				permuted_data(i, 1) = data(Permutations(i, ctr), 1);
