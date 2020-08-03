@@ -8,8 +8,6 @@ rm(list=ls())
 gc()
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 path = getwd()
-# Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
-Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
 source('TIBS.R')
 source('simulate_biased_sample.R')
@@ -63,7 +61,14 @@ for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
     
     print(paste0(datasets[d], ", ", test.type[t], ":"))
     start.time <- Sys.time()
-    results.test<-TIBS(input.data, w.fun[d], test.type[t], prms)
+    if(prms$use.cpp)
+    {
+      library(Rcpp)
+      library(RcppArmadillo)
+      Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+      results.test<-TIBS_rcpp(input.data, w.fun[d], test.type[t], prms)
+    } else
+      results.test<-TIBS(input.data, w.fun[d], test.type[t], prms)
     test.time[d,t] <- Sys.time() - start.time
     print(test.time[d,t])
     test.pvalue[d,t] <- results.test$Pvalue 

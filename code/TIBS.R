@@ -1,9 +1,3 @@
-library(Rcpp)
-library(RcppArmadillo)
-
-Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
-# Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
-# Rcpp::sourceCpp("C/marginal_estimation_ToR.cpp")
 
 #' @export
 add.one.sqrt <- function(x) {
@@ -47,7 +41,14 @@ add.one.sqrt <- function(x) {
     if(!('delta' %in% names(prms)))
       prms$delta <- NA
     n <- dim(data)[1]
-    
+
+    if(prms$use.cpp) # use cpp code 
+    {
+      library(Rcpp)
+      library(RcppArmadillo)
+      Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+    }    
+        
     
     #################################################################
     # 1.Compute weights matrix W: (not needed here, just for permutations test)

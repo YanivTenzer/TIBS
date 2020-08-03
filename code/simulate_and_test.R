@@ -16,6 +16,13 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
                               prms) # B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0)
 {
+  if(prms$use.cpp)
+  {
+    library(Rcpp)
+    library(RcppArmadillo)
+    Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+  }
+  
   print(paste0("rho.inside=", prms.rho))
 #  prms = list(B = B)
   run.flag = 1
