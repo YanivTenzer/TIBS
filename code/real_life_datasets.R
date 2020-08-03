@@ -48,9 +48,9 @@ for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
 #      next
   input.data <- ReadDataset(datasets[d]) # read dataset 
   
-  prms <- list(B = 10000)  # NOTE: for minP we may need a lower number of permutations
+  prms <- list(B = 1000)  # NOTE: for minP we may need a lower number of permutations
   prms$W.max <- max(W.max[d], max(w_fun_to_mat(input.data, w.fun[d]))) # update max 
-  prms$use.cpp <- 1 # New! enable one to run with c++ code 
+  prms$use.cpp <- 0 # New! enable one to run with c++ code 
   for(t in 1:3) # n.tests) # run all tests 
   {
     if((!(w.fun[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))

@@ -41,7 +41,7 @@ w.fun <- function(x,y){(x<y)*Srv.C(y-x)}
 
 # filter the uncensored observations and apply TIBS
 ch.delta1 <- data.frame(x=xx[delta==1],y=yy[delta==1])
-test.res <- TIBS(data=ch.delta1, w.fun=w.fun, test.type='permutations',prms=c(B=100))
+test.res <- TIBS(data=ch.delta1, w.fun=w.fun, test.type='permutations',prms=list(B=100))
 
 
 

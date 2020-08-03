@@ -26,6 +26,9 @@ add.one.sqrt <- function(x) {
     source('simulate_biased_sample.R')
     source('marginal_estimation.R')
     
+    if(!is.numeric(data))   # unlist and keep dimensions for data 
+      data <- array(as.numeric(unlist(data)), dim(data))  
+    
     
     # Set defaults
     if(!('use.cpp' %in% names(prms)))  # new: a flag for using c++ code 
@@ -41,7 +44,9 @@ add.one.sqrt <- function(x) {
     if(!('delta' %in% names(prms)))
       prms$delta <- NA
     n <- dim(data)[1]
-
+    if(!('W.max' %in% names(prms)))
+      prms$W.max <- max(w_fun_to_mat(data, w.fun)) # update max
+      
     if(prms$use.cpp) # use cpp code 
     {
       library(Rcpp)
@@ -49,6 +54,7 @@ add.one.sqrt <- function(x) {
       Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
     }    
         
+    
     
     #################################################################
     # 1.Compute weights matrix W: (not needed here, just for permutations test)
