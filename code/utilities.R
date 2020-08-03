@@ -43,49 +43,51 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
 }
 
 #########################################################################################
-ComputeStatistic_inverse_weighting<- function(data, grid.points, W)
-{
-  obs.table<-matrix(0, dim(grid.points)[1], 4)
-  Obs<-Exp<-matrix(0,4,1) # observed & expected
-  n_tilde <- sum(1/diag(W))
-  Statistic <- 0  
-  min_Exp<-1/dim(data)[1]
-  
-  for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
-  {
-    Rx <- data[,1]>grid.points[i,1]
-    Ry <- data[,2]>grid.points[i,2]
-    
-    idx1 <- which(Rx*Ry==1)
-    Obs[1] <- sum(1/diag(W)[idx1])
-    idx2 <- which(Rx*(!Ry)==1)
-    Obs[2] <- sum(1/diag(W)[idx2])
-    idx3 <- which((!Rx)*(!Ry)==1)
-    Obs[3] <- sum(1/diag(W)[idx3])
-    idx4 <- which(Ry*(!Rx)==1)
-    Obs[4] <- sum(1/diag(W)[idx4])
-    Obs <- Obs*(n_tilde^(-1))
-    
-    Exp[1] <- sum(1/diag(W)[Rx])*sum(1/diag(W)[Ry])
-    Exp[2] <- sum(1/diag(W)[Rx])*sum(1/diag(W)[which(!Ry==1)])
-    Exp[3] <- sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[which(!Ry==1)])
-    Exp[4] <- sum(1/diag(W)[which(!Rx==1)])*sum(1/diag(W)[Ry])
-    Exp <- Exp*(n_tilde^(-2))
-    
-    obs.table[i,] <- Obs
-    
-    if (min(Exp)>min_Exp){
-      Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
-    }
-  } # end loop on grid points 
-  
-  return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
-}
-
+# Not UseD: 
+# ComputeStatistic_inverse_weighting<- function(data, grid.points, w_mat)
+# {
+#   obs.table<-matrix(0, dim(grid.points)[1], 4)
+#   Obs<-Exp<-matrix(0,4,1) # observed & expected
+#   n_tilde <- sum(1/diag(w_mat))  # why diag and not all w_mat?
+#   Statistic <- 0  
+#   min_Exp<-1/dim(data)[1]
+#   
+#   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
+#   {
+#     Rx <- data[,1]>grid.points[i,1]
+#     Ry <- data[,2]>grid.points[i,2]
+#     
+#     idx1 <- which(Rx*Ry==1)
+#     Obs[1] <- sum(1/diag(w_mat)[idx1])
+#     idx2 <- which(Rx*(!Ry)==1)
+#     Obs[2] <- sum(1/diag(w_mat)[idx2])
+#     idx3 <- which((!Rx)*(!Ry)==1)
+#     Obs[3] <- sum(1/diag(w_mat)[idx3])
+#     idx4 <- which(Ry*(!Rx)==1)
+#     Obs[4] <- sum(1/diag(w_mat)[idx4])
+#     Obs <- Obs*(n_tilde^(-1))
+#     
+#     Exp[1] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[Ry])
+#     Exp[2] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[which(!Ry==1)])
+#     Exp[3] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[which(!Ry==1)])
+#     Exp[4] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[Ry])
+#     Exp <- Exp*(n_tilde^(-2))
+#     
+#     obs.table[i,] <- Obs
+#     
+#     if (min(Exp)>min_Exp){
+#       Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+#     }
+#   } # end loop on grid points 
+#   
+#   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
+#
+#
 #########################################################################################
-ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
-  W <- apply(data,1,w)
-  n.w <- sum(1/W)
+ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
+{
+  w.mat <- w_fun_to_mat(data, w.fun) # calculate w n*n matrix 
+  n.w <- sum(1/w.mat)
   obs.table <- exp.table <- matrix(0, dim(grid.points)[1], 4)
   Obs <- Exp <- matrix(0,4,1) # observed & expected
   Statistic <- 0 
@@ -93,16 +95,14 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
   {
     Rx <- data[,1]>grid.points[i,1]
     Ry <- data[,2]>grid.points[i,2]
-    Exp[1] <- sum(Rx/W)*sum(Ry/W)/n.w^2
-    Exp[2] <- sum(Rx/W)*sum((!Ry)/W)/n.w^2
-    Exp[4] <- sum((!Rx)/W)*sum(Ry/W)/n.w^2
-    Exp[3] <- sum((!Rx)/W)*sum((!Ry)/W)/n.w^2
-    Obs[1] <- sum(Rx*Ry/W)/n.w
-    Obs[2] <- sum(Rx*(!Ry)/W)/n.w
-    Obs[4] <- sum((!Rx)*Ry/W)/n.w
-    Obs[3] <- sum((!Rx)*(!Ry)/W)/n.w
-#    print(Exp)
-#    print(Obs)
+    Exp[1] <- sum(Rx/w.mat)*sum(Ry/w.mat)/n.w^2
+    Exp[2] <- sum(Rx/w.mat)*sum((!Ry)/w.mat)/n.w^2
+    Exp[4] <- sum((!Rx)/w.mat)*sum(Ry/w.mat)/n.w^2
+    Exp[3] <- sum((!Rx)/w.mat)*sum((!Ry)/w.mat)/n.w^2
+    Obs[1] <- sum(Rx*Ry/w.mat)/n.w
+    Obs[2] <- sum(Rx*(!Ry)/w.mat)/n.w
+    Obs[4] <- sum((!Rx)*Ry/w.mat)/n.w
+    Obs[3] <- sum((!Rx)*(!Ry)/w.mat)/n.w
     obs.table[i,] <- Obs
     exp.table[i,] <- Exp
     if (min(Exp)>(1/dim(data)[1])) {
@@ -110,7 +110,7 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
     } 
   } # end loop on grid points 
   
-  return(list(Statistic=Statistic, obs.table=obs.table,exp.table=exp.table)) 
+  return(list(Statistic=Statistic, obs.table=obs.table, exp.table=exp.table, w.mat=w.mat))  # New! return also w.mat 
   # returns also expected and observed tables for diagnostics
 }
 
@@ -118,12 +118,11 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
   # sample permutations, using MCMC, over the set of valid permutations, 
   # with respect to the distribution appears in Eq 8
   # Parameters: 
-  # W - matrix with weights 
-  # B - number of permutations to draw
-  # N - sample size (can be read from data or W?)
+  # w.mat - matrix with weights 
+  # prms - parameters, including B, number of permutations to draw
   # 
   # Output: 
-  # PermutationsTable - A matrix representing the sampled permutations 
+  # Permutations - A matrix representing the sampled permutations 
   # P - An n*n matrix with P(i,j) = Pr(pi(i)=j) over the sampled permutations 
   #########################################################################################
   PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
@@ -133,22 +132,19 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
     #  for(i in 1:num.permutations) 
     #    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
     
-    
-    
     # Set mcmc default sampling parameters 
     if(!('B' %in% names(prms)))
       prms$B <- 1000
     if(!('burn.in' %in% names(prms)))
-      prms$burn.in <- 2*n
+      prms$burn.in <- 0  # 2*n  # set to n without burn.in, or 0 without burn.in to include the identity permutation 
     if(!('Cycle' %in% names(prms)))
       prms$Cycle <- n
     
     Idx <- ctr <- 1
-    PermutationsTable = matrix(0, n, prms$B)
-    Perm = 1:n
+    Permutations = matrix(0, n, prms$B)
+    Perm = 1:n # start with the identity 
     while(Idx<=prms$B)
     {
-      
       # A Metropolis Hastings algorithm with target stationary distribution \pi
       # Choose the two indices to be switched
       switchIdx = sample(1:n, 2, replace = FALSE)  
@@ -163,7 +159,7 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
         Perm[j] <- temp
         if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in))
         {
-          PermutationsTable[,Idx]=Perm;
+          Permutations[,Idx]=Perm;
           Idx = Idx+1;
 #          if(mod(Idx,100)==0)
 #            print(c("Sample Perm=", Idx))
@@ -174,7 +170,7 @@ ComputeStatistic.W <- function(data, grid.points,w=function(x){1}){
     }  # end while
     P <- P / (ctr-1) # normalize 
     
-    return(list(PermutationsTable=PermutationsTable, P=P)) # New: return also P, a matrix with Pr(pi(i)=j)
+    return(list(Permutations=Permutations, P=P)) # New: return also P, a matrix with Pr(pi(i)=j)
   }
 
 ###################################################################################
@@ -215,6 +211,7 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
 #  print(dim(data))
   boot.sample <- matrix(-1, n, 2)
   k <- 0
+  ctr <- 0
   while(k<n) 
   {   # sampling n-k together
 #       print("Inside Bootstrap sample x")
@@ -226,10 +223,13 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
 #        print(keep)
     if(isempty(keep))
       next
-    boot.sample[1:length(keep)+k,] <- cbind(x[keep],y[keep]) 
+    boot.sample[(1:length(keep))+k,] <- cbind(x[keep],y[keep]) 
+    ctr <- ctr + n-k
     k <- k+length(keep)
+   
 #     print(k)
   }    
+#  print(paste0("Sampled in total k=", ctr, " to get n=", n, " samples"))
   return(boot.sample)
 }
 

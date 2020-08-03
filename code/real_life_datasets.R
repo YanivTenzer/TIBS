@@ -8,8 +8,6 @@ rm(list=ls())
 gc()
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 path = getwd()
-# Rcpp::sourceCpp("C/ToR.cpp")  # new: replace functions by their c++ version
-Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
 source('TIBS.R')
 source('simulate_biased_sample.R')
@@ -50,20 +48,27 @@ for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
 #      next
   input.data <- ReadDataset(datasets[d]) # read dataset 
   
-  prms <- list(B = 100)
+  prms <- list(B = 10000)  # NOTE: for minP we may need a lower number of permutations
   prms$W.max <- max(W.max[d], max(w_fun_to_mat(input.data, w.fun[d]))) # update max 
-  prms$use.cpp <- 0 # New! enable one to run with c++ code 
+  prms$use.cpp <- 1 # New! enable one to run with c++ code 
   for(t in 1:3) # n.tests) # run all tests 
   {
     if((!(w.fun[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
       next  # these tests run only for truncation 
     if((test.type[t] == 'bootstrap') & (w.fun[d] %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
       next # can't run bootstrap because w can be zero 
-    set.seed(1)
+    set.seed(100)
     
     print(paste0(datasets[d], ", ", test.type[t], ":"))
     start.time <- Sys.time()
-    results.test<-TIBS(input.data, w.fun[d], test.type[t], prms)
+    if(prms$use.cpp)
+    {
+      library(Rcpp)
+      library(RcppArmadillo)
+      Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+      results.test<-TIBS_rcpp(input.data, w.fun[d], test.type[t], prms)
+    } else
+      results.test<-TIBS(input.data, w.fun[d], test.type[t], prms)
     test.time[d,t] <- Sys.time() - start.time
     print(test.time[d,t])
     test.pvalue[d,t] <- results.test$Pvalue 
@@ -101,6 +106,26 @@ save(test.pvalue, test.time, test.type,
      file=paste0(path ,'/../docs/Tables/real_datasets_B_', B, '.Rdata'))
 # print(xtable(results.table, type = "latex"), 
 #      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # save also in latex format 
+
+
+
+
+#####################################################
+
+# Add test for reproduciability of the pvalue: (Yaniv)
+# Take B=100,500,1000,2000
+# For each B run 20 iterations and compute the pvalues for the SAME dataset, P_1,...P_20.
+# Check that P_1,..,P_20 look like they were P_i ~ Binom(B, p) / B   i.i.d. and don't have a higher variance 
+# Here check also minP (for one time this is feasible)
+test.pvalues.variance = 1; 
+if(test.pvalues.variance)  
+{
+  # To complete ...
+  
+}
+  
+
+
 
 
 

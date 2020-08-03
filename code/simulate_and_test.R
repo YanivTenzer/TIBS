@@ -16,6 +16,13 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
                               prms) # B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0)
 {
+  if(prms$use.cpp)
+  {
+    library(Rcpp)
+    library(RcppArmadillo)
+    Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+  }
+  
   print(paste0("rho.inside=", prms.rho))
 #  prms = list(B = B)
   run.flag = 1
@@ -52,8 +59,11 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         prms$naive.expectation <- 0 # Check test with standard expectations
         # Skip irrelevant tests 
         if((!(w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & 
-           (test.type[t] %in% c("tsai", 'minP2')))
+           (test.type[t] %in% c('tsai', 'minP2')))
           next  # these tests run only for truncation 
+        
+        if( !(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) & (test.type[t] %in% c("permutations_inverse_weighting")) )  # run only for positive distributions 
+          next
         if(test.type[t] == 'bootstrap')
         {
           if(w.fun == 'huji')
@@ -62,7 +72,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           #          if((w.fun[s] %in% c('truncation', 'Hyperplane_Truncation')) & (!exchange.type[s]))
           #            next # can't run bootstrap because w can be zero, unless we assume exchangability !!! 
         }      
-        if((t %in% c(5:7)) & !(dependence.type %in% c('Gaussian', 'Clayton', 'Gumbel', 'LD')))
+        if((test.type[t] %in% c('fast-bootstrap', 'naive-bootstrap', 'naive-permutations')) & !(dependence.type %in% c('Gaussian', 'Clayton', 'Gumbel', 'LD')))
           next # try comparison with naive settings only for Gaussian case and other cases in Table 1 
         cur.test.type <- test.type[t]
         switch(test.type[t], # Set test type
@@ -88,7 +98,10 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           stop.flag <- 0
           for(b in 1:(prms$B/block.size))  # run block.size permutations each time 
           {
-            cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
+            if(prms$use.cpp)  # try running rcpp code 
+              cur.test.results<-TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet
+            else
+              cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
             cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
             
             cur.conf.int <- binom.confint(cur.pvalue*block.size, b*block.size, conf.level = 1-prms$gamma, method = "wilson")
@@ -109,7 +122,12 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           }
           
         } else   # run full test: just simulate all B permutations 
-            test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
+        {
+          if(prms$use.cpp)
+            test.results <- TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet 
+          else
+            test.results <- TIBS(biased.data, w.fun, cur.test.type, prms)
+        }
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue
         print(paste0(dependence.type, ', rho=', prms$rho, '. Test: ', test.type[t], 
