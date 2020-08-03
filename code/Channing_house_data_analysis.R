@@ -4,7 +4,7 @@
 library(survival)
 if(Sys.getenv('RSTUDIO') == '1')
   setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
-source(textConnection(readLines("TIBS.R")[-(1:25)]))
+source("TIBS.R")
 
 #######################################################
 #########################################################
