@@ -857,6 +857,69 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 	return(ret); // return list with also P
 }
 
+// [[Rcpp::export]]
+NumericVector rand_perm(long n)
+{
+	NumericVector perm(n); 
+	long i, j, ctr, r;
+	NumericVector is_full(n); 
+	for (i = 0; i < n; i++)
+		is_full[i] = 0;
+
+	for (i = 0; i < n; i++)
+	{
+		r = rand() % (n - i);
+		ctr = 0;
+		for (j = 0; j < r; j++)
+			ctr += (1 + is_full[ctr]);
+
+		perm[i] = ctr;
+		is_full[perm[i]] = 1;
+	}
+	return(perm);
+}
+
+/**
+#############################################################
+# Calculate p - value using importance sampling
+# (If product of weights is very small/large, we can
+	#  multiply the weight function by a constant so the weights
+	#  are in some sense centered at 1)
+#############################################################
+**/
+
+List IS_permute_rcpp(NumericMatrix data, double B, string w_fun) // w = function(x) { 1 }) {
+{
+	long  n = data.nrow();
+	double Tobs = ComputeStatistic_w_rcpp(data, data, w_fun); 
+	double reject = 0, sum_p = 0;
+	long i, j;
+	double pw; 
+	double Tb; 
+	IntegerVector perm(n);
+	NumericMatrix permuted_data(n, 2);
+	NumericMatrix w_mat(n, n);
+	for (i = 0; i < B; i++) 
+	{
+		perm = rand_perm(n); //  sample(n); // get a random permutation
+
+		permuted_data(_, 0) = data(_, 0);
+		for (j = 0; j < n; j++)
+			permuted_data(j, 1) = data(perm[j], 1); // save one example
+//		< -data.frame(x = data[1:n, 1], y = data[perm, 2]) // permuted data
+		Tb = ComputeStatistic_w_rcpp(permuted_data, permuted_data, w_fun); // grid depends on permuted data
+		pw = 1.0;
+		for(j=0; j<n; j++)
+			pw *= w_fun_eval_rcpp(data(j,0), data(j,1), w_fun);
+		reject += (Tb >= Tobs) / pw;
+		sum_p += 1 / pw;
+	}
+	List ret; 
+	ret["p_val"] = reject / sum_p;
+	ret["Tobs"] = Tobs; 
+	return(ret);
+}
+
 
 /**
 ##############################################################################
@@ -963,10 +1026,10 @@ NumericMatrix Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fu
 	NumericMatrix boot_sample = NumericMatrix(n, 2);
 //	NumericVector x(n), y(n);
 //	NumericVector keep(n);
-	double x=0.0, y=0.0, r; //  keep;
+	double x = 0.0, y = 0.0; //  , r; //  keep;
 //	long n_keep = 0;
 	long k = 0, ctr=0;
-	long i; //  , j;
+//	long i; //  , j;
 	double w_max = prms["W.max"];
 
 //	Rcout << "w_max = " << w_max << endl; 
@@ -1250,11 +1313,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 //		Rcout << "Fill Permuted Data " << endl;
 		permuted_data(_, 0) = data(_, 0);
 		for (i = 0; i < n; i++)
-		{
-//			Rcout << " Copy i=" << i << endl;
 			permuted_data(i, 1) = data(Permutations(i, 0), 1); // save one example
-		}
-//		Rcout << "Finished Permuted Data " << endl; 
+
+															   //		Rcout << "Finished Permuted Data " << endl; 
 		if (naive_expectation) // here we ignore W(using statistic for unbiased sampling)
 		{
 			List marginals = EstimateMarginals_rcpp(data, "naive");

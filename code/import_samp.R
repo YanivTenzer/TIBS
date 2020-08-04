@@ -60,7 +60,7 @@ IS.permute <- function(data,B,w=function(x){1}){
     dat.b <- data.frame(x=data[1:n,1],y=data[perm,2]) # permuted data
     T.b <- ComputeStatistic.W(dat.b, dat.b, w=w)$Statistic # grid depends on permuted data
     W <- apply(data,1,w)
-    p.w <- prod(W)   
+    p.w <- prod(W)   # could cause overflow 
     reject <- reject+(T.b>=T.obs)/p.w
     sum.p <- sum.p+1/p.w
   }
