@@ -355,73 +355,6 @@ double ComputeStatistic_w_rcpp(NumericMatrix data, NumericMatrix grid_points, st
 }
 
 
-// not needed ? 
-/**
-double ComputeStatistic_inverse_weighting_rcpp(NumericMatrix data, NumericMatrix grid_points, NumericMatrix w_mat)
-{
-	long n = data.nrow();
-	long i, j, k;
-	NumericMatrix w_vec(n);
-	double n_w = 0.0;
-	double Statistic = 0.0;
-	IntegerVector Rx(n);
-	IntegerVector Ry(n);
-	double Obs[4] = { 0 };
-	double Exp[4] = { 0 };
-	double Rx_sum, Ry_sum, Rx_not_sum, Ry_not_sum;
-
-	double n_tilde = sum(1 / diag(w_mat));
-	double min_Exp = 1.0 / n;
-	for (i = 0; i < n; i++) // Slow loop on grid points
-		w_vec[i] = w_mat(i, i); // take diagonal 
-
-		for (i = 0; i < n; i++) // Slow loop on grid points
-		{
-			Rx_sum = Ry_sum = Rx_not_sum = Ry_not_sum = 0.0;
-			for (j = 0; j < 4; j++)
-				Obs[j] = 0;
-
-			for (j = 0; j < n; j++)  // loop on data points  
-			{
-				Rx[j] = data(j, 0) > grid_points(i, 0);
-				Ry[j] = data(j, 1) > grid_points(i, 1);
-
-				Obs[0] += (Rx[j] * Ry[j] / (w_vec[j] * n_w)); // ComputeStatistic_w_rcpp
-				Obs[1] += (Rx[j] * (1 - Ry[j]) / (w_vec[j] * n_w));
-				Obs[2] += ((1 - Rx[j]) * (1 - Ry[j]) / (w_vec[j] * n_w));
-				Obs[3] += ((1 - Rx[j]) * Ry[j] / (w_vec[j] * n_w));
-
-			}
-
-		  idx1 < -which(Rx * Ry == 1)
-		  Obs[1] < -sum(1 / w_vec[idx1])
-		  idx2 < -which(Rx * (!Ry) == 1)
-		  Obs[2] < -sum(1 / w_vec[idx2])
-		  idx3 < -which((!Rx) * (!Ry) == 1)
-		  Obs[3] < -sum(1 / w_vec[idx3])
-		  idx4 < -which(Ry * (!Rx) == 1)
-		  Obs[4] < -sum(1 / w_vec[idx4])
-
-		  Exp[1] < -sum(1 / w_vec[Rx]) * sum(1 / w_vec[Ry])
-		  Exp[2] < -sum(1 / w_vec[Rx]) * sum(1 / w_vec[which(!Ry == 1)])
-		  Exp[3] < -sum(1 / w_vec[which(!Rx == 1)]) * sum(1 / w_vec[which(!Ry == 1)])
-		  Exp[4] < -sum(1 / w_vec[which(!Rx == 1)]) * sum(1 / w_vec[Ry])
-
-			  for (k = 0; k < 4; k++)
-			  {
-				  Exp[k] /= (n_tilde * n_tilde);
-				  Exp[k] /= n_tilde;
-			}
-
-		  if (min(Exp) > min_Exp) {
-			  Statistic += sum((Obs - Exp) ^ 2 / Exp); // set valid statistic when expected is 0 or very small
-		  }
-		} // end loop on grid points
-
-	return(Statistic); // return also observed table for diagnostics
-}
-**/
-
 // [[Rcpp::export]]
 List GetNullDistribution_rcpp(NumericMatrix pdfs, NumericMatrix w_mat) // why null distribution is used?
 {
@@ -897,7 +830,7 @@ NumericVector rand_perm(long n)
 	#  are in some sense centered at 1)
 #############################################################
 **/
-
+// [[Rcpp::export]]
 List IS_permute_rcpp(NumericMatrix data, double B, string w_fun) // w = function(x) { 1 }) {
 {
 	long  n = data.nrow();
@@ -1188,8 +1121,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	// 1.Compute weights matrix W : (not needed here, just for permutations test)
 	// 2.Create a grid of points, based on the data :
 	arma::mat grid_points_arma = unique_rows(as<arma::mat>(data));  // set unique for ties ? for discrete data
-
-	// NumericMatrix grid_points(grid_points_arma.n_rows, 2); 
 	NumericMatrix grid_points(n, 2);
 	for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
 		for (j = 0; j < 2; j++)
@@ -1217,7 +1148,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 				Rcout << "Run Boots=" << ctr << endl;
 			bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
 			NumericMatrix w_mat_bootstrap = w_fun_to_mat_rcpp(bootstrap_sample, w_fun);
-			NullT = ComputeStatistic_w_rcpp(bootstrap_sample, grid_points, w_fun); // should sample grid points again! 
+			NullT = ComputeStatistic_w_rcpp(bootstrap_sample, bootstrap_sample, w_fun); // should sample grid points again! 
 			statistics_under_null[ctr] = NullT; //  ["Statistic"] ;
 		}
 		output["TrueT"] = TrueT;
@@ -1293,7 +1224,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 						marginals_bootstrap["xy"], null_distribution_bootstrap["distribution"], grid_points);
 				} // if fast bootstrap
 		//		Rcout << "Compute Bootstrap Statistic Under Null " << ctr << endl;
-				NullT = ComputeStatistic_rcpp(bootstrap_sample, grid_points, expectations_table);
+				NullT = ComputeStatistic_rcpp(bootstrap_sample, bootstrap_sample, expectations_table);
 
 					// null.obs.table  = NullT$obs.table
 				statistics_under_null[ctr] = NullT;
@@ -1359,7 +1290,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			permuted_data(_, 0) = data(_, 0);
 			for (i = 0; i < n; i++)
 				permuted_data(i, 1) = data(Permutations(i, ctr), 1);
-			statistics_under_null[ctr] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table);
+			statistics_under_null[ctr] = ComputeStatistic_rcpp(permuted_data, permuted_data, expectations_table);
 		}
 		output["TrueT"] = TrueT;
 		output["statistics_under_null"] = statistics_under_null;
@@ -1395,7 +1326,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	} // end permutations with inverse weighting test
 	/**/
 	if(test_type == "tsai") 
-	{ cout << "Can't run Tsao from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
+	{ cout << "Can't run Tsai's test from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
 		
 	if(test_type == "minP2") { cout << "Can't run minP2 from cpp" << endl;}
 	if (test_type == "importance.sampling") { // new importance sampling permutations test(not working yet)
