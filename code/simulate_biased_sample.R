@@ -2,7 +2,7 @@
 # Simulate data with biased-sampling weighting function W
 # Parameters: 
 # n - sample size 
-# dependence.type - distribution (copula, normal, ..)
+# dependence.type - distribution (copula, normal, ..). Currently only string - will allow a function as input 
 # w.fun - function W(x,y) to use
 # prms - parameters of distribution
 #
@@ -108,7 +108,7 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms)
 # A set of biased sampling functions to be used 
 # Input: 
 # x, y - data 
-# w.fun - string indicating W type 
+# w.fun - string indicating W type . We assume this is a vectorized function !!! 
 # 
 # Output: 
 # The values of w evaluated at the (x,y) array 

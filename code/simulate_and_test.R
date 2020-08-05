@@ -22,6 +22,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     library(RcppArmadillo)
     Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
   }
+  if('seed' %in% names(prms))
+    set.seed(prms$seed)
   
   print(paste0("rho.inside=", prms.rho))
 #  prms = list(B = B)

@@ -28,7 +28,7 @@ alpha <- 0.05 # significane threshold
 plot.flag <- 0 # plot and save figures 
 run.flag <- 1 # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 sequential.stopping <- 1 # New! use early stopping to save time ! 
-
+const.seed <- 1 # set constant seed 
 
 # Vectors with different dependency settings 
 dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 
@@ -41,7 +41,8 @@ exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE) # is exchan
 prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 test.type <- c('tsai',  # 'minP2', # other's tests. minP2 is slower 
-               'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations', 'permutations_inverse_weighting') # different tests to run - new: add 
+               'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations', 
+               'permutations_inverse_weighting', 'importance.sampling') # different tests to run - new: add 
 # test.type <- c('tsai', 'permutations', 'bootstrap') #  'importance.sampling')  # for fast simulations . Add new importance sampling test 
 
 num.sim <- length(dependence.type)
@@ -59,16 +60,15 @@ if(isempty(intersect(run.dep,c(3,4,5,6,7)))) # %in% )
 
 for(s in run.dep) # Run all on the farm  
 {
-  prms = list(B=1000, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # set running parameters here ! 
+  prms = list(B=200, sample.size=100, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # set running parameters here ! 
   
   if(run.flag != 1)
     prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
   print(paste0("s=", s))
   print(paste0("rho=", prms.rho[[s]]))
-  set.seed(1) # set for randomization 
   # Call function. # run simulations function 
   print(paste("n=", prms$sample.size))
+  if(const.seed)
+    prms$seed <- 1234
   T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], w.fun[s], test.type, prms) # run all tests 
 } # end loop on dependency types
-
-

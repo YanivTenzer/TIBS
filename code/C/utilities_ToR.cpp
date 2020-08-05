@@ -3,7 +3,10 @@
 // #include <map>
 #include <random>
 
-#include <Rcpp.h> // for including R with Rcpp
+// #include <Rcpp.h> // for including R with Rcpp
+#include <RcppArmadillo.h>
+// [[Rcpp::depends(RcppArmadillo)]]
+
 // #include "utilities_ToR.h"
 
 
@@ -111,8 +114,7 @@ IntegerVector sort_indexes_rcpp(NumericVector data)
 }
 
 
-/**
-** Copied from here: https://stackoverflow.com/questions/37143283/finding-unique-rows-in-armamat **
+/** Copied from here: https://stackoverflow.com/questions/37143283/finding-unique-rows-in-armamat **/
 template <typename T>
 inline bool rows_equal(const T& lhs, const T& rhs, double tol = 0.00000001) {
 	return arma::approx_equal(lhs, rhs, "absdiff", tol);
@@ -140,7 +142,7 @@ arma::mat unique_rows(const arma::mat& x) {
 
 	return result.rows(0, count - 1);
 }
-**/
+/**/
 
 // [[ Rcpp :: export ()]]
 //NumericMatrix a4(arma::mat x) {
@@ -259,6 +261,10 @@ double ComputeStatistic_rcpp(NumericMatrix data, NumericMatrix grid_points, Nume
 	long* Rx = new long[n];
 	long* Ry = new long[n];
 
+	// New: enable not to give a grid_points as input: set it as data 
+	if(grid_points.nrow()<= 1)	
+		grid_points = data; 
+
 	for (i = 0; i < n; i++) // Slow loop on grid points
 	{
 		for (j = 0; j < 4; j++) // loop on quadrants
@@ -299,6 +305,10 @@ double ComputeStatistic_w_rcpp(NumericMatrix data, NumericMatrix grid_points, st
 	double Statistic = 0.0;
 	IntegerVector Rx(n);
 	IntegerVector Ry(n);
+
+	// New: enable not to give a grid_points as input: set it as data 
+	if (grid_points.nrow() <= 1)
+		grid_points = data;
 
 	for (i = 0; i < n; i++)
 	{
@@ -898,7 +908,7 @@ List IS_permute_rcpp(NumericMatrix data, double B, string w_fun) // w = function
 	double Tb; 
 	IntegerVector perm(n);
 	NumericMatrix permuted_data(n, 2);
-	NumericMatrix w_mat(n, n);
+//	NumericMatrix w_mat(n, n);
 	for (i = 0; i < B; i++) 
 	{
 		perm = rand_perm(n); //  sample(n); // get a random permutation
@@ -915,8 +925,8 @@ List IS_permute_rcpp(NumericMatrix data, double B, string w_fun) // w = function
 		sum_p += 1 / pw;
 	}
 	List ret; 
-	ret["p_val"] = reject / sum_p;
-	ret["Tobs"] = Tobs; 
+	ret["Pvalue"] = reject / sum_p;
+	ret["TrueT"] = Tobs; 
 	return(ret);
 }
 
@@ -1177,13 +1187,13 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 
 	// 1.Compute weights matrix W : (not needed here, just for permutations test)
 	// 2.Create a grid of points, based on the data :
-//	arma::mat grid_points_arma = unique_rows(as<arma::mat>(data));  // set unique for ties ? for discrete data
+	arma::mat grid_points_arma = unique_rows(as<arma::mat>(data));  // set unique for ties ? for discrete data
 
 	// NumericMatrix grid_points(grid_points_arma.n_rows, 2); 
 	NumericMatrix grid_points(n, 2);
 	for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
 		for (j = 0; j < 2; j++)
-			grid_points(i, j) = 5.5; //  grid_points_arma(i, j);
+			grid_points(i, j) = grid_points_arma(i, j);
 //	= as<NumericMatrix>(wrap(grid_points_arma));  // set unique for ties ? for discrete data
 	List null_distribution;
 
@@ -1207,7 +1217,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 				Rcout << "Run Boots=" << ctr << endl;
 			bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
 			NumericMatrix w_mat_bootstrap = w_fun_to_mat_rcpp(bootstrap_sample, w_fun);
-			NullT = ComputeStatistic_w_rcpp(bootstrap_sample, grid_points, w_fun);
+			NullT = ComputeStatistic_w_rcpp(bootstrap_sample, grid_points, w_fun); // should sample grid points again! 
 			statistics_under_null[ctr] = NullT; //  ["Statistic"] ;
 		}
 		output["TrueT"] = TrueT;
@@ -1388,8 +1398,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	{ cout << "Can't run Tsao from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
 		
 	if(test_type == "minP2") { cout << "Can't run minP2 from cpp" << endl;}
-	if(test_type == "importance.sampling") { // new importance sampling permutations test(not working yet)
-		cout << "Can't run Importance Sampling from cpp" << endl;} // results = IS.permute(dat, prms$B, w.fun) # W);  // ComputeStatistic.W(dat, grid_points, w.fun)		
+	if (test_type == "importance.sampling") { // new importance sampling permutations test(not working yet)
+		output = IS_permute_rcpp(data, B, w_fun);} // w = function(x) { 1 }) {
+ // results = IS.permute(dat, prms$B, w.fun) # W);  // ComputeStatistic.W(dat, grid_points, w.fun)		
 // } // end switch 
 /**/
 	if (!(output.containsElementNamed("permuted_data")))

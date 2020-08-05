@@ -14,6 +14,10 @@ library(Matrix)
 ##################################################################################################
 ComputeStatistic <- function(data, grid.points, null.expectations.table)
 {
+  # treat grid.points 
+  if(missing(grid.points) | isempty(grid.points))
+    grid.points <- unique.matrix(data)  # default: set unique for ties? for discrete data
+  
   obs.table <- matrix(0, dim(grid.points)[1], 4)
   Obs <- Exp <- matrix(0,4,1) # observed & expected
   
@@ -84,10 +88,28 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
 #
 #
 #########################################################################################
+##################################################################################################
+# Compute the modified Hoeffding's test statistic corrected for w:
+# Observed and Expected calculated using inverse weighting
+# GOOD ONLY FOR A STRICTLY POSITIVE w
+# Parameters: 
+# data - n*2 matrix with (x,y) sample
+# grid.points - all possible (x_i,y_j) points  
+# w - weight function (default w(x,y)=1) 
+# 
+#  Quardants convension:
+#   4 | 1
+#   ------
+#   3 | 2
+##################################################################################################
 ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
 {
-  w.mat <- w_fun_to_mat(data, w.fun) # calculate w n*n matrix 
-  n.w <- sum(1/w.mat)
+  # treat grid.points 
+  if(missing(grid.points) | isempty(grid.points))
+    grid.points <- unique.matrix(data)  # default: set unique for ties? for discrete data
+
+  w.vec <- w_fun_eval(data[,1], data[,2], w.fun) # w_fun_to_mat(data, w.fun) # calculate w n*n matrix 
+  n.w <- sum(1/w.vec)
   obs.table <- exp.table <- matrix(0, dim(grid.points)[1], 4)
   Obs <- Exp <- matrix(0,4,1) # observed & expected
   Statistic <- 0 
@@ -95,14 +117,14 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
   {
     Rx <- data[,1]>grid.points[i,1]
     Ry <- data[,2]>grid.points[i,2]
-    Exp[1] <- sum(Rx/w.mat)*sum(Ry/w.mat)/n.w^2
-    Exp[2] <- sum(Rx/w.mat)*sum((!Ry)/w.mat)/n.w^2
-    Exp[4] <- sum((!Rx)/w.mat)*sum(Ry/w.mat)/n.w^2
-    Exp[3] <- sum((!Rx)/w.mat)*sum((!Ry)/w.mat)/n.w^2
-    Obs[1] <- sum(Rx*Ry/w.mat)/n.w
-    Obs[2] <- sum(Rx*(!Ry)/w.mat)/n.w
-    Obs[4] <- sum((!Rx)*Ry/w.mat)/n.w
-    Obs[3] <- sum((!Rx)*(!Ry)/w.mat)/n.w
+    Exp[1] <- sum(Rx/w.vec)*sum(Ry/w.vec)/n.w^2
+    Exp[2] <- sum(Rx/w.vec)*sum((!Ry)/w.vec)/n.w^2
+    Exp[4] <- sum((!Rx)/w.vec)*sum(Ry/w.vec)/n.w^2
+    Exp[3] <- sum((!Rx)/w.vec)*sum((!Ry)/w.vec)/n.w^2
+    Obs[1] <- sum(Rx*Ry/w.vec)/n.w
+    Obs[2] <- sum(Rx*(!Ry)/w.vec)/n.w
+    Obs[4] <- sum((!Rx)*Ry/w.vec)/n.w
+    Obs[3] <- sum((!Rx)*(!Ry)/w.vec)/n.w
     obs.table[i,] <- Obs
     exp.table[i,] <- Exp
     if (min(Exp)>(1/dim(data)[1])) {
@@ -110,9 +132,12 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
     } 
   } # end loop on grid points 
   
-  return(list(Statistic=Statistic, obs.table=obs.table, exp.table=exp.table, w.mat=w.mat))  # New! return also w.mat 
+  return(list(Statistic=Statistic, obs.table=obs.table, exp.table=exp.table))  
   # returns also expected and observed tables for diagnostics
 }
+
+
+
 
   #################################################################
   # sample permutations, using MCMC, over the set of valid permutations, 
