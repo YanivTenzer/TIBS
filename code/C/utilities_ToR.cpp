@@ -836,28 +836,34 @@ List IS_permute_rcpp(NumericMatrix data, double B, string w_fun) // w = function
 	double Tobs = ComputeStatistic_w_rcpp(data, data, w_fun); 
 	double reject = 0, sum_p = 0;
 	long i, j;
-	double pw; 
-	double Tb; 
+	NumericVector pw(B); 
+	NumericVector Tb(B); 
 	IntegerVector perm(n);
 	NumericMatrix permuted_data(n, 2);
 //	NumericMatrix w_mat(n, n);
 	for (i = 0; i < B; i++) 
 	{
-		perm = rand_perm(n); //  sample(n); // get a random permutation
+		perm = rand_perm(n);  // get a random permutation from the uniform disitribution
 
 		permuted_data(_, 0) = data(_, 0);
 		for (j = 0; j < n; j++)
-			permuted_data(j, 1) = data(perm[j], 1); // save one example
-//		< -data.frame(x = data[1:n, 1], y = data[perm, 2]) // permuted data
-		Tb = ComputeStatistic_w_rcpp(permuted_data, data, w_fun); // grid depends on permuted data
-		pw = 1.0;
+			permuted_data(j, 1) = data(perm[j], 1); // permute data 
+		Tb[i] = ComputeStatistic_w_rcpp(permuted_data, data, w_fun); // grid depends on permuted data
+		pw[i] = 0.0;
 		for(j=0; j<n; j++)
-			pw *= w_fun_eval_rcpp(data(j,0), data(j,1), w_fun);
-		reject += (Tb >= Tobs) / pw;
-		sum_p += 1 / pw;
+			pw[i] += log(w_fun_eval_rcpp(permuted_data(j,0), permuted_data(j,1), w_fun));
 	}
+
+	double pw_max = max(pw);
+	for (i = 0; i < B; i++)
+	{
+		pw[i] = exp(pw[i] - pw_max);
+		reject += (Tb[i] >= Tobs) * pw[i];
+//		sum_p += pw[i];
+	}
+
 	List ret; 
-	ret["Pvalue"] = reject / sum_p;
+	ret["Pvalue"] = reject / sum(pw);
 	ret["TrueT"] = Tobs; 
 	return(ret);
 }
