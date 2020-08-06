@@ -4,21 +4,19 @@
 #  multiply the weight function by a constant so the weights
 #  are in some sense centered at 1)
 #############################################################
-
-IS.permute <- function(data,B,w=function(x){1}){
+IS.permute <- function(data, B, w.fun=function(x){1}){
   n <- dim(data)[1]
-  TrueT <- ComputeStatistic.W(data,data,w=w)$Statistic # no unique? 
-  reject <- 0
-  sum.p <- 0
+  TrueT <- ComputeStatistic.W(data, data, w.fun)$Statistic # no unique? 
+  p.w <- matrix(0, B, 1)
+  T.b <- matrix(0, B, 1) # statistics under null 
   for (b in 1:B){
     perm <- sample(n)
-    T.b <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), cbind(data[,1], data[perm,2]), w=w)$Statistic # grid depends on permuted data
-    W <- w_fun_eval(data[,1], data[,2], w) #     W <- apply(data,1,w)
-    p.w <- prod(W)   # could cause overflow 
-    reject <- reject+(T.b>=TrueT)/p.w
-    sum.p <- sum.p+1/p.w
+    T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), cbind(data[,1], data[perm,2]), w.fun)$Statistic # grid depends on permuted data
+    p.w[b] <- sum(log(w_fun_eval(data[,1], data[perm,2]), w.fun)) #     W <- apply(data,1,w)  # need to look at previous version !! 
+     # prod(W)   # could cause overflow 
   }
-  return(list(Pvalue=reject/sum.p, TrueT=TrueT))
+  p.w <- exp(p.w - max(p.w)) # shift max to prevent overflow 
+  return(list(Pvalue=sum((T.b>=TrueT) * p.w) / sum(p.w), TrueT=TrueT))
 }
 
 #############################################################
