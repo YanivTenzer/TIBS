@@ -348,7 +348,6 @@ double ComputeStatistic_w_rcpp(NumericMatrix data, NumericMatrix grid_points, st
 		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
 			for (j = 0; j < 4; j++)
 				Statistic += pow((Obs[j] - Exp[j]), 2) / Exp[j];  // set valid statistic when expected is 0 or very small
-
 	}
 
 	return(Statistic);
@@ -850,7 +849,7 @@ List IS_permute_rcpp(NumericMatrix data, double B, string w_fun) // w = function
 		for (j = 0; j < n; j++)
 			permuted_data(j, 1) = data(perm[j], 1); // save one example
 //		< -data.frame(x = data[1:n, 1], y = data[perm, 2]) // permuted data
-		Tb = ComputeStatistic_w_rcpp(permuted_data, permuted_data, w_fun); // grid depends on permuted data
+		Tb = ComputeStatistic_w_rcpp(permuted_data, data, w_fun); // grid depends on permuted data
 		pw = 1.0;
 		for(j=0; j<n; j++)
 			pw *= w_fun_eval_rcpp(data(j,0), data(j,1), w_fun);
@@ -1148,7 +1147,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 				Rcout << "Run Boots=" << ctr << endl;
 			bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
 			NumericMatrix w_mat_bootstrap = w_fun_to_mat_rcpp(bootstrap_sample, w_fun);
-			NullT = ComputeStatistic_w_rcpp(bootstrap_sample, bootstrap_sample, w_fun); // should sample grid points again! 
+			NullT = ComputeStatistic_w_rcpp(bootstrap_sample, grid_points, w_fun); // should sample grid points again! 
 			statistics_under_null[ctr] = NullT; //  ["Statistic"] ;
 		}
 		output["TrueT"] = TrueT;
@@ -1224,7 +1223,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 						marginals_bootstrap["xy"], null_distribution_bootstrap["distribution"], grid_points);
 				} // if fast bootstrap
 		//		Rcout << "Compute Bootstrap Statistic Under Null " << ctr << endl;
-				NullT = ComputeStatistic_rcpp(bootstrap_sample, bootstrap_sample, expectations_table);
+				NullT = ComputeStatistic_rcpp(bootstrap_sample, grid_points, expectations_table);
 
 					// null.obs.table  = NullT$obs.table
 				statistics_under_null[ctr] = NullT;
@@ -1290,7 +1289,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			permuted_data(_, 0) = data(_, 0);
 			for (i = 0; i < n; i++)
 				permuted_data(i, 1) = data(Permutations(i, ctr), 1);
-			statistics_under_null[ctr] = ComputeStatistic_rcpp(permuted_data, permuted_data, expectations_table);
+			statistics_under_null[ctr] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table);
 		}
 		output["TrueT"] = TrueT;
 		output["statistics_under_null"] = statistics_under_null;

@@ -6,13 +6,13 @@
 #############################################################
 IS.permute <- function(data, B, w.fun=function(x){1}){
   n <- dim(data)[1]
-  TrueT <- ComputeStatistic.W(data, data, w.fun)$Statistic # no unique? 
+  TrueT <- ComputeStatistic.W(data, data, w.fun)$Statistic # no unique in grid-points 
   p.w <- matrix(0, B, 1)
   T.b <- matrix(0, B, 1) # statistics under null 
   for (b in 1:B){
     perm <- sample(n)
-    T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), cbind(data[,1], data[perm,2]), w.fun)$Statistic # grid depends on permuted data
-    p.w[b] <- sum(log(w_fun_eval(data[,1], data[perm,2]), w.fun)) #     W <- apply(data,1,w)  # need to look at previous version !! 
+    T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), data, w.fun)$Statistic # grid depends on permuted data
+    p.w[b] <- sum(log(w_fun_eval(data[,1], data[perm,2], w.fun))) #     W <- apply(data,1,w)  # need to look at previous version !! 
      # prod(W)   # could cause overflow 
   }
   p.w <- exp(p.w - max(p.w)) # shift max to prevent overflow 

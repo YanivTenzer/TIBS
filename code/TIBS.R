@@ -104,14 +104,10 @@ TIBS <- function(data, w.fun, test.type, prms)
            
            #1. First compute the statistic based on the original data set:
            if(prms$use.cpp)  # new: use cpp
-           {
              TrueT = ComputeStatistic_rcpp(data, grid.points, expectations.table)
-           }
            else
-           {
              TrueT = ComputeStatistic(data, grid.points, expectations.table)$Statistic
-           }
-           
+
            #2. Compute statistic for bootstrap sample:
            statistics.under.null = matrix(0, prms$B, 1)
            null.distribution.bootstrap <- null.distribution
@@ -259,7 +255,7 @@ TIBS <- function(data, w.fun, test.type, prms)
                  cbind(data[,1], data[Permutations[,ctr],2]), grid.points, expectations.table)
              else
                statistics.under.null[ctr] <- ComputeStatistic( # here calculate grid.points inside function ! 
-                 cbind(data[,1], data[Permutations[,ctr],2]), c(), expectations.table)$Statistic
+                 cbind(data[,1], data[Permutations[,ctr],2]), grid.points, expectations.table)$Statistic
            }
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations test 
@@ -276,8 +272,7 @@ TIBS <- function(data, w.fun, test.type, prms)
 #             if(mod(ctr,100)==0)
 #               print(paste0("Comp. Stat. Perm=", ctr))
 #             permuted.sample =  cbind(data[,1], data[Permutations[,ctr],2])  # 
-             NullT <- ComputeStatistic.W(cbind(data[,1], data[Permutations[,ctr],2]), c(), w.fun) # grid.points calculated inside function
-             statistics.under.null[ctr] <- NullT
+             statistics.under.null[ctr] <- ComputeStatistic.W(cbind(data[,1], data[Permutations[,ctr],2]), grid.points, w.fun)$Statistic # grid.points calculated inside function
            }
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations with inverse weighting test 
