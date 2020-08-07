@@ -14,7 +14,7 @@ library(binom)  # for binomial confidence intervals
 # 
 simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun='truncation',
                               test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
-                              prms) # B=100, sample.size=100, iterations=50, plot.flag=0, alpha=0.05, sequential.stopping=0)
+                              prms) 
 {
   if(prms$use.cpp)
   {
@@ -24,9 +24,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   }
   if('seed' %in% names(prms))
     set.seed(prms$seed)
-  
   print(paste0("rho.inside=", prms.rho))
-#  prms = list(B = B)
   run.flag = 1
   num.tests <- length(test.type)
   
@@ -108,21 +106,18 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
             
             cur.conf.int <- binom.confint(cur.pvalue*block.size, b*block.size, conf.level = 1-prms$gamma, method = "wilson")
             
-            # test if we should stop! 
-#            print(paste('cur.pval=', round(cur.pvalue/b, 3), 'conf.int=(', round(cur.conf.int$lower, 3), ', ', round(cur.conf.int$upper, 3), ') alpha=', alpha))
-            if((prms$alpha < cur.conf.int$lower) ||  (prms$alpha > cur.conf.int$upper))   # here stop early !!! 
+            if((prms$alpha < cur.conf.int$lower) ||  (prms$alpha > cur.conf.int$upper))   # here stop early
             {
               print(paste0('early stopping after ', b*block.size, ' ', cur.test.type, ' out of ', prms$B, ' saving: ', round(100*(1.0-(b*block.size)/prms$B), 1), '% of work!'))
               stop.flag <- 1
             }
-            if(stop.flag || (b == prms$B/block.size)) # reached last value!
+            if(stop.flag || (b == prms$B/block.size)) # reached last value
             {
               test.results <- c()
               test.results$Pvalue <- cur.pvalue / b
               break
             }
           }
-          
         } else   # run full test: just simulate all B permutations 
         {
           if(prms$use.cpp)
@@ -141,7 +136,6 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
       PlotBiasedData(dependence.type, biased.data, prms)
     
     # New: save intermediate results also for latex format 
-    
     # Compute power (this is also type-1-error alpha under the null)
     test.power <- apply(test.pvalue<prms$alpha, 1, rowMeans) 
     # Save results in one file per dataset 

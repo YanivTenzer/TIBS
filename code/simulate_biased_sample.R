@@ -28,59 +28,58 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms)
   k = 1
   while(k<=n)
   {
-    switch(dependence.type, # First sample from Fxy
-           'Gaussian' ={ library(mvtnorm)
-             xy<-rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))         
-           },
-           'LogNormal'={ library(mvtnorm)
-             xy<-exp(rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2)))         
-           },
-           'LD'={ library(copula)  # y ~ Weibull, x ~ Exponential 
-             GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
-             ranks<- rCopula(1, GaussianCop)
-             xy <- rep(0, 2)
-             xy[2]<-qweibull(ranks[,1], shape = 3, scale = 8.5, lower.tail = TRUE, log.p = FALSE)
-             xy[1]<-qexp(ranks[,2], rate = 0.2)
-           }, 
-           'nonmonotone_nonexchangeable'={ library(copula)  # y ~ weibull, x ~ Gaussian copula 
-             GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
-             ranks<- rCopula(1, GaussianCop)
-             xy <- rep(0, 2)
-             xy[2]<-qweibull(ranks[,1], shape = 0.5, scale = 2, lower.tail = TRUE, log.p = FALSE)
-             xy[1]<-0.5 * (ranks[,2] * sample(c(-1,1), 1)+ 1)
-             # need to set a copula for the dependency between x and y
-           },
-           'Gumbel'= { # here rho must be > 1 
-             xy <- qnorm(rCopula(1, gumbelCopula(prms$rho)))
-           }, 
-           'Clayton'={ library('copula')
-             xy <- qnorm(rCopula(1, claytonCopula(prms$rho)))
-           }, 
-           'CLmix'={ library('copula')
-             xy <- rCopula(1, claytonCopula(0.5-rbinom(1, 1, 0.5)))
-           }, 
-           'strictly_positive'={ library('mvtnorm')  # w(x,y) = exp( -(|x|+|y|)/4 ) < 1 
-             xy <- rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))
-           },
-           'UniformStrip'={
-             xy.abs.diff <- 2
-             while(xy.abs.diff>prms$rho)
-             {
-               xy <- runif(2)
-               xy.abs.diff <- abs(xy[2]-xy[1])
+    if(is.function(dependence.type))  # new: sample from a general density function
+      xy <- dependence.type(1)  # dependence.type returns a sample vector of length 2
+    else  
+      switch(dependence.type, # First sample from Fxy
+             'Gaussian' ={ library(mvtnorm)
+               xy<-rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))         
+             },
+             'LogNormal'={ library(mvtnorm)
+               xy<-exp(rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2)))         
+             },
+             'LD'={ library(copula)  # y ~ Weibull, x ~ Exponential 
+               GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
+               ranks<- rCopula(1, GaussianCop)
+               xy <- rep(0, 2)
+               xy[2]<-qweibull(ranks[,1], shape = 3, scale = 8.5, lower.tail = TRUE, log.p = FALSE)
+               xy[1]<-qexp(ranks[,2], rate = 0.2)
+             }, 
+             'nonmonotone_nonexchangeable'={ library(copula)  # y ~ weibull, x ~ Gaussian copula 
+               GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
+               ranks<- rCopula(1, GaussianCop)
+               xy <- rep(0, 2)
+               xy[2]<-qweibull(ranks[,1], shape = 0.5, scale = 2, lower.tail = TRUE, log.p = FALSE)
+               xy[1]<-0.5 * (ranks[,2] * sample(c(-1,1), 1)+ 1)
+               # need to set a copula for the dependency between x and y
+             },
+             'Gumbel'= { # here rho must be > 1 
+               xy <- qnorm(rCopula(1, gumbelCopula(prms$rho)))
+             }, 
+             'Clayton'={ library('copula')
+               xy <- qnorm(rCopula(1, claytonCopula(prms$rho)))
+             }, 
+             'CLmix'={ library('copula')
+               xy <- rCopula(1, claytonCopula(0.5-rbinom(1, 1, 0.5)))
+             }, 
+             'strictly_positive'={ library('mvtnorm')  # w(x,y) = exp( -(|x|+|y|)/4 ) < 1 
+               xy <- rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))
+             },
+             'UniformStrip'={
+               xy.abs.diff <- 2
+               while(xy.abs.diff>prms$rho)
+               {
+                 xy <- runif(2)
+                 xy.abs.diff <- abs(xy[2]-xy[1])
+               }
              }
-           }
-    ) # end switch 
+      ) # end switch 
     
     # Next decide if to keep point based on W
     if(w.fun %in% c('truncation'))  # w(x,y)=1_{x<y}
-    {
       keep <- xy[1] <= xy[2]
-    } else
-    {
-      # w(x,y)>0 , use rejection sampling 
+    else       # w(x,y)>0 , use rejection sampling 
       keep <- rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$W.max)
-    }
     if(keep) 
     {
       data[k,] <- xy
@@ -95,11 +94,9 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms)
       all.k <- all.k+1
     }
   } # end while   k <= n
-
+  
   if(prms$keep.all)
-  {
     return(list(data=data, all.data=all.data[1:(all.k-1),]))
-  }
   else
     return(list(data=data))
 }

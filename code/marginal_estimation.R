@@ -12,23 +12,18 @@
 ##############################################################################
 EstimateMarginals <- function(data, w.fun, prms=c())
 {
-  if(!missing(prms))
-  {
+  if(!missing(prms))     # get marginal CDFs from PDFs
     PDF.table <- iterative_marginal_estimation(data, w.fun)
-    # get marginal CDFs from PDFs
-  }    
-    
+
   if(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) # for w(x,y)>0 cases 
   { #case 1: strictly positive W, use ML estimator
     w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun)
-    Fx <- Fy <- w.inv / sum(w.inv) # normalize 
-    PDF.table = cbind(Fx, Fy)
-#    print("Null CDF!!")
-    CDF.table = PDFToCDFMarginals(data, PDF.table)  
-  } else{ 
+    Fx <- Fy <- w.inv / sum(w.inv) # normalize
+    PDF.table = cbind(Fx, Fy) # PDF for x and y is the same 
+    CDF.table = PDFToCDFMarginals(data, PDF.table)
+  } else { 
     if(w.fun %in% c('survival'))  # what is the definition of w here? 
-    {
-      # Estimate marginals using Kaplan-Meier estimator 
+    { # Estimate marginals using Kaplan-Meier estimator 
       n <- dim(data)[1]
       require(survival)
       y.srv <- Surv(time=data[,1], time2=data[,2], event = rep(1,n))
