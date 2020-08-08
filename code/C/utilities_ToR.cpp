@@ -404,7 +404,6 @@ List GetNullDistribution_rcpp(NumericMatrix pdfs, NumericMatrix w_mat) // why nu
 
 	if (w_mat.nrow() == 1)  // same w for all 
 	{
-//		cout << "One WMAT" << endl;
 		for (i = 0; i < n; i++)
 			for (j = 0; j < n; j++)
 			{
@@ -414,7 +413,6 @@ List GetNullDistribution_rcpp(NumericMatrix pdfs, NumericMatrix w_mat) // why nu
 	}
 	else
 	{
-//		cout << "Matrix WMAT" << endl;
 		for (i = 0; i < n; i++)
 			for (j = 0; j < n; j++)
 			{
@@ -422,7 +420,6 @@ List GetNullDistribution_rcpp(NumericMatrix pdfs, NumericMatrix w_mat) // why nu
 				z += null_distribution(i, j);
 			}
 	}
-//	cout << "Z inside: " << z << endl;
 	for (i = 0; i < n; i++)
 		for (j = 0; j < n; j++)
 			null_distribution(i, j) /= z;  // normalize 
@@ -567,11 +564,11 @@ NumericMatrix QuarterProbFromPermutations_rcpp(NumericMatrix data, NumericMatrix
 	{
 		for (j = 0; j < n; j++)
 		{
-			a = data(j, 0) > grid_points(i, 0);
+			a = data(j, 0) <= grid_points(i, 0);
 			for (k = 0; k < n; k++)
 			{
-				b = data(k, 1) > grid_points(i, 1);
-				mass_table(i, a + 2 * b)++;
+				b = data(k, 1) <= grid_points(i, 1);
+				mass_table(i, 2*a + a*(1-b) + (1-a)*b) += P(j, k);
 			}
 		}
 	}
@@ -1228,24 +1225,21 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	//			for (i = 0; i < n; i++)
 	//				cout << "i: " << i << "PDF: " << as<NumericVector>(marginals["PDFs"])(i, 0) << ", " << as<NumericVector>(marginals["PDFs"])(i, 1) <<
 	//				" CDF: " << as<NumericVector>(marginals["CDFs"])(i, 0) << ", " << as<NumericVector>(marginals["CDFs"])(i, 1) << endl;
-
 //				Rcout << "Draw Bootstrap Sample Under Null " << ctr << endl;
-
 				bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
 				// fast_bootstrap = 1; // TEMP! FOR TIMING ! 
 				// Rcout << " Run FAST BOOTSTRAP!!" << endl;
 				if (!fast_bootstrap) // re - estimate marginals for null expectation for each bootstrap sample
 				{
 	//				Rcout << "Estimate Marginals Under Null " << ctr << endl;
-
 					List marginals_bootstrap = EstimateMarginals_rcpp(bootstrap_sample, w_fun);   // Why are the marginals estimated each time ?
 				  // 3. Compute weights matrix W :
 					if (naive_expectation) // TEMP TIMING!
 						w_mat_bootstrap(0, 0) = 1.0;   // here we ignore W(using statistic for unbiased sampling)
 					else
-						w_mat_bootstrap = w_mat; //  w_fun_to_mat_rcpp(marginals_bootstrap["xy"], w_fun);
+						w_mat_bootstrap = w_fun_to_mat_rcpp(marginals_bootstrap["xy"], w_fun);
 					// 4. Estimate W(x,y) * Fx * FY / normalizing.factor
-					null_distribution_bootstrap = GetNullDistribution_rcpp(marginals_bootstrap["PDFs"], w_mat_bootstrap);
+					null_distribution_bootstrap = GetNullDistribution_rcpp(marginals_bootstrap["PDFs"], w_mat_bootstrap); // why can't we take original mat? 
 					expectations_table = QuarterProbFromBootstrap_rcpp(
 						marginals_bootstrap["xy"], null_distribution_bootstrap["distribution"], grid_points);
 				} // if fast bootstrap
