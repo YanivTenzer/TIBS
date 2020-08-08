@@ -299,6 +299,8 @@ double ComputeStatistic_rcpp(NumericMatrix data, NumericMatrix grid_points, Nume
 	double Statistic = 0.0;
 	long* Rx = new long[n];
 	long* Ry = new long[n];
+	long* Eqx = new long[n];
+	long* Eqy = new long[n];
 
 	// New: enable not to give a grid_points as input: set it as data 
 	if(grid_points.nrow()<= 1)	
@@ -315,13 +317,16 @@ double ComputeStatistic_rcpp(NumericMatrix data, NumericMatrix grid_points, Nume
 		{
 			Rx[j] = data(j, 0) > grid_points(i, 0);
 			Ry[j] = data(j, 1) > grid_points(i, 1);
+			Eqx[j] = data(j, 0) == grid_points(i, 0);
+			Eqy[j] = data(j, 1) == grid_points(i, 1);
 			Obs[0] += double(Rx[j] * Ry[j]);
-			Obs[1] += Rx[j];
-			Obs[3] += Ry[j];
+			Obs[1] += (Rx[j]-Eqx[j]);
+			Obs[3] += (Ry[j]-Eqy[j]);
+			Obs[2] += (-Eqx[j] - Eqy[j] + Eqx[j] * Eqy[j]);
 		}
 		Obs[1] -= Obs[0];
 		Obs[3] -= Obs[0];
-		Obs[2] = n - Obs[0] - Obs[1] - Obs[3];
+		Obs[2] += (n - Obs[0] - Obs[1] - Obs[3]);
 
 		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
 			for (j = 0; j < 4; j++)

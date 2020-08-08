@@ -29,10 +29,14 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
     Exp <- null.expectations.table[i,]
     Rx <- data[,1] > grid.points[i,1]
     Ry <- data[,2] > grid.points[i,2]
+    # new: deal also with ties 
+    Eqx <- data[,1] == grid.points[i,1]
+    Eqy <- data[,2] == grid.points[i,2]
+#    print(paste0("Equal X,Y, Xy:", sum(Eqx), " ", sum(Eqy), " ", sum(Eqx*Eqy)))
     Obs[1] <- sum(Rx*Ry)
-    Obs[2] <- sum(Rx)-Obs[1]
-    Obs[4] <- sum(Ry)-Obs[1]
-    Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) 
+    Obs[2] <- sum(Rx)-Obs[1]-sum(Eqx)
+    Obs[4] <- sum(Ry)-Obs[1]-sum(Eqy)
+    Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) - sum(Eqx) - sum(Eqy) + sum(Eqx*Eqy) # new! don't count points equal 
     obs.table[i,] <- Obs
     #    print(Exp)
     #    print(Obs)
@@ -397,14 +401,10 @@ CDFToPDFMarginals <- function(CDF.table)
 {
   n<-dim(CDF.table)[1]  # number of samples 
   PDF.table <- array(0L, dim(CDF.table))  # matrix(0, num.samples, num.variables)
-  #  print("DIM CDF -> PDF:")
-  #  print(dim(PDF.table))
   for(i in 1:dim(CDF.table)[2])  # loop on variables 
   {
-    sorted.CDF<-sort(CDF.table[,i], index.return=TRUE)
-    #    print("sorted.CDF:")
-    #    print(sorted.CDF)
-    PDF.table[sorted.CDF$ix,i] <- c(sorted.CDF$x[1], sorted.CDF$x[-1]-sorted.CDF$x[-n])
+    Px<-sort(CDF.table[,i], index.return=TRUE)
+    PDF.table[Px$ix,i] <- c(Px$x[1], Px$x[-1]-Px$x[-n])
   }
   return(PDF.table)
 }
@@ -423,8 +423,6 @@ PDFToCDFMarginals <- function(data, PDF.table)
 {
   n<-dim(PDF.table)[1]  # number of samples 
   CDF.table <- array(0L, dim(PDF.table))  # matrix(0, num.samples, num.variables)
-  #  print("DIM PDF -> CDF:")
-  #  print(dim(PDF.table))
   for(i in 1:dim(PDF.table)[2])  # loop on variables 
   {
     Px <- sort(data[,i], index.return=TRUE)  # Permute to order x_i, y_i 
@@ -447,10 +445,6 @@ PDFToCDFMarginals <- function(data, PDF.table)
 ###################################################################################################
 PDFToCDF2d <- function(pdf.2d, data)
 {
-  #  print("DIM PDF.2D:")
-  #  print(dim(pdf.2d))
-  #  print("DIM DATA:")
-  #  print(dim(data))
   Px <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
   Py <- sort(data[,2], index.return=TRUE)
   cdf.2d <- apply(apply(pdf.2d[Px$ix, Py$ix], 1, cumsum), 1, cumsum)  # cumsum on rows and columns 
@@ -463,21 +457,6 @@ PDFToCDF2d <- function(pdf.2d, data)
     if(data[Py$ix[j-1],2] == data[Py$ix[j],2])
       cdf.2d[, j-1] = cdf.2d[, j]     # new: set CDF for ties
         
-
-  # Use data to deal with ties (not working yet)
-  #  ties.x <- which(data[-1,1] == head(data[,1], -1))
-  #  ties.y <- which(data[-1,2] == head(data[,2], -1))
-  #  for(i in rev(ties.y))
-  #    cdf.2d[,i] <- cdf.2d[,i+1]
-  #  for(i in rev(ties.x))
-  #    cdf.2d[i,] <- cdf.2d[i+1,]
-  
-  # This part is equivalent to the returned matrix 
-  #  n = length(Px$ix)  
-  #  cdf.3d <- matrix(0, nrow=n, ncol=n)
-  #  cdf.3d[Px$ix, Py$ix] = cdf.2d
-  #  return (cdf.3d)
-  #  return(cdf.2d)
   return( cdf.2d[invPerm(Px$ix), invPerm(Py$ix)] )  # why Py first and then Px? 
 }
 
