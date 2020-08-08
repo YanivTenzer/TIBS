@@ -119,16 +119,18 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
-    Rx <- data[,1]>grid.points[i,1]
-    Ry <- data[,2]>grid.points[i,2]
+    Rx <- data[,1] > grid.points[i,1]
+    Ry <- data[,2] > grid.points[i,2]
+    Lx <- data[,1] < grid.points[i,1] # new: deal with ties !
+    Ly <- data[,2] < grid.points[i,2]
     Exp[1] <- sum(Rx/w.vec)*sum(Ry/w.vec)/n.w^2
-    Exp[2] <- sum(Rx/w.vec)*sum((!Ry)/w.vec)/n.w^2
-    Exp[4] <- sum((!Rx)/w.vec)*sum(Ry/w.vec)/n.w^2
-    Exp[3] <- sum((!Rx)/w.vec)*sum((!Ry)/w.vec)/n.w^2
+    Exp[2] <- sum(Rx/w.vec)*sum(Ly/w.vec)/n.w^2
+    Exp[4] <- sum(Lx/w.vec)*sum(Ry/w.vec)/n.w^2
+    Exp[3] <- sum(Lx/w.vec)*sum(Ly/w.vec)/n.w^2
     Obs[1] <- sum(Rx*Ry/w.vec)/n.w
-    Obs[2] <- sum(Rx*(!Ry)/w.vec)/n.w
-    Obs[4] <- sum((!Rx)*Ry/w.vec)/n.w
-    Obs[3] <- sum((!Rx)*(!Ry)/w.vec)/n.w
+    Obs[2] <- sum(Rx*Ly/w.vec)/n.w
+    Obs[4] <- sum(Lx*Ry/w.vec)/n.w
+    Obs[3] <- sum(Lx*Ly/w.vec)/n.w
     obs.table[i,] <- Obs
     exp.table[i,] <- Exp
     if (min(Exp)>(1/dim(data)[1])) {

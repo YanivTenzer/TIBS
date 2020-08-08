@@ -349,6 +349,8 @@ double ComputeStatistic_w_rcpp(NumericMatrix data, NumericMatrix grid_points, st
 	double Statistic = 0.0;
 	IntegerVector Rx(n);
 	IntegerVector Ry(n);
+	IntegerVector Lx(n);
+	IntegerVector Ly(n);
 
 	// New: enable not to give a grid_points as input: set it as data 
 	if (grid_points.nrow() <= 1)
@@ -362,34 +364,40 @@ double ComputeStatistic_w_rcpp(NumericMatrix data, NumericMatrix grid_points, st
 	double Obs[4] = { 0 };
 	double Exp[4] = { 0 };
 
-	double Rx_sum, Ry_sum, Rx_not_sum, Ry_not_sum;
+	double Rx_sum, Ry_sum, Lx_sum, Ly_sum; //  Rx_not_sum, Ry_not_sum;
 
 	for (i = 0; i < n; i++) // Slow loop on grid points
 	{
-		Rx_sum = Ry_sum = Rx_not_sum = Ry_not_sum = 0.0;
+		Rx_sum = Ry_sum = Lx_sum = Ly_sum = 0.0; //  Rx_not_sum = Ry_not_sum = 0.0;
 		for(j = 0; j < 4; j++)
 			Obs[j] = 0;
 		for (j = 0; j < n; j++)  // loop on data points  
 		{
 			Rx[j] = data(j, 0) > grid_points(i, 0);
 			Ry[j] = data(j, 1) > grid_points(i, 1);
+			Lx[j] = data(j, 0) < grid_points(i, 0);
+			Ly[j] = data(j, 1) < grid_points(i, 1);
 
 			Rx_sum += Rx[j] / w_vec[j];
 			Ry_sum += Ry[j] / w_vec[j];
-			Rx_not_sum += (1-Rx[j]) / w_vec[j];
-			Ry_not_sum += (1-Ry[j]) / w_vec[j];
+			Lx_sum += Lx[j] / w_vec[j];
+			Ly_sum += Ly[j] / w_vec[j];
+
+//			Rx_not_sum += (1-Rx[j]) / w_vec[j];
+//			Ry_not_sum += (1-Ry[j]) / w_vec[j];
+
 
 			Obs[0] += (Rx[j] * Ry[j] / (w_vec[j] * n_w));
-			Obs[1] += (Rx[j] * (1-Ry[j]) / (w_vec[j] * n_w));
-			Obs[2] += ((1-Rx[j]) * (1-Ry[j]) / (w_vec[j] * n_w));
-			Obs[3] += ((1-Rx[j]) * Ry[j] / (w_vec[j] * n_w));
+			Obs[1] += (Rx[j] * Ly[j] / (w_vec[j] * n_w));
+			Obs[2] += (Lx[j] * Ly[j] / (w_vec[j] * n_w));
+			Obs[3] += (Lx[j] * Ry[j] / (w_vec[j] * n_w));
 		}
 		Exp[0] = Rx_sum * Ry_sum / (n_w * n_w);
-		Exp[1] = Rx_sum * Ry_not_sum / (n_w * n_w);
-		Exp[2] = Rx_not_sum * Ry_not_sum / (n_w * n_w);
-		Exp[3] = Rx_not_sum * Ry_sum / (n_w * n_w);
+		Exp[1] = Rx_sum * Ly_sum / (n_w * n_w);
+		Exp[2] = Lx_sum * Ly_sum / (n_w * n_w);
+		Exp[3] = Lx_sum * Ry_sum / (n_w * n_w);
 
-		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
+		if ((Exp[0] > 1.0/n) && (Exp[1] > 1.0 / n) && (Exp[2] > 1.0 / n) && (Exp[3] > 1.0 / n))
 			for (j = 0; j < 4; j++)
 				Statistic += pow((Obs[j] - Exp[j]), 2) / Exp[j];  // set valid statistic when expected is 0 or very small
 	}
