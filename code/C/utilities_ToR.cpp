@@ -464,6 +464,17 @@ NumericMatrix PDFToCDF2d_rcpp(NumericMatrix pdf_2d, NumericMatrix data)
 		for (j = 0; j < n; j++)
 			cdf_2d(Px[i], Py[j]) = cdf_2d(Px[i - 1], Py[j]) + cdf_2d(Px[i], Py[j]);
 
+	// Fix ties 
+	for (i = n - 1; i > 0; i--) 
+		if (data(Px[i - 1], 0) == data(Px[i], 0))
+			for(j = 0; j < n; j++)
+				cdf_2d(Px[i - 1], j) = cdf_2d(Px[i], j);
+	for (j = n - 1; j > 0; j--)
+		if (data(Py[j - 1], 1) == data(Py[j], 1))
+			for (i = 0; i < n; i++)
+				cdf_2d(i, Py[j - 1]) = cdf_2d(i, Py[j]);
+
+
 	return(cdf_2d); // don't permute back
 }
 
@@ -600,13 +611,15 @@ NumericMatrix PDFToCDFMarginals_rcpp(NumericMatrix data, NumericMatrix PDFs)
 	NumericMatrix CDFs(PDFs.nrow(), PDFs.ncol()); //	CDF.table < -array(0L, dim(PDF.table))  # matrix(0, num.samples, num.variables)
 	IntegerVector Px(n);
 
-	for (c = 0; c < PDFs.ncol(); c++)
+	for (c = 0; c < PDFs.ncol(); c++) // loop on variables 
 	{
-//		cout << "Run Column: " << c << endl;
 		Px = sort_indexes_rcpp(data(_, c)); // get indexes permute to order x_i, y_i
 		CDFs(Px[0], c) = PDFs(Px[0], c);
 		for(i = 1; i < n; i++)
 			CDFs(Px[i], c) = CDFs(Px[i-1], c) + PDFs(Px[i], c); //  cumsum(PDFs(Px, c)); // need to change 
+		for (i = n - 1; i > 0; i--) // fix ties 
+			if (data(Px[i-1], c) == data(Px[i], c))
+				CDFs(Px[i-1], c) = CDFs(Px[i], c);
 	}
 	return(CDFs);
 }

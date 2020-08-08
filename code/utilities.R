@@ -34,12 +34,12 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
     Obs[4] <- sum(Ry)-Obs[1]
     Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) 
     obs.table[i,] <- Obs
-#    print(Exp)
-#    print(Obs)
+    #    print(Exp)
+    #    print(Obs)
     if (min(Exp)>1) {
-#      print("Add To Expected")
+      #      print("Add To Expected")
       Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
-#      print(Statistic)
+      #      print(Statistic)
     }
   } # end loop on grid points 
   
@@ -107,7 +107,7 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
   # treat grid.points 
   if(missing(grid.points) | isempty(grid.points))
     grid.points <- unique.matrix(data)  # default: set unique for ties? for discrete data
-
+  
   w.vec <- w_fun_eval(data[,1], data[,2], w.fun) # w_fun_to_mat(data, w.fun) # calculate w n*n matrix 
   n.w <- sum(1/w.vec)
   obs.table <- exp.table <- matrix(0, dim(grid.points)[1], 4)
@@ -138,65 +138,64 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
 
 
 
-
-  #################################################################
-  # sample permutations, using MCMC, over the set of valid permutations, 
-  # with respect to the distribution appears in Eq 8
-  # Parameters: 
-  # w.mat - matrix with weights 
-  # prms - parameters, including B, number of permutations to draw
-  # 
-  # Output: 
-  # Permutations - A matrix representing the sampled permutations 
-  # P - An n*n matrix with P(i,j) = Pr(pi(i)=j) over the sampled permutations 
-  #########################################################################################
-  PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
-  { 
-    n <- dim(w.mat)[1];
-    P <- matrix(0, n, n) # New! matrix with P[i]=j estimate
-    #  for(i in 1:num.permutations) 
-    #    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
+#################################################################
+# sample permutations, using MCMC, over the set of valid permutations, 
+# with respect to the distribution appears in Eq 8
+# Parameters: 
+# w.mat - matrix with weights 
+# prms - parameters, including B, number of permutations to draw
+# 
+# Output: 
+# Permutations - A matrix representing the sampled permutations 
+# P - An n*n matrix with P(i,j) = Pr(pi(i)=j) over the sampled permutations 
+#########################################################################################
+PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
+{ 
+  n <- dim(w.mat)[1];
+  P <- matrix(0, n, n) # New! matrix with P[i]=j estimate
+  #  for(i in 1:num.permutations) 
+  #    P[cbind(1:n, Permutations[,i])] <- P[cbind(1:n, Permutations[,i])]+1 # need to vector indices here  
+  
+  # Set mcmc default sampling parameters 
+  if(!('B' %in% names(prms)))
+    prms$B <- 1000
+  if(!('burn.in' %in% names(prms)))
+    prms$burn.in <- 0  # 2*n  # set to n without burn.in, or 0 without burn.in to include the identity permutation 
+  if(!('Cycle' %in% names(prms)))
+    prms$Cycle <- n
+  
+  Idx <- ctr <- 1
+  Permutations = matrix(0, n, prms$B)
+  Perm = 1:n # start with the identity 
+  while(Idx<=prms$B)
+  {
+    # A Metropolis Hastings algorithm with target stationary distribution \pi
+    # Choose the two indices to be switched
+    switchIdx = sample(1:n, 2, replace = FALSE)  
+    i = switchIdx[1]
+    j = switchIdx[2]
+    ratio = w.mat[i,Perm[j]]*w.mat[j,Perm[i]]/(w.mat[i,Perm[i]]*w.mat[j,Perm[j]]) 
     
-    # Set mcmc default sampling parameters 
-    if(!('B' %in% names(prms)))
-      prms$B <- 1000
-    if(!('burn.in' %in% names(prms)))
-      prms$burn.in <- 0  # 2*n  # set to n without burn.in, or 0 without burn.in to include the identity permutation 
-    if(!('Cycle' %in% names(prms)))
-      prms$Cycle <- n
-    
-    Idx <- ctr <- 1
-    Permutations = matrix(0, n, prms$B)
-    Perm = 1:n # start with the identity 
-    while(Idx<=prms$B)
+    if(rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
     {
-      # A Metropolis Hastings algorithm with target stationary distribution \pi
-      # Choose the two indices to be switched
-      switchIdx = sample(1:n, 2, replace = FALSE)  
-      i = switchIdx[1]
-      j = switchIdx[2]
-      ratio = w.mat[i,Perm[j]]*w.mat[j,Perm[i]]/(w.mat[i,Perm[i]]*w.mat[j,Perm[j]]) 
-      
-      if(rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
+      temp <- Perm[i] # SWAP 
+      Perm[i] <- Perm[j]
+      Perm[j] <- temp
+      if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in))
       {
-        temp <- Perm[i] # SWAP 
-        Perm[i] <- Perm[j]
-        Perm[j] <- temp
-        if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in))
-        {
-          Permutations[,Idx]=Perm;
-          Idx = Idx+1;
-#          if(mod(Idx,100)==0)
-#            print(c("Sample Perm=", Idx))
-        }
-        P[cbind(1:n, Perm)] <- P[cbind(1:n, Perm)]+1 # Update table P
-        ctr <- ctr+1;  # update counter only after swap 
+        Permutations[,Idx]=Perm;
+        Idx = Idx+1;
+        #          if(mod(Idx,100)==0)
+        #            print(c("Sample Perm=", Idx))
       }
-    }  # end while
-    P <- P / (ctr-1) # normalize 
-    
-    return(list(Permutations=Permutations, P=P)) # New: return also P, a matrix with Pr(pi(i)=j)
-  }
+      P[cbind(1:n, Perm)] <- P[cbind(1:n, Perm)]+1 # Update table P
+      ctr <- ctr+1;  # update counter only after swap 
+    }
+  }  # end while
+  P <- P / (ctr-1) # normalize 
+  
+  return(list(Permutations=Permutations, P=P)) # New: return also P, a matrix with Pr(pi(i)=j)
+}
 
 ###################################################################################
 # Estimate the null distribution fx*fy*W (given the estimated PDFs f_x, f_y)
@@ -212,8 +211,8 @@ GetNullDistribution <- function(pdfs, w_mat)
   Z <- sum(null.distribution)
   null.distribution <- null.distribution/Z
   
-#  print("NULL DIM")
-#  print(dim(null.distribution))
+  #  print("NULL DIM")
+  #  print(dim(null.distribution))
   return( list(distribution=null.distribution, Z=Z) )
 }
 
@@ -233,28 +232,28 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
   #  print("Inside Bootstrap")
   if(is.null(n))
     n = dim(data)[1]
-#  print(dim(data))
+  #  print(dim(data))
   boot.sample <- matrix(-1, n, 2)
   k <- 0
   ctr <- 0
   while(k<n) 
   {   # sampling n-k together
-#       print("Inside Bootstrap sample x")
+    #       print("Inside Bootstrap sample x")
     x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X ~ Fx
-#       print("Inside Bootstrap sample y")
+    #       print("Inside Bootstrap sample y")
     y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y ~ Fy
-#        print("Inside Bootstrap keep")
+    #        print("Inside Bootstrap keep")
     keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$W.max)))
-#        print(keep)
+    #        print(keep)
     if(isempty(keep))
       next
     boot.sample[(1:length(keep))+k,] <- cbind(x[keep],y[keep]) 
     ctr <- ctr + n-k
     k <- k+length(keep)
-   
-#     print(k)
+    
+    #     print(k)
   }    
-#  print(paste0("Sampled in total k=", ctr, " to get n=", n, " samples"))
+  #  print(paste0("Sampled in total k=", ctr, " to get n=", n, " samples"))
   return(boot.sample)
 }
 
@@ -319,8 +318,8 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
 {
   mass.table <- matrix(0, dim(grid.points)[1], 4)
   
-#  print("NULL-DIST-DIM:")
-#  print(dim(null.distribution))
+  #  print("NULL-DIST-DIM:")
+  #  print(dim(null.distribution))
   null.distribution.CDF <- PDFToCDF2d(null.distribution, data) 
   
   for(i in seq(1, dim(grid.points)[1],1))
@@ -398,13 +397,13 @@ CDFToPDFMarginals <- function(CDF.table)
 {
   n<-dim(CDF.table)[1]  # number of samples 
   PDF.table <- array(0L, dim(CDF.table))  # matrix(0, num.samples, num.variables)
-#  print("DIM CDF -> PDF:")
-#  print(dim(PDF.table))
+  #  print("DIM CDF -> PDF:")
+  #  print(dim(PDF.table))
   for(i in 1:dim(CDF.table)[2])  # loop on variables 
   {
     sorted.CDF<-sort(CDF.table[,i], index.return=TRUE)
-#    print("sorted.CDF:")
-#    print(sorted.CDF)
+    #    print("sorted.CDF:")
+    #    print(sorted.CDF)
     PDF.table[sorted.CDF$ix,i] <- c(sorted.CDF$x[1], sorted.CDF$x[-1]-sorted.CDF$x[-n])
   }
   return(PDF.table)
@@ -424,19 +423,15 @@ PDFToCDFMarginals <- function(data, PDF.table)
 {
   n<-dim(PDF.table)[1]  # number of samples 
   CDF.table <- array(0L, dim(PDF.table))  # matrix(0, num.samples, num.variables)
-#  print("DIM PDF -> CDF:")
-#  print(dim(PDF.table))
+  #  print("DIM PDF -> CDF:")
+  #  print(dim(PDF.table))
   for(i in 1:dim(PDF.table)[2])  # loop on variables 
   {
     Px <- sort(data[,i], index.return=TRUE)  # Permute to order x_i, y_i 
-#    print("Px=")
-#    print(Px)
     CDF.table[Px$ix,i] <- cumsum(PDF.table[Px$ix,i])
-#    print("idx:")
-#    print(Px$ix)
-#    print("cumsum:")
-#    print(CDF.table[Px$ix,i])
-        
+    for(j in seq(n, 2))
+      if(data[Px$ix[j-1],i] == data[Px$ix[j],i])
+        CDF.table[Px$ix[j-1],i] = CDF.table[Px$ix[j],i]     # new: set CDF for ties
   }
   return(CDF.table)
 }
@@ -452,14 +447,23 @@ PDFToCDFMarginals <- function(data, PDF.table)
 ###################################################################################################
 PDFToCDF2d <- function(pdf.2d, data)
 {
-#  print("DIM PDF.2D:")
-#  print(dim(pdf.2d))
-#  print("DIM DATA:")
-#  print(dim(data))
+  #  print("DIM PDF.2D:")
+  #  print(dim(pdf.2d))
+  #  print("DIM DATA:")
+  #  print(dim(data))
   Px <- sort(data[,1], index.return=TRUE)  # Permute to order x_i, y_i 
   Py <- sort(data[,2], index.return=TRUE)
   cdf.2d <- apply(apply(pdf.2d[Px$ix, Py$ix], 1, cumsum), 1, cumsum)  # cumsum on rows and columns 
   
+  n <- dim(pdf.2d)[1]
+  for(i in seq(n, 2))
+    if(data[Px$ix[i-1],1] == data[Px$ix[i],1])
+      cdf.2d[i-1,] = cdf.2d[i,]     # new: set CDF for ties
+  for(j in seq(n, 2))
+    if(data[Py$ix[j-1],2] == data[Py$ix[j],2])
+      cdf.2d[, j-1] = cdf.2d[, j]     # new: set CDF for ties
+        
+
   # Use data to deal with ties (not working yet)
   #  ties.x <- which(data[-1,1] == head(data[,1], -1))
   #  ties.y <- which(data[-1,2] == head(data[,2], -1))
@@ -467,13 +471,13 @@ PDFToCDF2d <- function(pdf.2d, data)
   #    cdf.2d[,i] <- cdf.2d[,i+1]
   #  for(i in rev(ties.x))
   #    cdf.2d[i,] <- cdf.2d[i+1,]
-
+  
   # This part is equivalent to the returned matrix 
-#  n = length(Px$ix)  
-#  cdf.3d <- matrix(0, nrow=n, ncol=n)
-#  cdf.3d[Px$ix, Py$ix] = cdf.2d
-#  return (cdf.3d)
-#  return(cdf.2d)
+  #  n = length(Px$ix)  
+  #  cdf.3d <- matrix(0, nrow=n, ncol=n)
+  #  cdf.3d[Px$ix, Py$ix] = cdf.2d
+  #  return (cdf.3d)
+  #  return(cdf.2d)
   return( cdf.2d[invPerm(Px$ix), invPerm(Py$ix)] )  # why Py first and then Px? 
 }
 
@@ -658,7 +662,7 @@ ReadDataset <- function(data_str)
            #           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
          }
   ) # end switch 
-
+  
   if(!is.numeric(input.data))   # unlist and keep dimensions for data 
     input.data <- array(as.numeric(unlist(input.data)), dim(input.data))  
   
