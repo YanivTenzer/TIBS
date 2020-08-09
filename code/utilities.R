@@ -239,28 +239,30 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
   if(is.null(n))
     n = dim(data)[1]
   #  print(dim(data))
-  boot.sample <- matrix(-1, n, 2)
+  boot.sample <- matrix(-1, n, 2) # wtf
+  indices <- matrix(0, n, 2)
   k <- 0
   ctr <- 0
   while(k<n) 
   {   # sampling n-k together
-    #       print("Inside Bootstrap sample x")
-    x <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE),1] # Sample X ~ Fx
-    #       print("Inside Bootstrap sample y")
-    y <- data[sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE),2] # Sample Y ~ Fy
-    #        print("Inside Bootstrap keep")
+    I <- sample(dim(pdfs)[1], n-k, prob=pdfs[,1], replace=TRUE)
+    J <- sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE)
+    x <- data[I,1] # Sample X ~ Fx
+    y <- data[J,2] # Sample Y ~ Fy
     keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$W.max)))
-    #        print(keep)
     if(isempty(keep))
       next
     boot.sample[(1:length(keep))+k,] <- cbind(x[keep],y[keep]) 
+    indices[(1:length(keep))+k,] <- cbind(I[keep], J[keep]) # maybe order is a problem? 
     ctr <- ctr + n-k
     k <- k+length(keep)
-    
-    #     print(k)
+#    print(x[keep] - data[indices[1:k,1],1])
+#    print(y[keep] - data[indices[1:k,2],2])
+#    print(boot.sample[1:k,1] - data[indices[1:k,1],1])
+#    print(boot.sample[1:k,2] - data[indices[1:k,2],2])
   }    
   #  print(paste0("Sampled in total k=", ctr, " to get n=", n, " samples"))
-  return(boot.sample)
+  return(list(sample=boot.sample, indices=indices))  # new: return also indices! (they're all the information we need!)
 }
 
 ###################################################################################################
