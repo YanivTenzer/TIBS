@@ -1127,6 +1127,46 @@ NumericMatrix Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fu
 
 // New: try to write the entire TIBS function in cpp: 
 
+
+/**########################################################################
+# 
+# All steps of TIBS test :
+# 1. estimate marginals
+# 2. compute null distribution
+# 3. compute expectation table
+# 4. compute statistic
+# 
+########################################################################**/
+// [[Rcpp::export]]
+List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, NumericMatrix grid_points, NumericMatrix expectations_table, List prms)
+{
+	List marginals;
+	NumericMatrix null_distribution;
+	string use_w;
+	if (prms["naive.expectation"]) // here we ignore W(using statistic for unbiased sampling)
+	{
+		use_w = "naive";
+		w_mat(1, 1) = 1;
+	}
+	else
+		use_w = w_fun;
+			  
+	if (missing(expectations.table) | isempty(expectations.table))
+	{
+		marginals = EstimateMarginals_rcpp(data, use_w);
+		if ((!prms["naive.expectation"]) & (w_mat.nrow() == 1)) 
+			w_mat = w_fun_to_mat_rcpp(marginals["xy"], w_fun);  // compute W again for augmented data
+		null_distribution = GetNullDistribution_rcpp(marginals["PDF"], w_mat);
+		expectations_table = QuarterProbFromBootstrap_rcpp(marginals["xy"], null_distribution, grid_points);
+	}
+	double T = ComputeStatistic_rcpp(data, grid_points, expectations_table);  // keep same grid points for bootstrap sample ?
+	List ret; 
+	ret["Statistic"] = T; ret["expectations_table"] = expectations_table; ret["marginals"] = marginals; ret["w_mat"] = w_mat; ret["null_distirbution"] = null_distirbution; 
+	return(ret);
+}
+
+
+
 /**
 ########################################################################
 # Perform Test for Independence under general Biased Sampling(TIBS)
@@ -1215,6 +1255,8 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	/**/
 	if(test_type == "bootstrap") 
 	{
+		// TrueT = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
+
 //		Rcout << "Start TIBS RCPP Bootstrap" << endl;
 		// 3. Estimate the marginals
 		List marginals = EstimateMarginals_rcpp(data, w_fun);
@@ -1248,10 +1290,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericMatrix w_mat_bootstrap(1,1);
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{
-	//			for (i = 0; i < n; i++)
-	//				cout << "i: " << i << "PDF: " << as<NumericVector>(marginals["PDFs"])(i, 0) << ", " << as<NumericVector>(marginals["PDFs"])(i, 1) <<
-	//				" CDF: " << as<NumericVector>(marginals["CDFs"])(i, 0) << ", " << as<NumericVector>(marginals["CDFs"])(i, 1) << endl;
-//				Rcout << "Draw Bootstrap Sample Under Null " << ctr << endl;
+				// statistics_under_null[ctr] = TIBS_steps_rcpp(bootstrap_sample, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
 				bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
 				// fast_bootstrap = 1; // TEMP! FOR TIMING ! 
 				// Rcout << " Run FAST BOOTSTRAP!!" << endl;
