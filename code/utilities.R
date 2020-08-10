@@ -280,20 +280,20 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 {
   if(QId %in% c(1,2))
   {
-    idx.x <- which(data[,1]>Point[1])
-    idx.x <- idx.x[which.min(data[idx.x,1])]
+    idx.x <- which(data[,1]<=Point[1])  # >= 
+    idx.x <- idx.x[which.max(data[idx.x,1])] # min
   } else
   {
-    idx.x <- which(data[,1]<=Point[1])
+    idx.x <- which(data[,1]<Point[1]) # <=
     idx.x <- idx.x[which.max(data[idx.x,1])]
   }
   if(QId %in% c(1,4))
   {
-    idx.y <- which(data[,2]>Point[2])
-    idx.y <- idx.y[which.min(data[idx.y,2])]
+    idx.y <- which(data[,2]<=Point[2]) # >= 
+    idx.y <- idx.y[which.max(data[idx.y,2])] # min 
   } else
   {
-    idx.y <- which(data[,2]<=Point[2])
+    idx.y <- which(data[,2]<Point[2])
     idx.y <- idx.y[which.max(data[idx.y,2])]
   }
   
@@ -301,6 +301,11 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
     return(0)    
   m <- which.max(data[,1])
   n <- which.max(data[,2])
+  
+#  print(paste0("CDF2D: x,y: ", null.distribution.CDF[idx.x, idx.y], 
+#               " x, n: ", null.distribution.CDF[idx.x, n], 
+#               " m, y:", null.distribution.CDF[m, idx.y], 
+#               " m, n:", null.distribution.CDF[m, n]))
   
   switch(QId, # First sample from Fxy
          {S <- null.distribution.CDF[m, n] + null.distribution.CDF[idx.x, idx.y] - 
@@ -310,6 +315,25 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
          {S <- null.distribution.CDF[idx.x, n] - null.distribution.CDF[idx.x, idx.y]}) # 4
   return(S)       
 }
+
+# New function: using ecdf
+GetQuarterExpectedProb2 <- function(Point, QId, data, null.distribution.CDF)
+{
+  Point.minus <-  Point - .Machine$double.eps
+    epsilon <- 
+  switch(QId, # First sample from Fxy
+         {S <- 1 + ecdf2(Point, null.distribution.CDF, data)  - 
+           ecdf2(c(Point[1], max(data[,2])), null.distribution.CDF, data) - 
+           ecdf2(c(max(data[,1]), Point[2]), null.distribution.CDF, data)}, # 1
+         {S <- ecdf2(c(max(data[,1]), Point.minus[2]), null.distribution.CDF, data) - 
+           ecdf2(c(Point[1], Point.minus[2]), null.distribution.CDF, data)}, # 2
+         {S <- ecdf2(Point.minus, null.distribution.CDF, data)}, # 3
+         {S <-  ecdf2(c(Point.minus[1], max(data[,2])), null.distribution.CDF, data) - 
+           ecdf2(c(Point.minus[1], Point[2]), null.distribution.CDF, data)}) # 4
+  return(S)       
+  
+  
+}  
 
 ###################################################################################################
 # Compute Expect[Qi(p_j)] for 1<=i<=4, and all j, given a grid of points and bootstrap null distribution
@@ -462,6 +486,21 @@ PDFToCDF2d <- function(pdf.2d, data)
       cdf.2d[, j-1] = cdf.2d[, j]     # new: set CDF for ties
         
   return( cdf.2d[invPerm(Px$ix), invPerm(Py$ix)] )  # why Py first and then Px? 
+}
+
+# A test function for two-dimensional empirical cdf
+ecdf2 <- function(xy, cdf.2d, data)
+{
+  i <- which(xy[1] >= data[,1])
+  i <- i[which.max(data[i,1])]
+  j <- which(xy[2] >= data[,2])
+  j <- j[which.max(data[j,2])]
+#  i <- which.max(data[xy[1] >= data[,1],1])
+#  j <- which.max(data[xy[2] >= data[,2],2])
+#  print(c(i,j))
+  if(isempty(i) | isempty(j))
+    return(0.0)
+  return(cdf.2d[i,j])  
 }
 
 ###################################################################################################

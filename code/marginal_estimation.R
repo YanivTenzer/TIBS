@@ -30,7 +30,6 @@ EstimateMarginals <- function(data, w.fun, prms=c())
       x.srv <- Surv(time=-data[,2], time2=-data[,1], event = rep(1,n))
       Fx <- survfit(x.srv~1)
       Fy <- survfit(y.srv~1)
-#      print("Survival CDF!!")
       CDF.table <- cbind(rev(Fx$surv), 1-Fy$surv)
       data <- cbind(rev(-Fx$time), Fy$time)
     } else {  
@@ -42,22 +41,16 @@ EstimateMarginals <- function(data, w.fun, prms=c())
       } else {  # general biased sampling function (w.fun can be a function not a string) with exchangable distributions
         #case 2: left truncation, use the estimator of Proposition 1 in the paper for exchangable distributions
         # Augment data to include both x and y values for each axis (due to symmetry)
-#        print("DIM DATA BEFORE")
-#        print(dim(data))
         augment.data <- 1 # new: add xy values 
         if(augment.data) # duplicate x and y values 
           data <- cbind(union(data[,1], data[,2]), union(data[,1], data[,2])) # change data size: n-> 2*n 
-        
-#        print("DIM DATA AFTER")
-#        print(dim(data))
-        F1 <- ecdf(data[,1])
+        F1 <- ecdf(data[,1])  
         F2 <- ecdf(data[,2])
         Fx <- (F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y
         Fy <- (F1(data[,2])+F2(data[,2]))/2   
         CDF.table<-cbind(Fx,Fy)
       }
     } # end if 
-#    print('Estimating PDF marginal! returning!')
     PDF.table <- CDFToPDFMarginals(CDF.table)
   }  # else on w.fun type 
   save(data, PDF.table, CDF.table, file='cdfpdf.Rdata')
@@ -92,5 +85,3 @@ iterative_marginal_estimation <- function(data, w.fun)
   }    
   return(c(f_x, f_y)) # PDF.table 
 }  
-  
-  
