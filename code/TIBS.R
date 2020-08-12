@@ -5,10 +5,13 @@ add.one.sqrt <- function(x) {
 }
 
 
-
 ########################################################################
 # 
-# All steps of TIBS test 
+# All steps of TIBS test: 
+# 1. estimate marginals
+# 2. compute null distribution
+# 3. compute expectation table
+# 4. compute statistic
 # 
 ########################################################################
 TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms)
@@ -319,7 +322,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            }
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations test 
-         'permutations_inverse_weighting'={ # statistic: 
+         'permutations_inverse_weighting'={ # statistic Our MCMC permutations 
            #             w.mat = w_fun_to_mat(data, w.fun)
            TrueT = ComputeStatistic.W(data, grid.points, w.fun)$Statistic
            w.mat=w_fun_to_mat(data, w.fun)
@@ -335,6 +338,30 @@ TIBS <- function(data, w.fun, test.type, prms)
            }
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations with inverse weighting test 
+         'uniform_importance_sampling' = {  # new uniform importance sampling permutations test with the weighted Hoeffding statistic - only for positive W 
+           w.mat=w_fun_to_mat(data, w.fun)
+           if(prms$use.cpp)
+             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
+           else
+             Permutations <- PermutationsMCMC(w.mat, prms)
+           P=Permutations$P
+           Permutations=Permutations$Permutations
+           if((!prms$naive.expectation) & (!prms$PL.expectation))
+           {
+             if(prms$use.cpp)
+               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
+             else
+               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
+           } else
+             expectations.table <- c()
+           TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
+           permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
+
+           output <- IS.permute(data, prms$B, w.fun, TrueT$expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+         },
+         'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W
+           output <- IS.permute(data, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+         }, 
          'tsai' = {result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
          output <- list(Pvalue=result[4])
          },
@@ -348,9 +375,6 @@ TIBS <- function(data, w.fun, test.type, prms)
            results <- permDep(dat$trun, dat$obs, prms$B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
            ##                                      sampling = 'conditional') #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
            output <- list(Pvalue=results$p.valueMinp2)
-         }, 
-         'importance.sampling' = {  # new importance sampling permutations test (not working yet)
-           output <- IS.permute(data, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          }
   )
   if(exists("permuted.data"))

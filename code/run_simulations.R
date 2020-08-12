@@ -42,7 +42,7 @@ prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, seq(-0.9, 0.9, 0.1)) # Parameters for each sampling type 
 test.type <- c('tsai',  # 'minP2', # other's tests. minP2 is slower 
                'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations', 
-               'permutations_inverse_weighting', 'importance.sampling') # different tests to run - new: add 
+               'permutations_inverse_weighting', 'uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') # different tests to run - new: add 
 # test.type <- c('tsai', 'permutations', 'bootstrap') #  'importance.sampling')  # for fast simulations . Add new importance sampling test 
 
 num.sim <- length(dependence.type)

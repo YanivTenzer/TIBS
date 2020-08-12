@@ -4,14 +4,23 @@
 #  multiply the weight function by a constant so the weights
 #  are in some sense centered at 1)
 #############################################################
-IS.permute <- function(data, B, w.fun=function(x){1}){
+IS.permute <- function(data, B, w.fun=function(x){1}, expectations.table=c()){
   n <- dim(data)[1]
-  TrueT <- ComputeStatistic.W(data, data, w.fun)$Statistic # no unique in grid-points 
+  
+  inverse.weight = missing(expectations.table) | isempty(expectations.table) # default is using inverse weighting 
+  if(inverse.weight)
+    TrueT <- ComputeStatistic.W(data, data, w.fun)$Statistic # no unique in grid-points 
+  else
+    TrueT <- ComputeStatistic(data, data, expectations.table)$Statistic # no unique in grid-points 
+  
   p.w <- matrix(0, B, 1)
   T.b <- matrix(0, B, 1) # statistics under null 
   for (b in 1:B){
     perm <- sample(n)
-    T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), data, w.fun)$Statistic # grid depends on permuted data
+    if(inverse.weight)
+      T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), data, w.fun)$Statistic # grid depends on permuted data
+    else
+      T.b[b] <- ComputeStatistic(cbind(data[,1], data[perm,2]), data, expectations.table)$Statistic # grid depends on permuted data
     p.w[b] <- sum(log(w_fun_eval(data[,1], data[perm,2], w.fun))) # prod of w[i, pi(i)] 
   }
   p.w <- exp(p.w - max(p.w)) # shift max to prevent overflow 
