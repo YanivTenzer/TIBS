@@ -1302,6 +1302,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericVector statistics_under_null(B);
 		List null_distribution_bootstrap = null_distribution;
 		NumericMatrix w_mat_bootstrap(1,1);
+		long new_bootstrap = FALSE; 
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{
 				// statistics_under_null[ctr] = TIBS_steps_rcpp(bootstrap_sample, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
@@ -1312,6 +1313,26 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 				{
 					List NullT = TIBS_steps_rcpp(bootstrap_sample, w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
 					statistics_under_null[ctr] = NullT["Statistic"];
+
+					if (new_bootstrap)
+					{
+						marginals_bootstrap_new = marginals; marginals.bootstrap.new$PDFs[] < -0
+							for (i = 0; i < n; i++)
+								for (j = 0; j < 2; j++)
+									marginals_bootstrap_new_PDFs[bootstrap_indices[i, j], j] += NullT_marginals_PDFs[i, j]; // copy marginals 
+						marginals_bootstrap_new_CDFs = PDFToCDFMarginals(data, marginals_bootstrap_new_PDFs);
+						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new$PDFs, TrueTList["w.mat"]); // keep w_mat of ORIGINAL DATA!
+						expectations_table_new = QuarterProbFromBootstrap_rcpp(
+							marginals_bootstrap_new["xy"], null_distribution_bootstrap_new["distribution"], grid_points);
+						double NullT_new = ComputeStatistic_rcpp(bootstrap$sample, grid.points, expectations.table.new)$Statistic // NEW!Compute null statistic without recomputing the entire matrix 
+							if (abs(statistics_under_null[ctr] - NullT_new) > 0.000000001)
+								Rcout << "Error! should be zero ComputeStatisticBootstrap: " << abs(statistics_under_null[ctr] - NullT_new) << endl; 
+
+
+					}
+
+
+
 					/**
 					//				Rcout << "Estimate Marginals Under Null " << ctr << endl;
 					List marginals_bootstrap = EstimateMarginals_rcpp(bootstrap_sample, w_fun);   // Why are the marginals estimated each time ?
