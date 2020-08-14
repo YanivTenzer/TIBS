@@ -159,7 +159,7 @@ TIBS <- function(data, w.fun, test.type, prms)
                #               marginals.bootstrap <- EstimateMarginals(bootstrap$sample, w.fun)
                #               null.distribution.bootstrap <- GetNullDistribution(marginals.bootstrap$PDF, NullT$w.mat)
                marginals.bootstrap.new <- TrueT$marginals; marginals.bootstrap.new$PDFs[] <-0
-               for(i in c(1:n))
+               for(i in c(1:n))  # copy with bootstrap indices order 
                  for(j in c(1:2))
                    marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] <- 
                      marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
@@ -169,11 +169,11 @@ TIBS <- function(data, w.fun, test.type, prms)
                null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
                expectations.table.new <- QuarterProbFromBootstrap(
                 marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
-               NullT.new <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!                
-                 #         if(abs(statistics.under.null[ctr] - NullT.new )>0.000000001)
-                 #           print(paste0("Error! should be zero ComputeStatisticBootstrap: ", abs(statistics.under.null[ctr] - NullT.new )))
-                 
-                 
+               NullT.new <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!  
+               if(abs(statistics.under.null[ctr] - NullT.new )>0.000000001)
+                 print(paste0("Error! should be zero ComputeStatisticBootstrap: ", abs(statistics.under.null[ctr] - NullT.new )))
+               
+               
                  
                  #               
                  #               is.eq <- matrix(0, n, n)
