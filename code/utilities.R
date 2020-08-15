@@ -169,7 +169,8 @@ PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow 
     prms$burn.in <- 0  # 2*n  # set to n without burn.in, or 0 without burn.in to include the identity permutation 
   if(!('Cycle' %in% names(prms)))
     prms$Cycle <- n
-  
+
+#  print(paste0("burn.in=", prms$burn.in, " cycle=", prms$Cycle))    
   Idx <- ctr <- 1
   Permutations = matrix(0, n, prms$B)
   Perm = 1:n # start with the identity 
@@ -182,7 +183,7 @@ PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow 
     j = switchIdx[2]
     ratio = w.mat[i,Perm[j]]*w.mat[j,Perm[i]]/(w.mat[i,Perm[i]]*w.mat[j,Perm[j]]) 
     
-    if(rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
+    if(rand() < ratio) #     rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
     {
       temp <- Perm[i] # SWAP 
       Perm[i] <- Perm[j]
@@ -249,7 +250,7 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
     J <- sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE)
     x <- data[I,1] # Sample X ~ Fx
     y <- data[J,2] # Sample Y ~ Fy
-    keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$W.max)))
+    keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$w.max)))
     if(isempty(keep))
       next
     boot.sample[(1:length(keep))+k,] <- cbind(x[keep],y[keep]) 
@@ -630,7 +631,7 @@ ReadDataset <- function(data_str)
          'Infection'={ # this dataset is not part of the released package
            load('../data/ICU_INF.Rdata')
            input.data <- cbind(X,Y)
-           W.max <- max(X)+max(Y)
+           w.max <- max(X)+max(Y)
          }, 
          'Dementia'={ # this dataset is not part of the released package
            # DEMENTIA DATA

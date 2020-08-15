@@ -1,5 +1,4 @@
 path = 'C:/Users/Or Zuk/Documents/GitHub/TIBS/code'  # change to your path
-
 setwd(path)
 args=commandArgs(trailingOnly = TRUE)
 # Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 

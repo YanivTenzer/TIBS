@@ -35,7 +35,7 @@ test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests t
 datasets <- c('huji', 'AIDS', 'ICU', 'Infection', 'Dementia')
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
 w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
-W.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
+w.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
 n.datasets <- length(datasets)
 n.tests <- length(test.type)
 Hyperplane.prms<-c(-1,1,0)
@@ -49,7 +49,7 @@ for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
   input.data <- ReadDataset(datasets[d]) # read dataset 
   
   prms <- list(B = 1000)  # NOTE: for minP we may need a lower number of permutations
-  prms$W.max <- max(W.max[d], max(w_fun_to_mat(input.data, w.fun[d]))) # update max 
+  prms$w.max <- max(w.max[d], max(w_fun_to_mat(input.data, w.fun[d]))) # update max 
   prms$use.cpp <- 0 # New! enable one to run with c++ code 
   for(t in 1:3) # n.tests) # run all tests 
   {

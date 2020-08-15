@@ -91,8 +91,8 @@ TIBS <- function(data, w.fun, test.type, prms)
   if(!('delta' %in% names(prms)))
     prms$delta <- NA
   n <- dim(data)[1]
-  if(!('W.max' %in% names(prms)))
-    prms$W.max <- max(w_fun_to_mat(data, w.fun)) # update max
+  if(!('w.max' %in% names(prms)))
+    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
   
   if(prms$use.cpp) # use cpp code 
   {
@@ -306,6 +306,8 @@ TIBS <- function(data, w.fun, test.type, prms)
                expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
            } else
              expectations.table <- c()
+#           print(expectations.table[1:5,])
+#           print(P[1:5,1:5]) # show P_ij 
            TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
            
@@ -316,8 +318,8 @@ TIBS <- function(data, w.fun, test.type, prms)
              if(prms$use.cpp)  # new: use cpp
                statistics.under.null[ctr] <- ComputeStatistic_rcpp( # need to modify to calculate grid.points inside function!
                  cbind(data[,1], data[Permutations[,ctr],2]), grid.points, TrueT$expectations.table)
-             else
-               statistics.under.null[ctr] <- ComputeStatistic( # here calculate grid.points inside function ! 
+             else 
+                statistics.under.null[ctr] <- ComputeStatistic( # here calculate grid.points inside function ! 
                  cbind(data[,1], data[Permutations[,ctr],2]), grid.points, TrueT$expectations.table)$Statistic
            }
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null, Permutations=Permutations)

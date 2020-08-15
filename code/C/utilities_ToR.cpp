@@ -269,7 +269,7 @@ NumericMatrix w_fun_to_mat_rcpp(NumericMatrix data, string w_fun)
 //		Rcout << "Run VEC!" << endl; 
 //		for (j = 0; j < n; j++)
 //			w_mat(i, j) = w_fun_eval_rcpp(data(i, 0), data(j, 1), w_fun);
-		w_mat(i, _) = w_fun_eval_vec_rcpp(data(_, 0), data(i, 1), w_fun); 
+		w_mat(_, i) = w_fun_eval_vec_rcpp(data(_, 0), data(i, 1), w_fun); // fix transform bug 
 	}
 	return (w_mat);
 }
@@ -798,7 +798,7 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 	long B = 1000;
 	if (prms.containsElementNamed("B")) //   ('B' % in % names(prms)))
 		B = prms["B"];
-	long burn_in = 2 * n;
+	long burn_in = 0; //  2 * n;
 	if (prms.containsElementNamed("burn_in")) //  ('burn.in' % in % names(prms)))
 		burn_in = prms["burn_in"];
 	long Cycle = n; 
@@ -806,6 +806,8 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 		Cycle = prms["Cycle"];
 
 	long Idx = 0, ctr = 1;
+
+//	Rcout << "burn.in=" << burn_in << " Cycle=" << Cycle << endl; 
 
 //	Rcout << "Perms dimensions: n=" << n << " B = " << B << endl;
 	NumericMatrix Permutations(n, long(B));
@@ -820,9 +822,12 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 		switchIdx[1] = switchIdx[0];
 		while (switchIdx[1] == switchIdx[0])
 			switchIdx[1] = rand() % n; // sample without replacement form 0 to n-1
-		i = switchIdx[1];
-		j = switchIdx[2];
+		i = switchIdx[0];
+		j = switchIdx[1];
 		ratio = w_mat(i, Perm[j]) * w_mat(j, Perm[i]) / (w_mat(i, Perm[i]) * w_mat(j, Perm[j]));
+
+//		ratio = w.mat[i, Perm[j]] * w.mat[j, Perm[i]] / (w.mat[i, Perm[i]] * w.mat[j, Perm[j]]) // R code !! 
+
 
 		if(	double(rand()) / RAND_MAX < fmin(1.0, ratio) ) // we accept the transition with probability min(1, ratio)
 		{
@@ -832,7 +837,7 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 			if (ctr == burn_in || ((ctr % Cycle == 0) && (ctr > burn_in)))
 			{
 				for(i=0; i<n; i++)
-					Permutations(i,Idx) = Perm[i] + 1;  // add 1 to move from C zero-based indexing to R-one based indexing
+					Permutations(i,Idx) = Perm[i] + 1;  // add 1 to move from C zero-based indexing to R-one based indexing. A problem if we use it INSIDE C!!!! 
 				Idx++; 
 //				if (Idx%100 == 0)
 //					Rcout << "Sample Perm=" << Idx << endl;
@@ -1030,14 +1035,14 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fun, List p
 	double x = 0.0, y = 0.0; //  , r; //  keep;
 	long k = 0, ctr=0;
 	long i, j;
-	double w_max = prms["W.max"];
+	double w_max = prms["w.max"];
 
 	while (k < n)
 	{	
 		i = binary_search_rcpp(cdfs(_, 0), double(rand()) / RAND_MAX);
 		j = binary_search_rcpp(cdfs(_, 1), double(rand()) / RAND_MAX);
 		x = data(i, 0); y = data(j, 1); //		rand() data(d0(gen), 0); //  rand() % (n - k); // sample with replacement 		 //data(d1(gen), 1); //  rand() % (n - k);
-		if (double(rand()) / RAND_MAX < w_fun_eval_rcpp(x, y, w_fun) / w_max) //   exp((-abs(x) - abs(y)) / 4) / w_max) // w_fun_eval_rcpp(x, y, w_fun) / w_max)
+		if (double(rand()) / RAND_MAX < w_fun_eval_rcpp(x, y, w_fun) / w_max) // compare to probability 
 		{
 			boot_indices(k, 0) = i; boot_indices(k, 1) = j;
 			boot_sample(k, 0) = x; boot_sample(k++, 1) = y;
@@ -1095,7 +1100,12 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 	List null_distribution;
 	string use_w;
 //	Rcout << "Start TIBS STEPS" << endl; 
-	if (prms["naive.expectation"]) // here we ignore W(using statistic for unbiased sampling)
+	long naive_expectation = 0;
+	if (prms.containsElementNamed("naive.expectation"))
+		naive_expectation = prms["naive.expectation"];
+
+
+	if (naive_expectation) // here we ignore W(using statistic for unbiased sampling)
 	{
 		use_w = "naive";
 		w_mat(1, 1) = 1;
@@ -1105,15 +1115,32 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 		
 	if(expectations_table.nrow()==1) // insert empty table // 	if (missing(expectations_table) | isempty(expectations_table)) // modify to c++ code!
 	{
+//		Rcout << "USE BOOTSTRAP EXPECTED!" << endl; 
 		marginals = EstimateMarginals_rcpp(data, use_w);
-		if ((!prms["naive.expectation"]) & (w_mat.nrow() == 1))
+		if ((!naive_expectation) & (w_mat.nrow() == 1))
 			w_mat = w_fun_to_mat_rcpp(marginals["xy"], w_fun);  // compute W again for augmented data
 		null_distribution = GetNullDistribution_rcpp(marginals["PDFs"], w_mat);
 		expectations_table = QuarterProbFromBootstrap_rcpp(marginals["xy"], null_distribution["distribution"], grid_points);
 	}
 
-//	Rcout << "ComputeStatistic TIBS STEPS" << endl;
+/**
+	Rcout << "Data:" << endl;
+	for (long i = 0; i < 5; i++)
+		Rcout << "i:" << i << " x=" << data(i, 0) << " y=" << data(i, 1) << endl;
+	Rcout << "Expected table:" << endl;
+	for (long i = 0; i < 5; i++)
+	{
+		Rcout << "i:" << i;
+		for (long j = 0; j < 4; j++)
+			Rcout << ", " << expectations_table(i, j);
+		Rcout << endl; 
+	}
+**/
+
+
 	double T = ComputeStatistic_rcpp(data, grid_points, expectations_table);  // keep same grid points for bootstrap sample ?
+//	Rcout << "ComputeStatistic TIBS STEPS, T=" << T << endl;
+
 	List ret; 
 	ret["Statistic"] = T; ret["expectations_table"] = expectations_table; ret["marginals"] = marginals; ret["w_mat"] = w_mat; ret["null_distirbution"] = null_distribution; 
 	return(ret);
@@ -1159,6 +1186,8 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long naive_expectation = 0;
 	if (prms.containsElementNamed("naive.expectation"))
 		naive_expectation = prms["naive.expectation"];
+
+
 //	if (!prms.containsElementNamed("delta"))
 //		prms["delta"] = NA; minP2 params. Irrelevant here
 
@@ -1262,11 +1291,8 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			{
 				// statistics_under_null[ctr] = TIBS_steps_rcpp(bootstrap_sample, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
 				bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
-				// fast_bootstrap = 1; // TEMP! FOR TIMING ! 
-				// Rcout << " Run FAST BOOTSTRAP!!" << endl;
 				if (!fast_bootstrap) // re - estimate marginals for null expectation for each bootstrap sample
 				{
-//					Rcout << "Run TIBS Steps" << endl;
 					if (!new_bootstrap)
 					{
 						List NullT = TIBS_steps_rcpp(bootstrap_sample["sample"], w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
@@ -1278,30 +1304,20 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 					{
 						marginals_bootstrap = EstimateMarginals_rcpp(bootstrap_sample["sample"], w_fun);
 						NullT_marginals_PDFs = as<NumericMatrix>(marginals_bootstrap["PDFs"]);
-//						Rcout << "Copy Marginals" << endl;
 						marginals_bootstrap_new_PDFs = as<NumericMatrix>(marginals["PDFs"]);
 						marginals_bootstrap_new_xy = as<NumericMatrix>(marginals["xy"]);
-						std::fill(marginals_bootstrap_new_PDFs.begin(), marginals_bootstrap_new_PDFs.end(), 0.0);
-//						for (i = 0; i < n; i++)
-//							for (j = 0; j < 2; j++)
-//								marginals_bootstrap_new_PDFs(i, j) = 0.0;
+						fill(marginals_bootstrap_new_PDFs.begin(), marginals_bootstrap_new_PDFs.end(), 0.0);
 						for (i = 0; i < n; i++)
 							for (j = 0; j < 2; j++)
 								marginals_bootstrap_new_PDFs(bootstrap_indices(i, j), j) += NullT_marginals_PDFs(i, j); // copy marginals 
-//						Rcout << "PDF->CDF Marginals" << endl;
 						marginals_bootstrap_new_CDFs = PDFToCDFMarginals_rcpp(data, marginals_bootstrap_new_PDFs);
-//						Rcout << "Get Null Distributions" << endl;
 						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new_PDFs, TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA!
-//						Rcout << "QuarterPRobFromBootstrap" << endl;
 						expectations_table_new = QuarterProbFromBootstrap_rcpp(
 							marginals_bootstrap_new_xy, null_distribution_bootstrap_new["distribution"], grid_points);
-//						Rcout << "Compute Null Statistics" << endl;
 						statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table_new); // NEW!Compute null statistic without recomputing the entire matrix 
 //						if (abs(statistics_under_null[ctr] - NullT_new) > 0.000000001)
 //							Rcout << "Error! should be zero ComputeStatisticBootstrap: " << abs(statistics_under_null[ctr] - NullT_new) << endl; 
 					}
-
-
 
 					/**
 					//				Rcout << "Estimate Marginals Under Null " << ctr << endl;
@@ -1319,7 +1335,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 				} else // if fast bootstrap
 		//		Rcout << "Compute Bootstrap Statistic Under Null " << ctr << endl;
 					statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table);
-
 			}
 
 		output["TrueT"] = TrueT;
@@ -1329,6 +1344,16 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	if(test_type == "permutations")
 	{
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
+/**
+		Rcout << "w_mat:" << endl;
+		for (i = 0; i < 5; i++)
+		{
+			Rcout << "i:" << i;
+			for (j = 0; j < 5; j++)
+				Rcout << ", " << w_mat(i, j);
+			Rcout << endl;
+		}
+**/
 		List PermutationsList = PermutationsMCMC_rcpp(w_mat, prms);
 		NumericMatrix expectations_table(1,1);
 					
@@ -1340,11 +1365,22 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			expectations_table = QuarterProbFromPermutations_rcpp(data, P, grid_points);
 		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
 		TrueT = TrueTList["Statistic"];
+/**
+		Rcout << "P-Table:" << endl; 
+		for (i = 0; i < 5; i++)
+		{
+			Rcout << "i:" << i;
+			for (j = 0; j < 5; j++)
+				Rcout << ", " << P(i, j);
+			Rcout << endl;
+		}
 
-//		Rcout << "Fill Permuted Data " << endl;
+
+		Rcout << "Permuted Data, TrueT= " << TrueT << endl;
+**/
 		permuted_data(_, 0) = data(_, 0);
 		for (i = 0; i < n; i++)
-			permuted_data(i, 1) = data(Permutations(i, 0), 1); // save one example
+			permuted_data(i, 1) = data(Permutations(i, 0)-1, 1); // save one example
 
 /**															   //		Rcout << "Finished Permuted Data " << endl; 
 		if (naive_expectation) // here we ignore W(using statistic for unbiased sampling)
@@ -1374,11 +1410,11 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 **/
 		// Compute the statistics value for each permutation:
 		NumericVector statistics_under_null(B);
+		permuted_data(_, 0) = data(_, 0);
 		for (ctr = 0; ctr < B; ctr++)
 		{
-			permuted_data(_, 0) = data(_, 0);
 			for (i = 0; i < n; i++)
-				permuted_data(i, 1) = data(Permutations(i, ctr), 1);
+				permuted_data(i, 1) = data(Permutations(i, ctr)-1, 1); // subtract 1 (from R back to C indexing!)
 			statistics_under_null[ctr] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table);
 		}
 		output["TrueT"] = TrueT;
@@ -1403,7 +1439,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		{
 			permuted_data(_, 0) = data(_, 0);
 			for (i = 0; i < n; i++)
-				permuted_data(i, 1) = data(Permutations(i, ctr), 1);
+				permuted_data(i, 1) = data(Permutations(i, ctr)-1, 1); // subtract 1 (from R back to C indexing!)
 //			permuted_sample = cbind(data(_, 0), data(Permutations(_, ctr), 1));
 //			w_mat_permutation = w_fun_to_mat_rcpp(permuted_data, w_fun);
 			NullT = ComputeStatistic_w_rcpp(permuted_data, grid_points, w_fun);
