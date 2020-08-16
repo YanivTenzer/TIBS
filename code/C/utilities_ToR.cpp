@@ -110,6 +110,10 @@ IntegerVector sort_indexes_rcpp(NumericVector data)
 		[&](const int& a, const int& b) {
 			return (data[a] < data[b]);
 		});
+//	cout << "sort perm:" << endl; 
+//	for (long i = 0; i < index.length(); i++)
+//		cout << index[i] << ", "; 
+//	cout << endl;
 	return(index);
 }
 
@@ -153,27 +157,30 @@ arma::mat unique_rows(const arma::mat& x) {
 
 /*
 * Copied from here: https://figshare.com/articles/Algorithm_of_binary_search_Rcpp_code/3394741
-* A binary search divides a range of values(sorted array) into halves by the median point(noted k), and continues
+* A binary search divides a range of values (a sorted array) into halves by the median point(noted k), and continues
  * tonarrow down the field of search until the pattern(noted x) is found.
  * It is the classic example of a "divide and conquer" algorithm.
  */
  // [[Rcpp::export]]
-int binary_search_rcpp(NumericVector array, double pattern) {
+int binary_search_rcpp(NumericVector array, double pattern, long exact_match=0) {
 	int array_length = array.size();
 	int i = 0, j = array_length - 1;
-	while (i <= j) {
+	while (i < j) {
 		int k = (i + j) / 2;
 		if (array[k] == pattern) {
 			return k; // return index 
 		}
 		else if (array[k] < pattern) {
-			i = k + 1;
+			i = k+1;
 		}
 		else {
-			j = k - 1;
+			j = k;
 		}
 	}
-	return -1;
+	if(exact_match)
+		return -1; // didn't find value 
+	else
+		return i; // return closest
 }
 
 
@@ -273,6 +280,17 @@ NumericMatrix w_fun_to_mat_rcpp(NumericMatrix data, string w_fun)
 	}
 	return (w_mat);
 }
+
+
+// Determine empirically  w_max for functions where we don't know it (this is approximate and may fail)
+/**
+double set_w_max_rcpp(double n = 1000, string dependence_type, string w_fun)
+{
+	w_fun_	
+	NumericMatrix xy = SimulateSample_rcpp(n, dependence_type); // need to implement simulate sample 
+	return(5 * (max(w_fun_eval_vec_rcpp(xy(_, 1), xy(_, 2), w_fun)) + 5 * std(w_fun_eval_vec_rcpp(xy(_, 1), xy(_, 2), w_fun)) + 1.0));
+}
+**/
 
 
 
@@ -626,13 +644,26 @@ NumericMatrix PDFToCDFMarginals_rcpp(NumericMatrix data, NumericMatrix PDFs)
 
 	for (c = 0; c < PDFs.ncol(); c++) // loop on variables 
 	{
+//		Rcout << "PDF -> CDF COL=" << c << endl; 
 		Px = sort_indexes_rcpp(data(_, c)); // get indexes permute to order x_i, y_i
+
+//		cout << "sort perm outside:" << endl;
+//		for (i = 0; i < Px.length(); i++)
+//			Rcout << Px[i] << ", ";
+//		Rcout << endl << "Sorted Indexes 0: " << Px[0] << ", n=" << n << endl; 
 		CDFs(Px[0], c) = PDFs(Px[0], c);
-		for(i = 1; i < n; i++)
-			CDFs(Px[i], c) = CDFs(Px[i-1], c) + PDFs(Px[i], c); //  cumsum(PDFs(Px, c)); // need to change 
+		for (i = 1; i < n; i++)
+		{
+//			Rcout << "Copy Index:" << i << " P[]=" << Px[i-1] << ", " << Px[i] << endl;
+			CDFs(Px[i], c) = CDFs(Px[i - 1], c) + PDFs(Px[i], c); //  cumsum(PDFs(Px, c)); // need to change 
+		}
+//		Rcout << "Computed CDFs" << endl;
+
 		for (i = n - 1; i > 0; i--) // fix ties 
 			if (data(Px[i-1], c) == data(Px[i], c))
 				CDFs(Px[i-1], c) = CDFs(Px[i], c);
+//		Rcout << "Copy Ties" << endl;
+
 	}
 	return(CDFs);
 }
@@ -738,18 +769,18 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 			Px = sort_indexes_rcpp(new_data(_, 0));
 			Py = sort_indexes_rcpp(new_data(_, 1));
 
-			Rcout << "Generated Px, Py" << endl; 
-			for (i = 0; i < 5; i++) // copy sorted 
-				Rcout << Px[i] << " " << Py[i] << endl; 
+//			Rcout << "Generated Px, Py" << endl; 
+//			for (i = 0; i < 5; i++) // copy sorted 
+//				Rcout << Px[i] << " " << Py[i] << endl; 
 
 			for (i = 0; i < 2*n; i++) // copy sorted 
 			{
 				new_data_sorted(i, 0) = new_data(Px[i], 0);
 				new_data_sorted(i, 1) = new_data(Py[i], 1);
 			}
-			Rcout << "Generated new sorted data:" << endl;
-			for (i = 0; i < 5; i++) // copy sorted 
-				Rcout << new_data_sorted(i,0) << " " << new_data_sorted(i, 1) << endl;
+//			Rcout << "Generated new sorted data:" << endl;
+//			for (i = 0; i < 5; i++) // copy sorted 
+//				Rcout << new_data_sorted(i,0) << " " << new_data_sorted(i, 1) << endl;
 			NumericVector F0 = empirical_cdf_rcpp(new_data_sorted(_, 0)); // can be used instead of binary search 
 			NumericVector F1 = empirical_cdf_rcpp(new_data_sorted(_, 1));
 			// alternative: take average of F0 and F1
@@ -762,10 +793,13 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 //		Rcout << " Now CDF-PDF Marginals" << endl; 
 
 		PDFs = CDFToPDFMarginals_rcpp(CDFs); // convert (this part is fast)
+//		Rcout << " Finished CDF-PDF Marginals" << endl;
 	} // end if positive w
 
 	ret["PDFs"] = PDFs;
 	ret["CDFs"] = CDFs;	
+
+//	Rcout << " Returning Marginals" << endl;
 	return(ret);
 
 }  // end function 
@@ -1037,12 +1071,22 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fun, List p
 	long i, j;
 	double w_max = prms["w.max"];
 
+//	Rcout << "CDFs:" << endl;
+//	for (i = 0; i < 5; i++)
+//		Rcout << "Vals:" << cdfs(i, 0) << ", " << cdfs(i, 1) << endl; 
+//	Rcout << "MAXMIN0: " << max(cdfs(_, 0)) << ", " << min(cdfs(_, 0)) << endl;
+//	Rcout << "MAXMIN1: " << max(cdfs(_, 1)) << ", " << min(cdfs(_, 1)) << endl;
+
 	while (k < n)
 	{	
-		i = binary_search_rcpp(cdfs(_, 0), double(rand()) / RAND_MAX);
-		j = binary_search_rcpp(cdfs(_, 1), double(rand()) / RAND_MAX);
+		double r = double(rand()) / RAND_MAX;
+
+		i = binary_search_rcpp(cdfs(_, 0), double(rand()) / RAND_MAX, 0); // need to first sort the cdfs ! 
+		j = binary_search_rcpp(cdfs(_, 1), double(rand()) / RAND_MAX, 0);
+//		Rcout << "Binary search: i,j=" << i << ", " << j  << ", r=" << r << endl;
+
 		x = data(i, 0); y = data(j, 1); //		rand() data(d0(gen), 0); //  rand() % (n - k); // sample with replacement 		 //data(d1(gen), 1); //  rand() % (n - k);
-		if (double(rand()) / RAND_MAX < w_fun_eval_rcpp(x, y, w_fun) / w_max) // compare to probability 
+		if ((double(rand()) / RAND_MAX) < (w_fun_eval_rcpp(x, y, w_fun) / w_max)) // compare to probability 
 		{
 			boot_indices(k, 0) = i; boot_indices(k, 1) = j;
 			boot_sample(k, 0) = x; boot_sample(k++, 1) = y;
@@ -1053,6 +1097,10 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fun, List p
 	List ret;
 	ret["sample"] = boot_sample; 
 	ret["indices"] = boot_indices;
+//	Rcout << "w_max=" << w_max << endl; 
+//	for (i = 0; i < 5; i++)
+//		for (j = 0; j < 2; j++)
+//			Rcout << "BootInd(i,j)=" << i << ", " << j << " Fill Ind=" << boot_indices(i, j) << " Val=" << boot_sample(i, j) << endl;
 	return(ret);
 }
 
@@ -1117,10 +1165,14 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 	{
 //		Rcout << "USE BOOTSTRAP EXPECTED!" << endl; 
 		marginals = EstimateMarginals_rcpp(data, use_w);
+//		Rcout << "Finished Estimating BOOTSTRAP EXPECTED!" << endl; 
 		if ((!naive_expectation) & (w_mat.nrow() == 1))
 			w_mat = w_fun_to_mat_rcpp(marginals["xy"], w_fun);  // compute W again for augmented data
+//		Rcout << "Computed w_mat!" << endl;
 		null_distribution = GetNullDistribution_rcpp(marginals["PDFs"], w_mat);
+//		Rcout << "Computed Null Distribution!" << endl; 
 		expectations_table = QuarterProbFromBootstrap_rcpp(marginals["xy"], null_distribution["distribution"], grid_points);
+//		Rcout << "Computed BOOTSTRAP QuarterProb EXPECTED!" << endl;
 	}
 
 /**
@@ -1227,7 +1279,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			if (ctr % 100 == 0)
 				Rcout << "Run Boots=" << ctr << endl;
 			bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
-			NumericMatrix w_mat_bootstrap = w_fun_to_mat_rcpp(bootstrap_sample["sample"], w_fun);
+	//		NumericMatrix w_mat_bootstrap = w_fun_to_mat_rcpp(bootstrap_sample["sample"], w_fun);
 			NullT = ComputeStatistic_w_rcpp(bootstrap_sample["sample"], grid_points, w_fun); // should sample grid points again! 
 			statistics_under_null[ctr] = NullT; //  ["Statistic"] ;
 		}
@@ -1239,12 +1291,14 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	{
 		NumericMatrix w_mat(1, 1);
 		NumericMatrix expectations_table(1, 1);
+//		Rcout << "Start TIBS RCPP Bootstrap" << endl;
 		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
 		TrueT = TrueTList["Statistic"];
+//		Rcout << "Computed TrueT TIBS RCPP Bootstrap" << endl;
+
 		List marginals = TrueTList["marginals"];
 		List bootstrap_sample; //  (n, 2);
 		/** New: use function above
-//		Rcout << "Start TIBS RCPP Bootstrap" << endl;
 		// 3. Estimate the marginals
 		List marginals = EstimateMarginals_rcpp(data, w_fun);
 //		Rcout << "Estimated Marginals" << endl; 
@@ -1275,8 +1329,8 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 
 		// 2. Compute statistic for bootstrap sample :
 		NumericVector statistics_under_null(B);
-		List null_distribution_bootstrap = null_distribution;
-		NumericMatrix w_mat_bootstrap(1,1);
+//		List null_distribution_bootstrap = null_distribution;
+//		NumericMatrix w_mat_bootstrap(1,1);
 		long new_bootstrap = TRUE; 
 		NumericMatrix marginals_bootstrap_new_PDFs(n, 2);
 		NumericMatrix marginals_bootstrap_new_CDFs(n, 2);
@@ -1287,10 +1341,24 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericMatrix NullT_marginals_PDFs(n, 2);
 		List marginals_bootstrap;
 
+		NumericMatrix CDFs_sorted = as<NumericMatrix>(marginals["CDFs"]); // get sorted CDFs 
+		NumericVector CDF_temp = CDFs_sorted(_, 0);
+		CDFs_sorted(_, 0) = CDF_temp.sort(); //  marginals["CDFs"];
+		CDF_temp = CDFs_sorted(_, 1);
+		CDFs_sorted(_, 1) = CDF_temp.sort(); //  marginals["CDFs"];
+		NumericMatrix xy_sorted = as<NumericMatrix>(marginals["xy"]); // get sorted CDFs 
+		NumericVector xy_temp = xy_sorted(_, 0);
+		xy_sorted(_, 0) = xy_temp.sort(); //  marginals["CDFs"];
+		xy_temp = xy_sorted(_, 1);
+		xy_sorted(_, 1) = xy_temp.sort(); //  marginals["CDFs"];
+
+
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{
+//				Rcout << "Run B = " << ctr << endl;
+
 				// statistics_under_null[ctr] = TIBS_steps_rcpp(bootstrap_sample, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
-				bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
+				bootstrap_sample = Bootstrap_rcpp(xy_sorted, CDFs_sorted /*marginals["CDFs"]*/, w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
 				if (!fast_bootstrap) // re - estimate marginals for null expectation for each bootstrap sample
 				{
 					if (!new_bootstrap)
@@ -1298,22 +1366,36 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 						List NullT = TIBS_steps_rcpp(bootstrap_sample["sample"], w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
 						List NullT_marginals = NullT["marginals"];
 						NullT_marginals_PDFs = as<NumericMatrix>(NullT_marginals["PDFs"]);
-						bootstrap_indices = as<IntegerMatrix>(bootstrap_sample["indices"]);
 						statistics_under_null[ctr] = NullT["Statistic"];
 					} else
 					{
+//						Rcout << "Estimate Marginals B = " << ctr << endl;
+						bootstrap_indices = as<IntegerMatrix>(bootstrap_sample["indices"]);
 						marginals_bootstrap = EstimateMarginals_rcpp(bootstrap_sample["sample"], w_fun);
 						NullT_marginals_PDFs = as<NumericMatrix>(marginals_bootstrap["PDFs"]);
 						marginals_bootstrap_new_PDFs = as<NumericMatrix>(marginals["PDFs"]);
 						marginals_bootstrap_new_xy = as<NumericMatrix>(marginals["xy"]);
+//						Rcout << "Fill zeros B = " << ctr << endl;
 						fill(marginals_bootstrap_new_PDFs.begin(), marginals_bootstrap_new_PDFs.end(), 0.0);
+//						Rcout << "Copy B = " << ctr << endl;
 						for (i = 0; i < n; i++)
 							for (j = 0; j < 2; j++)
+							{
 								marginals_bootstrap_new_PDFs(bootstrap_indices(i, j), j) += NullT_marginals_PDFs(i, j); // copy marginals 
-						marginals_bootstrap_new_CDFs = PDFToCDFMarginals_rcpp(data, marginals_bootstrap_new_PDFs);
+//								Rcout << "(i,j)=" << i << ", " << j << " Fill Ind=" << bootstrap_indices(i, j) << 
+//									" Val=" << NullT_marginals_PDFs(i, j) << "->" << marginals_bootstrap_new_PDFs(bootstrap_indices(i, j), j) << endl;
+							}
+//						Rcout << "PDF->CDF B = " << ctr << endl;
+//						Rcout << "marginals_bootstrap_new_PDFs:" << marginals_bootstrap_new_PDFs.nrow() << ", " << marginals_bootstrap_new_PDFs.ncol() << endl; 
+//						Rcout << "marginals_bootstrap_new_xy:" << marginals_bootstrap_new_xy.nrow() << ", " << marginals_bootstrap_new_xy.ncol() << endl;
+//						Rcout << "data:" << data.nrow() << ", " << data.ncol() << endl;
+						marginals_bootstrap_new_CDFs = PDFToCDFMarginals_rcpp(marginals["xy"], marginals_bootstrap_new_PDFs); // replaced data by marginals["xy"]
+//						Rcout << "Get Null B = " << ctr << endl;
 						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new_PDFs, TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA!
+//						Rcout << "Quarter From Boot B = " << ctr << endl;
 						expectations_table_new = QuarterProbFromBootstrap_rcpp(
 							marginals_bootstrap_new_xy, null_distribution_bootstrap_new["distribution"], grid_points);
+//						Rcout << "ComputeStatistic B = " << ctr << endl;
 						statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table_new); // NEW!Compute null statistic without recomputing the entire matrix 
 //						if (abs(statistics_under_null[ctr] - NullT_new) > 0.000000001)
 //							Rcout << "Error! should be zero ComputeStatisticBootstrap: " << abs(statistics_under_null[ctr] - NullT_new) << endl; 
