@@ -42,6 +42,9 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     prms$minp.eps <- "in"
     prms$keep.all <- 0 # set to 1 for plotting
     
+    if(!('w.max' %in% names(prms)))
+      prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun)
+    
     ## Parallel on multiple cores 
     ##    results.table<- foreach(i=seq(prms$iterations), .combine=rbind) %dopar%{ 
     ##      iteration_result <- matrix(0, 4, B+1)

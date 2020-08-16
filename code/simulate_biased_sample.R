@@ -136,7 +136,7 @@ SimulateSample <- function(n, dependence.type)
 w_fun_eval <- function(x, y, w.fun) {
   if(typeof(w.fun)=="character") {
     r <- switch(w.fun, 
-                'truncation'={x<y},
+                'truncation'={as.numeric(x<y)},
                 'Hyperplane_Truncation'={(x<y)},
                 'exp'= { exp((-abs(x)-abs(y))/4)},
                 'gaussian'={ exp((x**2-y**2)/2)},

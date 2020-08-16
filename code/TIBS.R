@@ -121,7 +121,7 @@ TIBS <- function(data, w.fun, test.type, prms)
              bootstrap <- Bootstrap(TrueT$marginals$xy, TrueT$marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
              if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
              {
-               new.bootstrap=0
+               new.bootstrap=1
                if(!new.bootstrap)
                  statistics.under.null[ctr] <- TIBS.steps(bootstrap$sample, w.fun, c(), grid.points, c(), prms)$Statistic
                else
@@ -134,7 +134,7 @@ TIBS <- function(data, w.fun, test.type, prms)
                    marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
                    marginals.bootstrap$PDFs[i,j] # NullT$marginals$PDFs[i,j]
                  #          marginals.bootstrap.new$PDFs <- marginals.bootstrap.new$PDFs / colSums(marginals.bootstrap.new$PDFs)  # normalize                 
-                 marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(data, marginals.bootstrap.new$PDFs)
+                 marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(TrueT$marginals$xy, marginals.bootstrap.new$PDFs)  # here what happens if we duplicate? 
                  null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
                  expectations.table.new <- QuarterProbFromBootstrap(
                    marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
