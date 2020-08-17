@@ -22,32 +22,36 @@ prms <- c()
 rho.max <- -0.05 # small correlations 
 
 n_vec <- c(100, 200, 500)
-prms$n <- n_vec[1]  # sample size 
-prms$use.cpp <- 1 
-w.fun <- 'truncation'
+prms$sample.size <- n_vec[1]  # sample size 
+prms$use.cpp <- 0
+w.fun <- 'sum'
 dependence.type <- 'LogNormal'
 pvals <- matrix(0, iters, length(B_vec))
 
-biased.data <- SimulateBiasedSample(prms$n, dependence.type, w.fun, prms) 
+
+prms.rho <- 0
+biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
 if(!('w.max' %in% names(prms)))
   prms$w.max <- biased.data$w.max
 
-
-# p.zero <- TIBS(biased.data$data, w.fun, test.type, prms)
-# p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
+p.zero <- TIBS(biased.data$data, w.fun, test.type, prms)
+p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
 
 for(n in n_vec)
 {
   prms$rho <- rho.max * min(n_vec) / n  # change rho to keep power the same 
-  prms$n <- n
-  biased.data <- SimulateBiasedSample(prms$n, dependence.type, w.fun, prms) 
+  prms$sample.size <- n
+  biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
   for(i in c(1:iters))
   {
     print(paste0("run i=", i, " out of ", iters))
     for(b in 1:length(B_vec))
     {
       prms$B <- B_vec[b]
+      start.time <- Sys.time()
       pvals[i,b] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue #  TIBS(biased.data, w.fun, cur.test.type, prms)
+      test.time <- difftime(Sys.time(), start.time, units='secs')
+      print(test.time)
     }
   }
   true.pval <- mean(pvals)
@@ -58,7 +62,7 @@ for(n in n_vec)
   jpeg(paste0("../figs/var_p_hat_", test.type, "_", w.fun, "_n_", n, ".jpg"), width = 400, height = 400)
   plot(B_vec, log10(theoretical.std), type="l", col="green", lwd=5, xlab="B", ylab="log_{10}(std)", 
        ylim=log10(range(empirical.std, theoretical.std)),
-       main=paste0(test.type, " std(p.hat) for n=", prms$n, " p.val=", round(true.pval, 3) ))
+       main=paste0(test.type, " std(p.hat) for n=", prms$sample.size, " p.val=", round(true.pval, 3) ))
   lines(B_vec, log10(empirical.std), col="red")
   legend(max(B_vec)*0.7, max(log10(empirical.std)), c("theoretical", "empirical"), lwd=c(5,2), col=c("green", "red"))
   dev.off()
