@@ -20,17 +20,18 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   {
     library(Rcpp)
     library(RcppArmadillo)
-    Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+    Rcpp::sourceCpp("code/C/utilities_ToR.cpp")  # all functions are here 
   }
   if('seed' %in% names(prms))
     set.seed(prms$seed)
   print(paste0("rho.inside=", prms.rho))
   run.flag = 1
   num.tests <- length(test.type)
-  
+  #browser()
   output.file <- paste0('results/', dependence.type, '_all_tests_results_B_', 
                         prms$B, '_iters_', prms$iterations, '_n_', prms$sample.size, '_rho_', paste(prms.rho, collapse = '_')) # set output file name
   num.prms <- length(prms.rho)
+  #browser()
   if((!run.flag) & file.exists(paste0(output.file, '.Rdata')))
     load(file=paste0(output.file, '.Rdata'))
   else
@@ -39,22 +40,46 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   for(i.prm in 1:num.prms) # loop on different simulation parameters - should plot for each of them? 
   {
     prms$rho = prms.rho[i.prm] # [[s]]
+    prms$W.max <- 1 # temp: 1 for all weights
     prms$minp.eps <- "in"
     prms$keep.all <- 0 # set to 1 for plotting
-    
-    if(!('w.max' %in% names(prms)))
-      prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun)
     
     ## Parallel on multiple cores 
     ##    results.table<- foreach(i=seq(prms$iterations), .combine=rbind) %dopar%{ 
     ##      iteration_result <- matrix(0, 4, B+1)
     for(i in 1:prms$iterations) # run simulations multiple times 
     { 
-      biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
-      all.data <- biased.data$all.data
-      biased.data <- biased.data$data 
+      if(dependence.type=='strictly_positive' && w.fun=='sum')
+      {
+        if(i==1)
+        {
+          biased.data <- SimulateBiasedSample(prms$sample.size, 
+                                              dependence.type, w.fun, 
+                                              prms, NA) 
+          all.data <- biased.data$all.data
+          biased.data <- biased.data$data 
+          #browser()
+        }else{
+          #browser()
+          biased.data <- SimulateBiasedSample(prms$sample.size, 
+                                              dependence.type, w.fun, 
+                                              prms, all.data) 
+          all.data <- biased.data$all.data
+          biased.data <- biased.data$data
+        }
+        
+      }else{
+        biased.data <- SimulateBiasedSample(prms$sample.size, 
+                                            dependence.type, 
+                                            w.fun, prms, NA) 
+        all.data <- biased.data$all.data
+        biased.data <- biased.data$data 
+      }
+      
+      
       if((!run.flag) & file.exists(paste0(output.file, '.Rdata'))) # simulate only once 
         break
+      
       for(t in c(1:length(test.type)))  # ALL TESTs !    #  c(1,2,6,7)) # loop on statistical tests . Last test (7) minP2 is very slow 
       {
         prms$fast.bootstrap <- 0 # method for computing null expectations 
@@ -87,10 +112,12 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
                cur.test.type <- 'permutations'}
         ) 
         start.time <- Sys.time()
-
+        #if(i==24 &&test.type[t]=='uniform_importance_sampling')
+          #browser()
         # new! run sequencial tests and stop early for bootstrap/permutations
         if(prms$sequential.stopping)
         {
+          #browser()
           block.size <- 50  # must divide prms$B !!! 
           prms$B <- ceil(prms$B / block.size) * block.size  # set a multiplication of block size 
           # prms$B <- block.size # wtf?
@@ -101,9 +128,9 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           for(b in 1:(prms$B/block.size))  # run block.size permutations each time 
           {
             if(prms$use.cpp)  # try running rcpp code 
-              cur.test.results <- TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet
+              cur.test.results<-TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet
             else
-              cur.test.results <- TIBS(biased.data, w.fun, cur.test.type, prms)
+              cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
             cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
             
             cur.conf.int <- binom.confint(cur.pvalue*block.size, b*block.size, conf.level = 1-prms$gamma, method = "wilson")
@@ -122,9 +149,11 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           }
         } else   # run full test: just simulate all B permutations 
         {
+          #browser()
           if(prms$use.cpp)
             test.results <- TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet 
           else
+            #browser()
             test.results <- TIBS(biased.data, w.fun, cur.test.type, prms)
         }
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')

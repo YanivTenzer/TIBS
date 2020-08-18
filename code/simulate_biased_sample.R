@@ -9,7 +9,7 @@
 # Output: 
 # data - an n*2 array with (x,y) values
 #########################################################################
-SimulateBiasedSample <- function(n, dependence.type, w.fun, prms)
+SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input_sample)
 {
   library('copula')
   
@@ -23,31 +23,68 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms)
     all.k <- 1
   }
   
-  if(!('w.max' %in% names(prms)))
-  {
-    prms$w.max <- set_w_max(2*n, dependence.type, w.fun)
-    print(paste0("Setting w.max=", round(prms$w.max, 4)))    
-  }
+  if(!('W.max' %in% names(prms)))
+    prms$W.max <- 1.0 # temp. W.max should be input    
   
-  k = 1
-  while(k<=n)
+  #browser()
+  if(dependence.type!='strictly_positive')
   {
-    if(is.function(dependence.type))  # new: sample from a general density function
-      xy <- dependence.type(1)  # dependence.type returns a sample vector of length 2
-    else  
-      xy <- SimulateSample(1, dependence.type)
-
+    k = 1
+    while(k<=n)
+    {
+      if(is.function(dependence.type))  # new: sample from a general density function
+        xy <- dependence.type(1)  # dependence.type returns a sample vector of length 2
+      else  
+        switch(dependence.type, # First sample from Fxy
+               'Gaussian' ={ library(mvtnorm)
+                 #browser()
+                 xy<-rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))         
+               },
+               'LogNormal'={ library(mvtnorm)
+                 xy<-exp(rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2)))         
+               },
+               'LD'={ library(copula)  # y ~ Weibull, x ~ Exponential 
+                 GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
+                 ranks<- rCopula(1, GaussianCop)
+                 xy <- rep(0, 2)
+                 xy[2]<-qweibull(ranks[,1], shape = 3, scale = 8.5, lower.tail = TRUE, log.p = FALSE)
+                 xy[1]<-qexp(ranks[,2], rate = 0.2)
+               }, 
+               'nonmonotone_nonexchangeable'={ library(copula)  # y ~ weibull, x ~ Gaussian copula 
+                 GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
+                 ranks<- rCopula(1, GaussianCop)
+                 xy <- rep(0, 2)
+                 xy[2]<-qweibull(ranks[,1], shape = 0.5, scale = 2, lower.tail = TRUE, log.p = FALSE)
+                 xy[1]<-0.5 * (ranks[,2] * sample(c(-1,1), 1)+ 1)
+                 # need to set a copula for the dependency between x and y
+               },
+               'Gumbel'= { # here rho must be > 1 
+                 xy <- qnorm(rCopula(1, gumbelCopula(prms$rho)))
+               }, 
+               'Clayton'={ library('copula')
+                 xy <- qnorm(rCopula(1, claytonCopula(prms$rho)))
+               }, 
+               'CLmix'={ library('copula')
+                 xy <- rCopula(1, claytonCopula(0.5-rbinom(1, 1, 0.5)))
+               }, 
+               'strictly_positive_1'={ library('mvtnorm')  # w(x,y) = exp( -(|x|+|y|)/4 ) < 1 
+                 xy <- rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))
+               },
+               'UniformStrip'={
+                 xy.abs.diff <- 2
+                 while(xy.abs.diff>prms$rho)
+                 {
+                   xy <- runif(2)
+                   xy.abs.diff <- abs(xy[2]-xy[1])
+                 }
+               }
+        ) # end switch 
+      
       # Next decide if to keep point based on W
       if(w.fun %in% c('truncation'))  # w(x,y)=1_{x<y}
         keep <- xy[1] <= xy[2]
       else       # w(x,y)>0 , use rejection sampling 
-      {
-#        print(c("xy = ", xy))
-#        print(c("w(x,y)=", w_fun_eval(xy[1], xy[2], w.fun)))
-#        print(c("binom.p=", w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max))
-         keep <- rand() < w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max  # rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max)
-#        print(c("keep=", keep))
-      }
+        keep <- rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$W.max)
       if(keep) 
       {
         data[k,] <- xy
@@ -61,68 +98,28 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms)
           all.data <- rbind(all.data, xy)
         all.k <- all.k+1
       }
-  } # end while   k <= n
-  
-  if(prms$keep.all)
-    return(list(data=data, all.data=all.data[1:(all.k-1),]), w.max=prms$w.max)
-  else
-    return(list(data=data, w.max=prms$w.max))
-}
-
-# Simulate sample without bias W 
-SimulateSample <- function(n, dependence.type)
-{
-  xy.mat <- matrix(0, n, 2)
-  for(i in c(1:n))
+    } # end while   k <= n
+    if(prms$keep.all)
+      return(list(data=data, all.data=all.data[1:(all.k-1),]))
+    else
+      return(list(data=data))
+  }else #dependence_type='strictly_positive:
   {
-    switch(dependence.type, # First sample from Fxy
-           'Gaussian' ={ library(mvtnorm)
-             xy <- rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))         
-           },
-           'LogNormal'={ library(mvtnorm)
-             xy <- exp(rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2)))         
-           },
-           'LD'={ library(copula)  # y ~ Weibull, x ~ Exponential 
-             GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
-             ranks<- rCopula(1, GaussianCop)
-             xy <- rep(0, 2)
-             xy[2]<-qweibull(ranks[,1], shape = 3, scale = 8.5, lower.tail = TRUE, log.p = FALSE)
-             xy[1]<-qexp(ranks[,2], rate = 0.2)
-           }, 
-           'nonmonotone_nonexchangeable'={ library(copula)  # y ~ weibull, x ~ Gaussian copula 
-             GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
-             ranks<- rCopula(1, GaussianCop)
-             xy <- rep(0, 2)
-             xy[2]<-qweibull(ranks[,1], shape = 0.5, scale = 2, lower.tail = TRUE, log.p = FALSE)
-             xy[1]<-0.5 * (ranks[,2] * sample(c(-1,1), 1)+ 1)
-             # need to set a copula for the dependency between x and y
-           },
-           'Gumbel'= { # here rho must be > 1 
-             xy <- qnorm(rCopula(1, gumbelCopula(prms$rho)))
-           }, 
-           'Clayton'={ library('copula')
-             xy <- qnorm(rCopula(1, claytonCopula(prms$rho)))
-           }, 
-           'CLmix'={ library('copula')
-             xy <- rCopula(1, claytonCopula(0.5-rbinom(1, 1, 0.5)))
-           }, 
-           'strictly_positive'={ library('mvtnorm')  # w(x,y) = exp( -(|x|+|y|)/4 ) < 1 
-             xy <- rmvnorm(1, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))
-           },
-           'UniformStrip'={
-             xy.abs.diff <- 2
-             while(xy.abs.diff>prms$rho)
-             {
-               xy <- runif(2)
-               xy.abs.diff <- abs(xy[2]-xy[1])
-             }
-           }
-    ) # end switch dependence.type
-    xy.mat[i,] <- xy 
-  }  
-  return(xy.mat)
+    if(is.na(input_sample))
+    {
+      xy<-rmvnorm(10^6, c(0,0), matrix(c(1,prms$rho, prms$rho,1),2,2))
+      xy[,1]<-exp(xy[,1])
+      xy[,2]<-exp(xy[,2])
+    }else
+      xy<-input_sample
+    
+    Z<-sum(rowSums(xy))
+    probs<-rowSums(xy)/Z
+    idx<-sample(seq(10^6), n, replace = TRUE, probs)
+    data<-xy[idx,]
+    return(list(data=data, all.data=xy))
+  }
 }
-
 
 #######################################################################
 # A set of biased sampling functions to be used 
@@ -136,14 +133,13 @@ SimulateSample <- function(n, dependence.type)
 w_fun_eval <- function(x, y, w.fun) {
   if(typeof(w.fun)=="character") {
     r <- switch(w.fun, 
-                'truncation'={as.numeric(x<y)},
+                'truncation'={x<y},
                 'Hyperplane_Truncation'={(x<y)},
                 'exp'= { exp((-abs(x)-abs(y))/4)},
-                'gaussian'={ exp((x**2-y**2)/2)},
                 'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
                 'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
                 'stritcly_positive'={exp((-abs(x)-abs(y))/4)}, # like exp? 
-                'sum'={x+y},  # only for positive x+y
+                'sum'={x+y},
                 'naive'={1})
   } else {  # here w.fun is a function. Apply it to the array 
     r <- w.fun(x,y)
@@ -186,10 +182,3 @@ w_str_to_fun <- function(w.str)
   return(w.fun)
 }
 
-# Determine empirically  w_max for functions where we don't know it (this is approximate and may fail)
-set_w_max <- function(n=1000, dependence.type, w.fun)
-{
-  xy <- SimulateSample(n, dependence.type)
-  return(5 * (max(w_fun_eval(xy[,1], xy[,2], w.fun)) + 5 * std(w_fun_eval(xy[,1], xy[,2], w.fun)) + 1.0))     
-} 
-  
