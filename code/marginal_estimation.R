@@ -38,7 +38,7 @@ EstimateMarginals <- function(data, w.fun, prms=c())
         Fx <- ecdf(data[,1])
         Fy <- ecdf(data[,2])
         CDF.table <- cbind(Fx(data[,1]),Fy(data[,2]))
-      } else {  # general biased sampling function (w.fun can be a function not a string) with exchangable distributions
+      } else { 
         #case 2: left truncation, use the estimator of Proposition 1 in the paper for exchangable distributions
         # Augment data to include both x and y values for each axis (due to symmetry)
         augment.data <- 1 # new: add xy values 

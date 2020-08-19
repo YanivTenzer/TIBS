@@ -109,6 +109,8 @@ TIBS <- function(data, w.fun, test.type, prms)
   #  grid.points <- cbind(data[,1], data[,2])  # keep original points 
   grid.points <- unique.matrix(data)  # set unique for ties? for discrete data
   
+  print("START TIBS")
+  
   switch(test.type,
          'bootstrap'={
            TrueT <- TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)  # compute statistic 
@@ -118,27 +120,40 @@ TIBS <- function(data, w.fun, test.type, prms)
            #           null.distribution.bootstrap <- null.distribution
            for(ctr in 1:prms$B) # heavy loop: run on bootstrap 
            {
-             bootstrap <- Bootstrap(TrueT$marginals$xy, TrueT$marginals$PDF, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
+             if(prms$use.cpp)
+               bootstrap <- Bootstrap_rcpp(TrueT$marginals$xy, TrueT$marginals$CDFs, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
+             else
+               bootstrap <- Bootstrap(TrueT$marginals$xy, TrueT$marginals$PDFs, w.fun, prms, dim(data)[1]) 
              if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
              {
                new.bootstrap=1
+               ttt <- TIBS.steps(bootstrap$sample, w.fun, c(), grid.points, c(), prms)
+               statistics.under.null[ctr] <- ttt$Statistic
                if(!new.bootstrap)
-                 statistics.under.null[ctr] <- TIBS.steps(bootstrap$sample, w.fun, c(), grid.points, c(), prms)$Statistic
+               {
+                 print("OLD")  # TEMP 
+               }
                else
                {
                  marginals.bootstrap <- EstimateMarginals(bootstrap$sample, w.fun)
-                 marginals.bootstrap.new <- TrueT$marginals; marginals.bootstrap.new$PDFs[] <-0
+                 marginals.bootstrap.new <- TrueT$marginals; marginals.bootstrap.new$PDFs[] <-0 # reorder marginals
                  for(i in c(1:n))
                    for(j in c(1:2))
                      marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] <- 
-                   marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
-                   marginals.bootstrap$PDFs[i,j] # NullT$marginals$PDFs[i,j]
+                   marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + (1/n) #                   marginals.bootstrap$PDFs[i,j] # NullT$marginals$PDFs[i,j]
                  #          marginals.bootstrap.new$PDFs <- marginals.bootstrap.new$PDFs / colSums(marginals.bootstrap.new$PDFs)  # normalize                 
                  marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(TrueT$marginals$xy, marginals.bootstrap.new$PDFs)  # here what happens if we duplicate? 
                  null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
                  expectations.table.new <- QuarterProbFromBootstrap(
                    marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
                  statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!                
+                 
+                 z0 <- max(abs(expectations.table.new - ttt$expectations.table))
+                 if(z0>0.00001)
+                   print(paste0("Should be zero expected table:", z0))
+                 z1 <- statistics.under.null[ctr] - ttt$Statistic
+                 if(z1>0.00001)
+                   print(paste0("Should be zero statistic:", z1))
                }               
              }
              else # use same expectation as original sample 
@@ -165,15 +180,15 @@ TIBS <- function(data, w.fun, test.type, prms)
                      marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
                      NullT$marginals$PDFs[i,j]
                  #          marginals.bootstrap.new$PDFs <- marginals.bootstrap.new$PDFs / colSums(marginals.bootstrap.new$PDFs)  # normalize                 
-               marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(data, marginals.bootstrap.new$PDFs)
-               null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
-               expectations.table.new <- QuarterProbFromBootstrap(
-                marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
-               NullT.new <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!  
-               if(abs(statistics.under.null[ctr] - NullT.new )>0.000000001)
-                 print(paste0("Error! should be zero ComputeStatisticBootstrap: ", abs(statistics.under.null[ctr] - NullT.new )))
-               
-               
+                 marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(data, marginals.bootstrap.new$PDFs)
+                 null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
+                 expectations.table.new <- QuarterProbFromBootstrap(
+                   marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
+                 NullT.new <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!  
+                 if(abs(statistics.under.null[ctr] - NullT.new )>0.000000001)
+                   print(paste0("Error! should be zero ComputeStatisticBootstrap: ", abs(statistics.under.null[ctr] - NullT.new )))
+                 
+                 
                  
                  #               
                  #               is.eq <- matrix(0, n, n)
@@ -306,8 +321,8 @@ TIBS <- function(data, w.fun, test.type, prms)
                expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
            } else
              expectations.table <- c()
-#           print(expectations.table[1:5,])
-#           print(P[1:5,1:5]) # show P_ij 
+           #           print(expectations.table[1:5,])
+           #           print(P[1:5,1:5]) # show P_ij 
            TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
            
@@ -319,7 +334,7 @@ TIBS <- function(data, w.fun, test.type, prms)
                statistics.under.null[ctr] <- ComputeStatistic_rcpp( # need to modify to calculate grid.points inside function!
                  cbind(data[,1], data[Permutations[,ctr],2]), grid.points, TrueT$expectations.table)
              else 
-                statistics.under.null[ctr] <- ComputeStatistic( # here calculate grid.points inside function ! 
+               statistics.under.null[ctr] <- ComputeStatistic( # here calculate grid.points inside function ! 
                  cbind(data[,1], data[Permutations[,ctr],2]), grid.points, TrueT$expectations.table)$Statistic
            }
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null, Permutations=Permutations)
@@ -358,7 +373,7 @@ TIBS <- function(data, w.fun, test.type, prms)
              expectations.table <- c()
            TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
-
+           
            output <- IS.permute(data, prms$B, w.fun, TrueT$expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          },
          'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W

@@ -286,15 +286,15 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
   idx.x <- idx.x[which.max(data[idx.x,1])] # min
   if(isempty(idx.x))  # new: take care of edges 
     idx.x <- which.min(data[,1])
-    
+
   if(QId %in% c(1,4))
     idx.y <- which(data[,2] <= Point[2]) # >= 
   else
     idx.y <- which(data[,2] < Point[2])
   idx.y <- idx.y[which.max(data[idx.y,2])] # min 
-  if(isempty(idx.x))  # new: take care of edges 
+  if(isempty(idx.y))  # new: take care of edges 
     idx.y <- which.min(data[,2])
-  
+
   if(isempty(idx.x) | isempty(idx.y)) # didn't find any - why zero? 
     cdf.point <- 0  #    return(0)     
   else
@@ -322,7 +322,6 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 GetQuarterExpectedProb2 <- function(Point, QId, data, null.distribution.CDF)
 {
   Point.minus <-  Point - .Machine$double.eps
-    epsilon <- 
   switch(QId, # First sample from Fxy
          {S <- 1 + ecdf2(Point, null.distribution.CDF, data)  - 
            ecdf2(c(Point[1], max(data[,2])), null.distribution.CDF, data) - 
@@ -356,11 +355,14 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
   #  print(dim(null.distribution))
   null.distribution.CDF <- PDFToCDF2d(null.distribution, data) 
   
-  for(i in seq(1, dim(grid.points)[1],1))
+  for(i in seq(1, dim(grid.points)[1],1)) # find empty indices 
   {
-    for(j in 1:3)
-      mass.table[i,j] <- GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)
-    mass.table[i,4] = 1-sum( mass.table[i,1:3]) # , epsilon)
+    for(j in 1:3) # print index ? 
+    {
+#      print(paste0("Run i=", i, " j=", j))
+      mass.table[i,j] <- GetQuarterExpectedProb2(grid.points[i,], j, data, null.distribution.CDF)  # new! try using ecdf2 
+    }
+    mass.table[i,4] = 1-sum(mass.table[i,1:3]) # , epsilon)
   }
   mass.table <- dim(data)[1]*mass.table # normalize to counts 
   
@@ -490,16 +492,25 @@ PDFToCDF2d <- function(pdf.2d, data)
   return( cdf.2d[invPerm(Px$ix), invPerm(Py$ix)] )  # why Py first and then Px? 
 }
 
-# A test function for two-dimensional empirical cdf
+
+# Compute one-dimensional empirical cdf
+ecdf1 <- function(x, cdf, data)
+{
+  i <- which(data <= x)
+  i <- i[which.max(data[i])]
+  if(isempty(i))
+    return(0.0)
+  return(cdf[i])  
+}
+
+
+# Compute two-dimensional empirical cdf
 ecdf2 <- function(xy, cdf.2d, data)
 {
-  i <- which(xy[1] >= data[,1])
+  i <- which(data[,1] <= xy[1])
   i <- i[which.max(data[i,1])]
-  j <- which(xy[2] >= data[,2])
+  j <- which(data[,2] <= xy[2])
   j <- j[which.max(data[j,2])]
-#  i <- which.max(data[xy[1] >= data[,1],1])
-#  j <- which.max(data[xy[2] >= data[,2],2])
-#  print(c(i,j))
   if(isempty(i) | isempty(j))
     return(0.0)
   return(cdf.2d[i,j])  
@@ -683,8 +694,17 @@ ReadDataset <- function(data_str)
              Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
              w.fun[d] <- function(x,y){(x<y)*Srv.C1(y-x)}  # modify w.fun 
            }
+         }, # end Dementia
            #           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
-         }
+           'ChanningHouse'={
+             data("channing",package = "boot")
+             x <- channing$entry
+             y <- channing$exit
+             cens <- channing$cens  # here we have also censoring 
+             
+           # Read Channing House dataset : FILL CODE
+           }
+           
   ) # end switch 
   
   if(!is.numeric(input.data))   # unlist and keep dimensions for data 
