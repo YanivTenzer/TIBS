@@ -15,6 +15,9 @@ EstimateMarginals <- function(data, w.fun, prms=c())
   if(!missing(prms))     # get marginal CDFs from PDFs
     PDF.table <- iterative_marginal_estimation(data, w.fun)
 
+  n <- dim(data)[1]
+  
+  indices <- cbind(c(1:n), c((n+1):(2*n)))
   if(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs')) # for w(x,y)>0 cases 
   { #case 1: strictly positive W, use ML estimator
     w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun)
@@ -24,7 +27,6 @@ EstimateMarginals <- function(data, w.fun, prms=c())
   } else { 
     if(w.fun %in% c('survival'))  # what is the definition of w here? 
     { # Estimate marginals using Kaplan-Meier estimator 
-      n <- dim(data)[1]
       require(survival)
       y.srv <- Surv(time=data[,1], time2=data[,2], event = rep(1,n))
       x.srv <- Surv(time=-data[,2], time2=-data[,1], event = rep(1,n))
@@ -43,9 +45,13 @@ EstimateMarginals <- function(data, w.fun, prms=c())
         # Augment data to include both x and y values for each axis (due to symmetry)
         augment.data <- 1 # new: add xy values 
         if(augment.data) # duplicate x and y values 
-          data <- cbind(union(data[,1], data[,2]), union(data[,1], data[,2])) # change data size: n-> 2*n 
-        F1 <- ecdf(data[,1])  
+        {
+          data <- cbind(c(data[,1], data[,2]), c(data[,1], data[,2])) # change data size: n-> 2*n . This looses counts !!!! 
+          indices <- cbind(c(1:(2*n)), c(1:(2*n)))
+        }
+        F1 <- ecdf(data[,1])  # Wrong! this doesn't take ties into account 
         F2 <- ecdf(data[,2])
+#        data <- unique(data)  # remove duplicates 
         Fx <- (F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y
         Fy <- (F1(data[,2])+F2(data[,2]))/2   
         CDF.table<-cbind(Fx,Fy)
@@ -53,8 +59,8 @@ EstimateMarginals <- function(data, w.fun, prms=c())
     } # end if 
     PDF.table <- CDFToPDFMarginals(CDF.table)
   }  # else on w.fun type 
-  save(data, PDF.table, CDF.table, file='cdfpdf.Rdata')
-  return( list(xy=data, CDFs=CDF.table, PDFs=PDF.table) ) # new: return also x,y (might be different than original)
+#  save(data, PDF.table, CDF.table, file='cdfpdf.Rdata')
+  return( list(xy=data, CDFs=CDF.table, PDFs=PDF.table, indices=indices) ) # new: return also x,y (might be different than original)
 }
 
 

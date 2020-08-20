@@ -357,14 +357,11 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
   
   for(i in seq(1, dim(grid.points)[1],1)) # find empty indices 
   {
-    for(j in 1:3) # print index ? 
-    {
-#      print(paste0("Run i=", i, " j=", j))
+    for(j in 1:4) # print index ? 
       mass.table[i,j] <- GetQuarterExpectedProb2(grid.points[i,], j, data, null.distribution.CDF)  # new! try using ecdf2 
-    }
-    mass.table[i,4] = 1-sum(mass.table[i,1:3]) # , epsilon)
+#    mass.table[i,4] = 1-sum(mass.table[i,1:3]) # , epsilon)
   }
-  mass.table <- dim(data)[1]*mass.table # normalize to counts 
+#  mass.table <- dim(data)[1]*mass.table # NEW! Do NOT normalize to counts - this should be sample size n, NOT the data size! 
   
   return(mass.table)
 }
@@ -435,7 +432,7 @@ CDFToPDFMarginals <- function(CDF.table)
   PDF.table <- array(0L, dim(CDF.table))  # matrix(0, num.samples, num.variables)
   for(i in 1:dim(CDF.table)[2])  # loop on variables 
   {
-    Px<-sort(CDF.table[,i], index.return=TRUE)
+    Px <- sort(CDF.table[,i], index.return=TRUE)
     PDF.table[Px$ix,i] <- c(Px$x[1], Px$x[-1]-Px$x[-n])
   }
   return(PDF.table)
