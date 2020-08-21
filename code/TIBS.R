@@ -33,7 +33,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
       if((!prms$naive.expectation) & (missing(w.mat) | isempty(w.mat)))
         w.mat = w_fun_to_mat_rcpp(marginals$xy, w.fun) # compute W again for augmented data
       null.distribution <- GetNullDistribution_rcpp(marginals$PDF, as.matrix(w.mat))
-      expectations.table <- QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)          
+      expectations.table <- prms$sample.size * QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)          
     }
     T <- ComputeStatistic_rcpp(data, grid.points, expectations.table)  # keep same grid points for bootstrap sample?
   } else # use R
@@ -44,7 +44,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
       if((!prms$naive.expectation) & (missing(w.mat) | isempty(w.mat)))
         w.mat = w_fun_to_mat(marginals$xy, w.fun) # compute W again for augmented data
       null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
-      expectations.table <- QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)             
+      expectations.table <- prms$sample.size * QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)             
     }
     T <- ComputeStatistic(data, grid.points, expectations.table)$Statistic  # keep same grid points for bootstrap sample?
   }  
@@ -139,12 +139,21 @@ TIBS <- function(data, w.fun, test.type, prms)
                  marginals.bootstrap.new <- TrueT$marginals; marginals.bootstrap.new$PDFs[] <-0 # reorder marginals
                  for(i in c(1:n))
                    for(j in c(1:2))
+                   {
+                     new.i <- (marginals.bootstrap$indices[i,j]-1)%%n + 1
+                     new.j <- (marginals.bootstrap$indices[i,j]-1)%/%n + 1
+#                     print(i)
+#                     print(j)
+#                     print(new.i)
+#                     print(new.j)
                      marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] <- 
-                   marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + (1/n) #                   marginals.bootstrap$PDFs[i,j] # NullT$marginals$PDFs[i,j]
+                       marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
+                       marginals.bootstrap$PDFs[new.i, new.j] # NullT$marginals$PDFs[i,j]
+                   }
                  #          marginals.bootstrap.new$PDFs <- marginals.bootstrap.new$PDFs / colSums(marginals.bootstrap.new$PDFs)  # normalize                 
                  marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(TrueT$marginals$xy, marginals.bootstrap.new$PDFs)  # here what happens if we duplicate? 
                  null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
-                 expectations.table.new <- QuarterProbFromBootstrap(
+                 expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap(
                    marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
                  statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!                
                  
@@ -167,119 +176,6 @@ TIBS <- function(data, w.fun, test.type, prms)
                  #                 print(paste0("should be zero ComputeStatistic: ", max(abs(statistics.under.null[ctr] - NullT.cpp ))))
                }
              }
-             test.new.bootstrap = 0
-             if(test.new.bootstrap)             
-             {
-               #               NullT <- TIBS.steps(bootstrap$sample, w.fun, c(), grid.points, c(), prms)
-               #               marginals.bootstrap <- EstimateMarginals(bootstrap$sample, w.fun)
-               #               null.distribution.bootstrap <- GetNullDistribution(marginals.bootstrap$PDF, NullT$w.mat)
-               marginals.bootstrap.new <- TrueT$marginals; marginals.bootstrap.new$PDFs[] <-0
-               for(i in c(1:n))  # copy with bootstrap indices order 
-                 for(j in c(1:2))
-                   marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] <- 
-                     marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
-                     NullT$marginals$PDFs[i,j]
-                 #          marginals.bootstrap.new$PDFs <- marginals.bootstrap.new$PDFs / colSums(marginals.bootstrap.new$PDFs)  # normalize                 
-                 marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(data, marginals.bootstrap.new$PDFs)
-                 null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
-                 expectations.table.new <- QuarterProbFromBootstrap(
-                   marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
-                 NullT.new <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!  
-                 if(abs(statistics.under.null[ctr] - NullT.new )>0.000000001)
-                   print(paste0("Error! should be zero ComputeStatisticBootstrap: ", abs(statistics.under.null[ctr] - NullT.new )))
-                 
-                 
-                 
-                 #               
-                 #               is.eq <- matrix(0, n, n)
-                 #               for(i in c(1:n))
-                 #                 for(j in c(1:n))
-                 #                   is.eq[i,j] = abs(marginals.bootstrap$PDFs[i,1] - marginals.bootstrap.new$PDFs[j,1])
-                 #               num_eq_PDF = sum(is.eq < 0.00000001)
-                 #               is.eq.cdf <- matrix(0, n, n)
-                 #               for(i in c(1:n))
-                 #                 for(j in c(1:n))
-                 #                   is.eq.cdf[i,j] = abs(marginals.bootstrap$CDFs[i,1] - marginals.bootstrap.new$CDFs[j,1])
-                 #               num_eq_CDF = sum(is.eq.cdf < 0.00000001)
-                 #               for(i in c(1:n))
-                 #               {
-                 #                 jj <- which(marginals.bootstrap$xy[,1] == marginals.bootstrap.new$xy[i,1])
-                 #                 if(length(jj)==1)
-                 #                 {
-                 #                   print(c(i, jj))
-                 #                   print(marginals.bootstrap.new$PDFs[i,1] - marginals.bootstrap$PDFs[jj,1]) 
-                 #                   print(marginals.bootstrap.new$CDFs[i,1] - marginals.bootstrap$CDFs[jj,1]) 
-                 #                   #                   print(null.distribution.bootstrap$distribution[i,i] -   null.distribution.bootstrap.new$distribution[jj,jj])
-                 #                 }
-                 #                 jj <- which(marginals.bootstrap$xy[,2] == marginals.bootstrap.new$xy[i,2])
-                 #                 if(length(jj)==1)
-                 #                 {
-                 #                   print(marginals.bootstrap.new$PDFs[i,2] - marginals.bootstrap$PDFs[jj,2]) 
-                 #                   print(marginals.bootstrap.new$CDFs[i,2] - marginals.bootstrap$CDFs[jj,2]) # ?
-                 #                 }
-                 #               }
-                 
-                 
-                 #               ttt <- table(bootstrap$indices[,1])
-                 #               u = ttt[ttt==1]
-                 #               u = as.double(names(u)) # get unique indices 
-                 #               v = which(bootstrap$indices[,1] %in% u)
-                 #               u = bootstrap$indices[v,1]          
-                 #               ttt2 <- table(bootstrap$indices[,2])
-                 #               u2 = ttt2[ttt2==1]  # get unique 
-                 #               u2 = as.double(names(u2)) # get unique indices 
-                 #               v2 = which(bootstrap$indices[,2] %in% u2)
-                 #               u2 = bootstrap$indices[v2,2]          
-                 #               marginals.bootstrap$PDFs[v,1] -  marginals.bootstrap.new$PDFs[u,1]
-                 #               marginals.bootstrap$CDFs[v,1] -  marginals.bootstrap.new$CDFs[u,1]
-                 #               marginals.bootstrap$PDFs[v2,2] -  marginals.bootstrap.new$PDFs[u2,2]
-                 #               marginals.bootstrap$CDFs[v2,2] -  marginals.bootstrap.new$CDFs[u2,2]
-                 #               max(abs(NullT$w.mat[v,v2] - TrueT$w.mat[u,u2]))  # matching w.mat 
-                 #               max(abs(null.distribution.bootstrap$distribution[v,v2] - null.distribution.bootstrap.new$distribution[u,u2]))
-                 #               
-                 #               # Next, test the 2d CDFs:
-                 #               boot.cdf.2d <- PDFToCDF2d(null.distribution.bootstrap$distribution, marginals.bootstrap$xy)
-                 #               new.cdf.2d <- PDFToCDF2d(null.distribution.bootstrap.new$distribution, TrueT$marginals$xy)
-                 #               for(i in c(1:n))
-                 #               {
-                 #                 should.be.zero.cdf2d <- ecdf2(data[i,], boot.cdf.2d, marginals.bootstrap$xy) - 
-                 #                 ecdf2(data[i,], new.cdf.2d, TrueT$marginals$xy)
-                 #                 print(should.be.zero.cdf2d)
-                 #                 I = which(TrueT$marginals$xy[,1] <= data[i,1])
-                 #                 J = which(TrueT$marginals$xy[,2] <= data[i,2])
-                 #                 sum(null.distribution.bootstrap.new$distribution[I,J])
-                 #                 I2 = which(marginals.bootstrap$xy[,1] <= data[i,1])
-                 #                 J2 = which(marginals.bootstrap$xy[,2] <= data[i,2])
-                 #                 sum(null.distribution.bootstrap$distribution[I2,J2])
-                 #                 
-                 #               }
-                 #               print("Tested CDF2D")                 
-                 #               print("WTF?")
-                 #               for(i in c(1:n))  # next test quarter 
-                 #               {
-                 #                 boot.Q1 <- GetQuarterExpectedProb(data[i,], 1, marginals.bootstrap$xy, boot.cdf.2d)
-                 #                 new.Q1 <- GetQuarterExpectedProb(data[i,], 1, marginals.bootstrap.new$xy, new.cdf.2d)
-                 #                 boot.Q1.2 <- GetQuarterExpectedProb2(data[i,], 1, marginals.bootstrap$xy, boot.cdf.2d)
-                 #                 new.Q1.2 <- GetQuarterExpectedProb2(data[i,], 1, marginals.bootstrap.new$xy, new.cdf.2d)
-                 #                 print(paste0("Diff1: ", boot.Q1 - new.Q1, " Diff ecdf: ", boot.Q1-boot.Q1.2))
-                 #                 boot.Q2 <- GetQuarterExpectedProb(data[i,], 2, marginals.bootstrap$xy, boot.cdf.2d)
-                 #                 new.Q2 <- GetQuarterExpectedProb(data[i,], 2, marginals.bootstrap.new$xy, new.cdf.2d)
-                 #                 boot.Q2.2 <- GetQuarterExpectedProb2(data[i,], 2, marginals.bootstrap$xy, boot.cdf.2d)
-                 #                 new.Q2.2 <- GetQuarterExpectedProb2(data[i,], 2, marginals.bootstrap.new$xy, new.cdf.2d)
-                 #                 print(paste0("Diff2: ", boot.Q2 - new.Q2, " Diff ecdf: ", boot.Q2-boot.Q2.2))
-                 #                 boot.Q3 <- GetQuarterExpectedProb(data[i,], 3, marginals.bootstrap$xy, boot.cdf.2d)
-                 #                 new.Q3 <- GetQuarterExpectedProb(data[i,], 3, marginals.bootstrap.new$xy, new.cdf.2d)
-                 #                 boot.Q3.2 <- GetQuarterExpectedProb2(data[i,], 3, marginals.bootstrap$xy, boot.cdf.2d)
-                 #                 new.Q3.2 <- GetQuarterExpectedProb2(data[i,], 3, marginals.bootstrap.new$xy, new.cdf.2d)
-                 #                 print(paste0("Diff3: ", boot.Q3 - new.Q3, " Diff ecdf: ", boot.Q3-boot.Q3.2))
-                 #                 boot.Q4 <- GetQuarterExpectedProb(data[i,], 4, marginals.bootstrap$xy, boot.cdf.2d)
-                 #                 new.Q4 <- GetQuarterExpectedProb(data[i,], 4, marginals.bootstrap.new$xy, new.cdf.2d)
-                 #                 boot.Q4.2 <- GetQuarterExpectedProb2(data[i,], 4, marginals.bootstrap$xy, boot.cdf.2d)
-                 #                 new.Q4.2 <- GetQuarterExpectedProb2(data[i,], 4, marginals.bootstrap.new$xy, new.cdf.2d)
-                 #                 print(paste0("Diff4: ", boot.Q4 - new.Q4, " Diff ecdf: ", boot.Q4-boot.Q4.2))
-                 #               }
-                 #               print("QUARTER")
-             } # if test new bootstrap
            }  # end loop on B bootstrap samples 
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
          },
