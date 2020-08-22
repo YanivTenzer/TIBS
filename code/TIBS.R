@@ -171,30 +171,10 @@ TIBS <- function(data, w.fun, test.type, prms)
                  statistics.under.null[ctr] <- ttt$Statistic
 #                 print("OLD")  # TEMP 
                }
-               else
+               else # do all steps except recomputing w_mat 
                {
                  marginals.bootstrap.new <- MarginalsBootstrapOrganized(TrueT$marginals, bootstrap, w.fun, prms)
                  
-#                 marginals.bootstrap <- EstimateMarginals(bootstrap$sample, w.fun)
-#                 marginals.bootstrap.new <- TrueT$marginals; marginals.bootstrap.new$PDFs[] <-0 # reorder marginals
-#                 for(i in c(1:n))
-#                   for(j in c(1:2))
-#                   {
-#                     new.i <- (marginals.bootstrap$indices[i,j]-1)%%n + 1
-#                     new.j <- (marginals.bootstrap$indices[i,j]-1)%/%n + 1
-##                     marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] <- 
-##                       marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
-##                       marginals.bootstrap$PDFs[new.i, new.j] # NullT$marginals$PDFs[i,j]  # works for "Standard Marginals"
-#                     marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], 1] <- 
-#                       marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], 1] + 
-#                       marginals.bootstrap$PDFs[i+(j-1)*n, 1]
-#                     marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], 2] <- 
-#                       marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], 2] + 
-#                       marginals.bootstrap$PDFs[i+(j-1)*n, 1]
-#                     
-#                   }
-#                 #          marginals.bootstrap.new$PDFs <- marginals.bootstrap.new$PDFs / colSums(marginals.bootstrap.new$PDFs)  # normalize                 
-#                 marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(TrueT$marginals$xy, marginals.bootstrap.new$PDFs)  # here what happens if we duplicate? 
                  null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
                  expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap(
                    marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)

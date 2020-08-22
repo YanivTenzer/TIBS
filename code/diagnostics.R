@@ -25,7 +25,7 @@ n_vec <- c(100, 200, 500)
 prms$sample.size <- n_vec[1]  # sample size 
 prms$use.cpp <- 0
 prms$sample.by.bootstrap <- 0 # enable new sampling method for general w 
-w.fun <- 'truncation' # truncation'
+w.fun <- 'sum' # truncation'
 dependence.type <- 'LogNormal'
 pvals <- matrix(0, iters, length(B_vec))
 

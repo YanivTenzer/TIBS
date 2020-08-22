@@ -1079,7 +1079,7 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fun, List p
 
 	while (k < n)
 	{	
-		double r = double(rand()) / RAND_MAX;
+//		double r = double(rand()) / RAND_MAX;
 
 		i = binary_search_rcpp(cdfs(_, 0), double(rand()) / RAND_MAX, 0); // need to first sort the cdfs ! 
 		j = binary_search_rcpp(cdfs(_, 1), double(rand()) / RAND_MAX, 0);
@@ -1132,6 +1132,113 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fun, List p
 // New: try to write the entire TIBS function in cpp: 
 
 
+// A special function for copying bootstrap data 
+
+
+List BootstrapOIrganize_rcpp(List data_marginals, List bootstrap, string w_fun, List prms)
+{
+
+
+	long i, j;
+	long n = prms["sample.size"];
+	long marginals_n = n; 
+	if((w_fun == "truncation") || (w_fun == "Hyperplane_Truncation"))
+		marginals_n *= 2; // prms["sample.size"];
+//	else
+//		n = prms["sample.size"];
+
+//	Rcout << "Organize Inside" << endl; 
+	NumericMatrix bootstrap_indices = as<NumericMatrix>(bootstrap["indices"]); 
+//	Rcout << "Esitmate Marginals Inside" << endl; 
+	List marginals_bootstrap = EstimateMarginals_rcpp(as<NumericMatrix>(bootstrap["sample"]), w_fun);
+
+//	Rcout << "Copy Marginals ODFs" << endl; 
+	NumericMatrix marginals_bootstrap_PDFs = marginals_bootstrap["PDFs"];
+  	List marginals_bootstrap_organized; 
+//	Rcout << "Copy Marginals xy" << endl; 
+	marginals_bootstrap_organized["xy"] = as<NumericMatrix>(data_marginals["xy"]);
+//	cout << "marginals n: " << marginals_n << endl; 
+	NumericMatrix marginals_bootstrap_organized_PDFs(marginals_n, 2);
+//	Rcout << "Copy Marginals" << endl; 
+	if((w_fun == "truncation") || (w_fun == "Hyperplane_Truncation"))
+	{
+		for(i=0; i<n; i++)
+			for(j=0; j<2; j++)
+			{
+				Rcout << "i, j, inds: " << i << ", "  << j << ", " << bootstrap_indices(i, j) << endl; 
+				marginals_bootstrap_organized_PDFs(bootstrap_indices(i, j), 0) += marginals_bootstrap_PDFs(i+j*n, j); 
+				marginals_bootstrap_organized_PDFs(bootstrap_indices(i, j), 1) += marginals_bootstrap_PDFs(i+j*n, j); 
+			}
+	} else
+	{
+		for(i=0; i<n; i++)
+			for(j=0; j<2; j++)
+				marginals_bootstrap_organized_PDFs(bootstrap_indices(i, j), j) += marginals_bootstrap_PDFs(i, j); 
+	}
+	NumericMatrix marginals_bootstrap_organized_CDFs = PDFToCDFMarginals_rcpp(data_marginals["xy"], marginals_bootstrap_organized_PDFs); // replaced data by marginals["xy"]
+
+
+	marginals_bootstrap_organized["PDFs"] = marginals_bootstrap_organized_PDFs;
+	marginals_bootstrap_organized["CDFs"] = marginals_bootstrap_organized_CDFs;
+
+	return(marginals_bootstrap_organized);
+}
+/**
+	bootstrap_indices = as<IntegerMatrix>(bootstrap_sample["indices"]);
+	marginals_bootstrap = EstimateMarginals_rcpp(bootstrap_sample["sample"], w_fun);
+	NullT_marginals_PDFs = as<NumericMatrix>(marginals_bootstrap["PDFs"]);
+	marginals_bootstrap_new_PDFs = as<NumericMatrix>(marginals["PDFs"]);
+	marginals_bootstrap_new_xy = as<NumericMatrix>(marginals["xy"]);
+//						Rcout << "Fill zeros B = " << ctr << endl;
+	fill(marginals_bootstrap_new_PDFs.begin(), marginals_bootstrap_new_PDFs.end(), 0.0);
+//						Rcout << "Copy B = " << ctr << endl;
+	for (i = 0; i < n; i++)
+		for (j = 0; j < 2; j++)
+		{
+			marginals_bootstrap_new_PDFs(bootstrap_indices(i, j), j) += NullT_marginals_PDFs(i, j); // copy marginals 
+		}
+	marginals_bootstrap_new_CDFs = PDFToCDFMarginals_rcpp(marginals["xy"], marginals_bootstrap_new_PDFs); // replaced data by marginals["xy"]
+**/
+
+/** R code
+  if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
+    marginals.n <- 2*prms$sample.size
+  else
+    marginals.n <- prms$sample.size
+  
+  marginals.bootstrap <- EstimateMarginals(bootstrap$sample, w.fun)
+  marginals.bootstrap.organized <- c()
+  marginals.bootstrap.organized$xy <- data.marginals$xy
+  marginals.bootstrap.organized$PDFs <- matrix(0, marginals.n, 2) #   TrueT$marginals; marginals.bootstrap.organized$PDFs[] <-0 # reorder marginals
+  if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
+  {
+    for(i in c(1:prms$sample.size))
+      for(j in c(1:2))
+      {
+        marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 1] <- 
+          marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 1] + 
+          marginals.bootstrap$PDFs[i+(j-1)*prms$sample.size, 1]
+        marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 2] <- 
+          marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 2] + 
+          marginals.bootstrap$PDFs[i+(j-1)*prms$sample.size, 1]
+        
+      } 
+  } else 
+    for(i in c(1:prms$sample.size))
+      for(j in c(1:2))
+        marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], j] <- 
+          marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], j] + 
+            marginals.bootstrap$PDFs[i, j] # NullT$marginals$PDFs[i,j]  # works for "Standard Marginals"
+  
+  
+  marginals.bootstrap.organized$CDFs <- PDFToCDFMarginals(data.marginals$xy, marginals.bootstrap.organized$PDFs)  # here what happens if we duplicate? 
+  return(marginals.bootstrap.organized)  
+**/
+
+
+
+
+
 /**########################################################################
 # 
 # All steps of TIBS test :
@@ -1151,7 +1258,6 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 	long naive_expectation = 0;
 	if (prms.containsElementNamed("naive.expectation"))
 		naive_expectation = prms["naive.expectation"];
-
 
 	if (naive_expectation) // here we ignore W(using statistic for unbiased sampling)
 	{
@@ -1238,6 +1344,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long naive_expectation = 0;
 	if (prms.containsElementNamed("naive.expectation"))
 		naive_expectation = prms["naive.expectation"];
+	long new_bootstrap = TRUE; 
+	if (prms.containsElementNamed("new.bootstrap"))
+		new_bootstrap = prms["new.bootstrap"];
 
 
 //	if (!prms.containsElementNamed("delta"))
@@ -1296,7 +1405,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		TrueT = TrueTList["Statistic"];
 //		Rcout << "Computed TrueT TIBS RCPP Bootstrap" << endl;
 
-		List marginals = TrueTList["marginals"];
+		List marginals = TrueTList["marginals"]; // marginals for true data 
 		List bootstrap_sample; //  (n, 2);
 		/** New: use function above
 		// 3. Estimate the marginals
@@ -1331,7 +1440,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericVector statistics_under_null(B);
 //		List null_distribution_bootstrap = null_distribution;
 //		NumericMatrix w_mat_bootstrap(1,1);
-		long new_bootstrap = TRUE; 
 		NumericMatrix marginals_bootstrap_new_PDFs(n, 2);
 		NumericMatrix marginals_bootstrap_new_CDFs(n, 2);
 		NumericMatrix marginals_bootstrap_new_xy(n, 2);
@@ -1352,10 +1460,13 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		xy_temp = xy_sorted(_, 1);
 		xy_sorted(_, 1) = xy_temp.sort(); //  marginals["CDFs"];
 
+		List marginals_bootstrap_new;
+
+
 
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{
-//				Rcout << "Run B = " << ctr << endl;
+//				Rcout << "Run Bootstrap B = " << ctr << endl;
 
 				// statistics_under_null[ctr] = TIBS_steps_rcpp(bootstrap_sample, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
 				bootstrap_sample = Bootstrap_rcpp(xy_sorted, CDFs_sorted /*marginals["CDFs"]*/, w_fun, prms, n); // draw new sample.Problem: which pdf and data ?
@@ -1369,6 +1480,10 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 						statistics_under_null[ctr] = NullT["Statistic"];
 					} else
 					{
+
+//						Rcout << "Organize Marginals B = " << ctr << endl;
+						List marginals_bootstrap_new = BootstrapOIrganize_rcpp(marginals, bootstrap_sample, w_fun, prms);
+/**
 //						Rcout << "Estimate Marginals B = " << ctr << endl;
 						bootstrap_indices = as<IntegerMatrix>(bootstrap_sample["indices"]);
 						marginals_bootstrap = EstimateMarginals_rcpp(bootstrap_sample["sample"], w_fun);
@@ -1390,8 +1505,10 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 //						Rcout << "marginals_bootstrap_new_xy:" << marginals_bootstrap_new_xy.nrow() << ", " << marginals_bootstrap_new_xy.ncol() << endl;
 //						Rcout << "data:" << data.nrow() << ", " << data.ncol() << endl;
 						marginals_bootstrap_new_CDFs = PDFToCDFMarginals_rcpp(marginals["xy"], marginals_bootstrap_new_PDFs); // replaced data by marginals["xy"]
+**/
+
 //						Rcout << "Get Null B = " << ctr << endl;
-						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new_PDFs, TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA!
+						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new["PDFs"], TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA!
 //						Rcout << "Quarter From Boot B = " << ctr << endl;
 						expectations_table_new = QuarterProbFromBootstrap_rcpp(
 							marginals_bootstrap_new_xy, null_distribution_bootstrap_new["distribution"], grid_points);
