@@ -49,8 +49,9 @@ set.seed(4820)
 # filter the uncensored observations and apply TIBS
 ch.delta1 <- data.frame(x=xx[delta==1],y=yy[delta==1])
 for(i in 1:10){
-tibs.res <- TIBS(data=ch.delta1, w.fun=w.fun, test.type='permutations',
-                 prms=list(B=10000))
+#tibs.res <- TIBS_rcpp(data=ch.delta1, w.fun=w.fun, test.type='permutations',
+#                 prms=list(B=1000))
+tibs.res <- TIBS_rcpp(ch.delta1, w.fun, 'permutations', list(B=1000))
 print(tibs.res$Pvalue)
 }
 # 0.8229

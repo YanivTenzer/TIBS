@@ -24,15 +24,17 @@ rho.max <- -0.05 # small correlations
 n_vec <- c(100, 200, 500)
 prms$sample.size <- n_vec[1]  # sample size 
 prms$use.cpp <- 0
-w.fun <- 'sum'
+prms$sample.by.bootstrap <- 0 # enable new sampling method for general w 
+w.fun <- 'truncation' # truncation'
 dependence.type <- 'LogNormal'
 pvals <- matrix(0, iters, length(B_vec))
 
 
-prms.rho <- 0
+prms$rho <- 0
 biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
 if(!('w.max' %in% names(prms)))
   prms$w.max <- biased.data$w.max
+prms$B <- 200
 
 p.zero <- TIBS(biased.data$data, w.fun, test.type, prms)
 p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)

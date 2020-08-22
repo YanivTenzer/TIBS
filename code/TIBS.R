@@ -5,6 +5,44 @@ add.one.sqrt <- function(x) {
 }
 
 
+
+# Special function for arranging bootstrap marginals in the indices of the original sample 
+MarginalsBootstrapOrganized <- function(data.marginals, bootstrap, w.fun, prms)
+{
+  if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
+    marginals.n <- 2*prms$sample.size
+  else
+    marginals.n <- prms$sample.size
+  
+  marginals.bootstrap <- EstimateMarginals(bootstrap$sample, w.fun)
+  marginals.bootstrap.organized <- c()
+  marginals.bootstrap.organized$xy <- data.marginals$xy
+  marginals.bootstrap.organized$PDFs <- matrix(0, marginals.n, 2) #   TrueT$marginals; marginals.bootstrap.organized$PDFs[] <-0 # reorder marginals
+  if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
+  {
+    for(i in c(1:prms$sample.size))
+      for(j in c(1:2))
+      {
+        marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 1] <- 
+          marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 1] + 
+          marginals.bootstrap$PDFs[i+(j-1)*prms$sample.size, 1]
+        marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 2] <- 
+          marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 2] + 
+          marginals.bootstrap$PDFs[i+(j-1)*prms$sample.size, 1]
+        
+      } 
+  } else 
+    for(i in c(1:prms$sample.size))
+      for(j in c(1:2))
+        marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], j] <- 
+          marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], j] + 
+            marginals.bootstrap$PDFs[i, j] # NullT$marginals$PDFs[i,j]  # works for "Standard Marginals"
+  
+  
+  marginals.bootstrap.organized$CDFs <- PDFToCDFMarginals(data.marginals$xy, marginals.bootstrap.organized$PDFs)  # here what happens if we duplicate? 
+  return(marginals.bootstrap.organized)  
+}
+
 ########################################################################
 # 
 # All steps of TIBS test: 
@@ -127,42 +165,47 @@ TIBS <- function(data, w.fun, test.type, prms)
              if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
              {
                new.bootstrap=1
-               ttt <- TIBS.steps(bootstrap$sample, w.fun, c(), grid.points, c(), prms)
-               statistics.under.null[ctr] <- ttt$Statistic
                if(!new.bootstrap)
                {
-                 print("OLD")  # TEMP 
+                 ttt <- TIBS.steps(bootstrap$sample, w.fun, c(), grid.points, c(), prms)
+                 statistics.under.null[ctr] <- ttt$Statistic
+#                 print("OLD")  # TEMP 
                }
                else
                {
-                 marginals.bootstrap <- EstimateMarginals(bootstrap$sample, w.fun)
-                 marginals.bootstrap.new <- TrueT$marginals; marginals.bootstrap.new$PDFs[] <-0 # reorder marginals
-                 for(i in c(1:n))
-                   for(j in c(1:2))
-                   {
-                     new.i <- (marginals.bootstrap$indices[i,j]-1)%%n + 1
-                     new.j <- (marginals.bootstrap$indices[i,j]-1)%/%n + 1
-#                     print(i)
-#                     print(j)
-#                     print(new.i)
-#                     print(new.j)
-                     marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] <- 
-                       marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
-                       marginals.bootstrap$PDFs[new.i, new.j] # NullT$marginals$PDFs[i,j]
-                   }
-                 #          marginals.bootstrap.new$PDFs <- marginals.bootstrap.new$PDFs / colSums(marginals.bootstrap.new$PDFs)  # normalize                 
-                 marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(TrueT$marginals$xy, marginals.bootstrap.new$PDFs)  # here what happens if we duplicate? 
+                 marginals.bootstrap.new <- MarginalsBootstrapOrganized(TrueT$marginals, bootstrap, w.fun, prms)
+                 
+#                 marginals.bootstrap <- EstimateMarginals(bootstrap$sample, w.fun)
+#                 marginals.bootstrap.new <- TrueT$marginals; marginals.bootstrap.new$PDFs[] <-0 # reorder marginals
+#                 for(i in c(1:n))
+#                   for(j in c(1:2))
+#                   {
+#                     new.i <- (marginals.bootstrap$indices[i,j]-1)%%n + 1
+#                     new.j <- (marginals.bootstrap$indices[i,j]-1)%/%n + 1
+##                     marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] <- 
+##                       marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], j] + 
+##                       marginals.bootstrap$PDFs[new.i, new.j] # NullT$marginals$PDFs[i,j]  # works for "Standard Marginals"
+#                     marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], 1] <- 
+#                       marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], 1] + 
+#                       marginals.bootstrap$PDFs[i+(j-1)*n, 1]
+#                     marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], 2] <- 
+#                       marginals.bootstrap.new$PDFs[bootstrap$indices[i,j], 2] + 
+#                       marginals.bootstrap$PDFs[i+(j-1)*n, 1]
+#                     
+#                   }
+#                 #          marginals.bootstrap.new$PDFs <- marginals.bootstrap.new$PDFs / colSums(marginals.bootstrap.new$PDFs)  # normalize                 
+#                 marginals.bootstrap.new$CDFs <- PDFToCDFMarginals(TrueT$marginals$xy, marginals.bootstrap.new$PDFs)  # here what happens if we duplicate? 
                  null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
                  expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap(
                    marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
                  statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!                
                  
-                 z0 <- max(abs(expectations.table.new - ttt$expectations.table))
-                 if(z0>0.00001)
-                   print(paste0("Should be zero expected table:", z0))
-                 z1 <- statistics.under.null[ctr] - ttt$Statistic
-                 if(z1>0.00001)
-                   print(paste0("Should be zero statistic:", z1))
+#                 z0 <- max(abs(expectations.table.new - ttt$expectations.table))
+#                 if(z0>0.00001)
+#                   print(paste0("Should be zero expected table:", z0))
+#                 z1 <- statistics.under.null[ctr] - ttt$Statistic
+#                 if(z1>0.00001)
+#                   print(paste0("Should be zero statistic:", z1))
                }               
              }
              else # use same expectation as original sample 

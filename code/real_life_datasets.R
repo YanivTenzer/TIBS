@@ -32,7 +32,7 @@ B = 100 # 10000 # number of permutations/bootstrap samples
 plot.flag <- 1
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
-datasets <- c('huji', 'AIDS', 'ICU', 'Infection', 'Dementia')
+datasets <- c('huji', 'AIDS', 'ICU', 'Infection', 'Dementia', 'ChanningHouse')  # SHOULD ADD Channing and remove Dementia. 
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
 w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
 w.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  

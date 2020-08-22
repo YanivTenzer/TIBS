@@ -44,12 +44,12 @@ prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  seq(-0.9, 0.9, 0.1), 0.5, c(0), c(0))#seq(-0.9, 0.9, 0.1), 
                  #c(0)) # Parameters for each sampling type 
 
-
 test.type<- c('permutations','bootstrap')#c( 'permutations','permutations_inverse_weighting',
             #  #'uniform_importance_sampling',
             #  'uniform_importance_sampling_inverse_weighting',
             #  'bootstrap', 
-            #  'bootstrap_inverse_weighting')
+            #  'bootstrap_inverse_weighting', 
+            #  'min_P2', 'Tsai')
 num.sim <- length(dependence.type)
 if(run.flag == 1)
 {
@@ -73,7 +73,7 @@ for(s in run.dep) # Run all on the farm
 {
   for(num_of_observations in c(100))#seq(250, 400, 50))
   {
-    prms = list(B=1000, sample.size=num_of_observations, iterations=100, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=1) # set running parameters here ! 
+    prms = list(B=1000, sample.size=num_of_observations, iterations=100, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # set running parameters here ! 
     
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 

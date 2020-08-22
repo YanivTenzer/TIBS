@@ -37,10 +37,13 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   else
     test.pvalue <- test.time <- array(-1, c(num.prms, num.tests, prms$iterations)) 
   
+  if(!('w.max' %in% names(prms)))
+    prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun)
+  
+  
   for(i.prm in 1:num.prms) # loop on different simulation parameters - should plot for each of them? 
   {
     prms$rho = prms.rho[i.prm] # [[s]]
-    prms$W.max <- 1 # temp: 1 for all weights
     prms$minp.eps <- "in"
     prms$keep.all <- 0 # set to 1 for plotting
     

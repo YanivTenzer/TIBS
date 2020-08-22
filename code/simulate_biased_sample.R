@@ -21,7 +21,7 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
   if(prms$keep.all) # keep also data-points that we through away in biased samples
   {
     all.data <- matrix(0, 2*n, 2)
-    all.k <- 1
+    all.k <- 0
   }
   
   
@@ -36,7 +36,6 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
     prms$sample.by.bootstrap = 0
   if(prms$sample.by.bootstrap) # here use the method for drawing many samples from F_XY, treat the empirical distribution as F_XY and sample with wegihts w from it
   {
-    print("SAMPLE A LOT!")
     if(!exist('input.sample') | (is.na(input.sample)))
       xy <- SimulateSample(10^6, dependence.type, prms)  # draw a lot 
     else 
@@ -48,36 +47,42 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
   }
   
       
-  k = 1
-  while(k<=n)  # sample one by one (should change to sampling a vector)
+  k = 0
+  while(k<n)  # sample one by one (should change to sampling a vector)
   {
     if(is.function(dependence.type))  # new: sample from a general density function
-      xy <- dependence.type(1)  # dependence.type returns a sample vector of length 2
+      xy <- dependence.type(n-k)  # dependence.type returns a sample vector of length (n-k)*2
     else  
-      xy <- SimulateSample(1, dependence.type, prms)
+      xy <- SimulateSample(n-k, dependence.type, prms) # new! sample vector !
     
     # Next decide if to keep point based on W
     if(w.fun %in% c('truncation'))  # w(x,y)=1_{x<y}
-      keep <- xy[1] <= xy[2]
+      keep <- which(xy[,1] <= xy[,2])
     else       # w(x,y)>0 , use rejection sampling 
-      keep <- rand() < w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max  # rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max)
-    if(keep) 
+      keep <- which(rand(n-k,1) < w_fun_eval(xy[,1], xy[,2], w.fun)/prms$w.max)  # rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max)
+    n.keep <- length(keep)
+#    print(paste0("n-k: ", n-k, ", keep: ", n.keep))
+#    print(n.keep)
+#    print("copy data")
+    if(n.keep > 0) 
     {
-      data[k,] <- xy
-      k <- k+1
+      data[(k+1):(k+n.keep),] <- xy[keep,]
+      k <- k+n.keep
     }
+#    print("copy data all")
     if(prms$keep.all)
     {
-      if(all.k <= dim(all.data)[1])
-        all.data[all.k,] <- xy
+      if(all.k < dim(all.data)[1])
+        all.data[(all.k+1):(all.k+n-k),] <- xy
       else
         all.data <- rbind(all.data, xy)
-      all.k <- all.k+1
+      all.k <- all.k+n-k
     }
+#    print(k)
   } # end while   k <= n
-  
+#  print("return")
   if(prms$keep.all)
-    return(list(data=data, all.data=all.data[1:(all.k-1),]), w.max=prms$w.max)
+    return(list(data=data, all.data=all.data[1:all.k,]), w.max=prms$w.max)
   else
     return(list(data=data, w.max=prms$w.max))
 }
@@ -154,10 +159,10 @@ SimulateSample <- function(n, dependence.type, prms)
 w_fun_eval <- function(x, y, w.fun) {
   if(typeof(w.fun)=="character") {
     r <- switch(w.fun, 
-                'truncation'={x<y},
-                'Hyperplane_Truncation'={(x<y)},
-                'gaussian'= { exp((-x**2-y**2)/2)},
-                'exp'= { exp((-abs(x)-abs(y))/4)},
+                'truncation'={as.numeric(x<y)},
+                'Hyperplane_Truncation'={as.numeric(x<y)},
+                'gaussian'= {exp((-x**2-y**2)/2)},
+                'exp'= {exp((-abs(x)-abs(y))/4)},
                 'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
                 'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
                 'stritcly_positive'={exp((-abs(x)-abs(y))/4)}, # like exp? 
