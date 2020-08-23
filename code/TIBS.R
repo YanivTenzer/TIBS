@@ -39,7 +39,7 @@ MarginalsBootstrapOrganized <- function(data.marginals, bootstrap, w.fun, prms)
             marginals.bootstrap$PDFs[i, j] # NullT$marginals$PDFs[i,j]  # works for "Standard Marginals"
   
   
-  marginals.bootstrap.organized$CDFs <- PDFToCDFMarginals(data.marginals$xy, marginals.bootstrap.organized$PDFs)  # here what happens if we duplicate? 
+## NOT NEEDED!!!  marginals.bootstrap.organized$CDFs <- PDFToCDFMarginals(data.marginals$xy, marginals.bootstrap.organized$PDFs)  # here what happens if we duplicate? 
   return(marginals.bootstrap.organized)  
 }
 
@@ -147,8 +147,7 @@ TIBS <- function(data, w.fun, test.type, prms)
   #  grid.points <- cbind(data[,1], data[,2])  # keep original points 
   grid.points <- unique.matrix(data)  # set unique for ties? for discrete data
   
-  print("START TIBS")
-  
+
   switch(test.type,
          'bootstrap'={
            TrueT <- TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)  # compute statistic 

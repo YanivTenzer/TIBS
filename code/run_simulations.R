@@ -1,15 +1,16 @@
-path = 'C:/TIBS'  # change to your path
-
-setwd(path)
+rm(list=ls())
+gc()
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
+path = getwd()
 args=commandArgs(trailingOnly = TRUE)
-Rcpp::sourceCpp("Code/C/utilities_ToR.cpp")  # all functions are here 
+Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
-source('code/simulate_and_test.R')
-source('code/simulate_biased_sample.R')
-source('code/TIBS.R')
-source('code/marginal_estimation.R')
-source('code/utilities.R')
-source('code/import_samp.R')
+source('simulate_and_test.R')
+source('simulate_biased_sample.R')
+source('TIBS.R')
+source('marginal_estimation.R')
+source('utilities.R')
+source('import_samp.R')
 library(foreach)
 library(doSNOW)
 #library(parallel)
@@ -73,7 +74,7 @@ for(s in run.dep) # Run all on the farm
 {
   for(num_of_observations in c(100))#seq(250, 400, 50))
   {
-    prms = list(B=1000, sample.size=num_of_observations, iterations=100, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=0) # set running parameters here ! 
+    prms = list(B=1000, sample.size=num_of_observations, iterations=100, plot.flag=0, alpha=0.05, sequential.stopping=0, use.cpp=1) # set running parameters here ! 
     
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 

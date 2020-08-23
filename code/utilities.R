@@ -284,44 +284,55 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
   else
     idx.x <- which(data[,1] < Point[1]) # <=
   idx.x <- idx.x[which.max(data[idx.x,1])] # min
-  if(isempty(idx.x))  # new: take care of edges 
-    idx.x <- which.min(data[,1])
+#  if(isempty(idx.x))  # new: take care of edges - why take the min? 
+#    idx.x <- which.min(data[,1])
 
   if(QId %in% c(1,4))
     idx.y <- which(data[,2] <= Point[2]) # >= 
   else
     idx.y <- which(data[,2] < Point[2])
   idx.y <- idx.y[which.max(data[idx.y,2])] # min 
-  if(isempty(idx.y))  # new: take care of edges 
-    idx.y <- which.min(data[,2])
+#  if(isempty(idx.y))  # new: take care of edges 
+#    idx.y <- which.min(data[,2])
 
+#  print("IDX X,Y:")
+#  print(idx.x)
+#  print(idx.y)
   if(isempty(idx.x) | isempty(idx.y)) # didn't find any - why zero? 
     cdf.point <- 0  #    return(0)     
   else
     cdf.point <- null.distribution.CDF[idx.x, idx.y]
-    
+#   print("CDFPONIT")
+#   print(cdf.point)
 
   m <- which.max(data[,1])
   n <- which.max(data[,2])
-  
+  if(isempty(idx.x))
+    cdf.x <- 0
+  else
+    cdf.x <- null.distribution.CDF[idx.x, n]
+  if(isempty(idx.y))
+    cdf.y <- 0
+  else
+    cdf.y <- null.distribution.CDF[m, idx.y]
+        
 #  print(paste0("CDF2D: x,y: ", null.distribution.CDF[idx.x, idx.y], 
 #               " x, n: ", null.distribution.CDF[idx.x, n], 
 #               " m, y:", null.distribution.CDF[m, idx.y], 
 #               " m, n:", null.distribution.CDF[m, n]))
   
   switch(QId, # First sample from Fxy
-         {S <- 1 + cdf.point - 
-           null.distribution.CDF[idx.x, n] - null.distribution.CDF[m, idx.y]}, # 1
-         {S <- null.distribution.CDF[m, idx.y] - cdf.point}, # 2
+         {S <- 1 + cdf.point - cdf.x - cdf.y}, # 1
+         {S <- cdf.y - cdf.point}, # 2
          {S <- cdf.point}, # 3
-         {S <- null.distribution.CDF[idx.x, n] - cdf.point}) # 4
+         {S <- cdf.x - cdf.point}) # 4
   return(S)       
 }
 
 # New function version: using ecdf
 GetQuarterExpectedProb2 <- function(Point, QId, data, null.distribution.CDF)
 {
-  Point.minus <-  Point - .Machine$double.eps
+  Point.minus <-  Point - .Machine$double.eps*100 # need to have lower tolerance! 
   switch(QId, # First sample from Fxy
          {S <- 1 + ecdf2(Point, null.distribution.CDF, data)  - 
            ecdf2(c(Point[1], max(data[,2])), null.distribution.CDF, data) - 
@@ -358,7 +369,17 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
   for(i in seq(1, dim(grid.points)[1],1)) # find empty indices 
   {
     for(j in 1:4) # print index ? 
+    {
       mass.table[i,j] <- GetQuarterExpectedProb2(grid.points[i,], j, data, null.distribution.CDF)  # new! try using ecdf2 
+#      tmp_debug <-   GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)
+#      if(abs(tmp_debug - mass.table[i,j]) > 0.000001)
+#      {
+#        print("Quarter Mismatch!!!")
+#        save(grid.points, data, null.distribution.CDF, file='BadQuarter.Rdata')
+#        print(paste0("i,j=", i, ", ", j))        
+#      }
+    }      
+      
 #    mass.table[i,4] = 1-sum(mass.table[i,1:3]) # , epsilon)
   }
 #  mass.table <- dim(data)[1]*mass.table # NEW! Do NOT normalize to counts - this should be sample size n, NOT the data size! 

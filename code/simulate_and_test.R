@@ -20,7 +20,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   {
     library(Rcpp)
     library(RcppArmadillo)
-    Rcpp::sourceCpp("code/C/utilities_ToR.cpp")  # all functions are here 
+    Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
   }
   if('seed' %in% names(prms))
     set.seed(prms$seed)
@@ -38,9 +38,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     test.pvalue <- test.time <- array(-1, c(num.prms, num.tests, prms$iterations)) 
   
   if(!('w.max' %in% names(prms)))
-    prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun)
-  
-  
+    prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun, prms)
   for(i.prm in 1:num.prms) # loop on different simulation parameters - should plot for each of them? 
   {
     prms$rho = prms.rho[i.prm] # [[s]]
@@ -116,7 +114,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         ) 
         start.time <- Sys.time()
         #if(i==24 &&test.type[t]=='uniform_importance_sampling')
-          #browser()
+        #browser()
         # new! run sequencial tests and stop early for bootstrap/permutations
         if(prms$sequential.stopping)
         {
@@ -125,7 +123,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           prms$B <- ceil(prms$B / block.size) * block.size  # set a multiplication of block size 
           # prms$B <- block.size # wtf?
           prms$gamma <- 0.0001  # chance that we miss being below/above alpha at an early stop - 1/10000 for each block
-#          prms$z_gamma <- abs(qnorm(prms$gamma/2))
+          #          prms$z_gamma <- abs(qnorm(prms$gamma/2))
           cur.pvalue <- 0
           stop.flag <- 0
           for(b in 1:(prms$B/block.size))  # run block.size permutations each time 
