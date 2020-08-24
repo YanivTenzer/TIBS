@@ -603,8 +603,8 @@ NumericMatrix QuarterProbFromBootstrap_rcpp(NumericMatrix data, NumericMatrix nu
 	for (i = 0; i < n_grid; i++)  // loop on grid-points
 	{
 		cur_grid_points = grid_points(i,_); // 		cur_grid_points[1] = grid_points(i,1);
-		for (j = 0; j < 4; j++)
-			mass_table(i, j) = n * GetQuarterExpectedProb_rcpp(cur_grid_points, j, data, null_distribution_CDF);
+		for (j = 0; j < 4; j++)  // compute probabilities (normalize outside the function)
+			mass_table(i, j) = GetQuarterExpectedProb_rcpp(cur_grid_points, j, data, null_distribution_CDF);
 //		mass_table(i,3) = n - mass_table(i,2) - mass_table(i,1) - mass_table(i,0);  // we can't complete to one 
 	}
 	return(mass_table);
@@ -1120,7 +1120,6 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, string w_fun, List p
 		}
 /**/
 
-
 /*
 		for(m=0; m <n; m++)
 		{
@@ -1219,7 +1218,7 @@ List BootstrapOrganize_rcpp(List data_marginals, List bootstrap, string w_fun, L
 		for(i=0; i<n; i++)
 			for(j=0; j<2; j++)
 			{
-				Rcout << "i, j, inds: " << i << ", "  << j << ", " << bootstrap_indices(i, j) << endl; 
+//				Rcout << "i, j, inds: " << i << ", "  << j << ", " << bootstrap_indices(i, j) << endl; 
 				marginals_bootstrap_organized_PDFs(bootstrap_indices(i, j), 0) += marginals_bootstrap_PDFs(i+j*n, j); 
 				marginals_bootstrap_organized_PDFs(bootstrap_indices(i, j), 1) += marginals_bootstrap_PDFs(i+j*n, j); 
 			}
@@ -1255,6 +1254,7 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 	List marginals;
 	List null_distribution;
 	string use_w;
+	long n = data.nrow(); 
 //	Rcout << "Start TIBS STEPS" << endl; 
 	long naive_expectation = 0;
 	if (prms.containsElementNamed("naive.expectation"))
@@ -1278,8 +1278,16 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 //		Rcout << "Computed w_mat!" << endl;
 		null_distribution = GetNullDistribution_rcpp(marginals["PDFs"], w_mat);
 //		Rcout << "Computed Null Distribution!" << endl; 
-		expectations_table = QuarterProbFromBootstrap_rcpp(marginals["xy"], null_distribution["distribution"], grid_points);
-//		Rcout << "Computed BOOTSTRAP QuarterProb EXPECTED!" << endl;
+		expectations_table = double(n) * QuarterProbFromBootstrap_rcpp(marginals["xy"], null_distribution["distribution"], grid_points);
+/*		Rcout << "Computed BOOTSTRAP QuarterProb EXPECTED!" << endl;
+		long i, j; 
+		for(i=0; i<5; i++)
+		{
+			for(j=0; j<4; j++)
+				Rcout << " " << expectations_table(i,j); 
+			Rcout << endl;
+		}
+		*/
 	}
 
 
@@ -1444,7 +1452,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 ////						NumericMatrix marginals_bootstrap_new_xy = as<NumericMatrix>(marginals_bootstrap_new["xy"]);
 
 						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new["PDFs"], TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA!
-						expectations_table_new = QuarterProbFromBootstrap_rcpp(
+						expectations_table_new = double(n) * QuarterProbFromBootstrap_rcpp(
 							marginals_bootstrap_new["xy"], null_distribution_bootstrap_new["distribution"], grid_points);
 						statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table_new); // TEMP FOR TIMING !!! _new); // NEW!Compute null statistic without recomputing the entire matrix 
 					}
