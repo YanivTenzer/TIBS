@@ -55,21 +55,18 @@ arma::mat mm_mult(const arma::mat& lhs,
 {
 	return lhs * rhs;
 }
-
 // [[Rcpp::export(".vm")]]
 arma::mat vm_mult(const arma::vec& lhs,
 	const arma::mat& rhs)
 {
 	return lhs.t() * rhs;
 }
-
 // [[Rcpp::export(".mv")]]
 arma::mat mv_mult(const arma::mat& lhs,
 	const arma::vec& rhs)
 {
 	return lhs * rhs;
 }
-
 // [[Rcpp::export(".vv")]]
 arma::mat vv_mult(const arma::vec& lhs,
 	const arma::vec& rhs)
@@ -1046,7 +1043,6 @@ iterative_marginal_estimation < -function(data, w.fun)
 		f_x < -rep(0, n)
 		f_y < -rep(0, n)
 		w.mat < -w_fun_eval(data[, 1], data[, 2], w.fun)
-
 		for (t in 1 : iters)
 		{
 			f_x_prev < -f_x
@@ -1289,12 +1285,10 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 		}
 		*/
 	}
-
-
 	double T = ComputeStatistic_rcpp(data, grid_points, expectations_table);  // keep same grid points for bootstrap sample ?
 
-	List ret; 
-	ret["Statistic"] = T; ret["expectations_table"] = expectations_table; ret["marginals"] = marginals; ret["w_mat"] = w_mat; ret["null_distirbution"] = null_distribution; 
+	List ret; ret["Statistic"] = T; ret["expectations_table"] = expectations_table; 
+	ret["marginals"] = marginals; ret["w_mat"] = w_mat; ret["null_distirbution"] = null_distribution; 
 	return(ret);
 }
 
@@ -1314,7 +1308,7 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 # TrueT - test statistic for the data
 # statistics_under_null - vector of statistics under the null
 ########################################################################
-**/ /**/
+**/
 // [[Rcpp::export]]
 List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 {
@@ -1350,6 +1344,13 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long n = data.nrow();
 	long i, j; 
 
+	
+  NumericMatrix new_data(n, 2); // copy data 
+  for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
+     for (j = 0; j < 2; j++)
+         new_data(i, j) = data(i, j);
+
+	
 //	Rcout << " Read Input TIBS_RCPP. TEST-TYPE: " << test_type << endl; 
 
 
@@ -1363,7 +1364,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 //	= as<NumericMatrix>(wrap(grid_points_arma));  // set unique for ties ? for discrete data
 	List null_distribution;
 
-	/**/
 	// no switch (test_type) for strings in cpp
 	if(test_type == "bootstrap_inverse_weighting") 
 	{
@@ -1389,17 +1389,29 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		output["TrueT"] = TrueT;
 		output["statistics_under_null"] = statistics_under_null;
 	}
-	/**/
+
 	if(test_type == "bootstrap") 
 	{
 		NumericMatrix w_mat(1, 1);
 		NumericMatrix expectations_table(1, 1);
-//		Rcout << "Start TIBS RCPP Bootstrap" << endl;
+		Rcout << "Start TIBS RCPP Bootstrap Data Before" << endl;
+    for(i=0; i<5; i++)
+      Rcout << data(i,0) << " " << data(i,1) << endl; 
+  
 		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
 		TrueT = TrueTList["Statistic"];
-		NumericMatrix true_expectations_table = TrueTList["expectations_table"];
-//		Rcout << "Computed TrueT TIBS RCPP Bootstrap" << endl;
+//		NumericMatrix true_expectations_table = TrueTList["expectations_table"];
 
+    // sort data: :
+    NumericVector data_temp = data(_, 0);
+    data(_, 0) = data_temp.sort(); //  marginals["CDFs"];
+    data_temp = data(_, 1);
+    data(_, 1) = data_temp.sort(); //  marginals["CDFs"];
+    
+    
+		//		Rcout << "Computed TrueT TIBS RCPP Bootstrap" << endl;
+    // Run tibs again
+		TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
 		List marginals = TrueTList["marginals"]; // marginals for true data 
 		List bootstrap_sample; //  (n, 2);
 
@@ -1419,16 +1431,33 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		CDFs_sorted(_, 0) = CDF_temp.sort(); //  marginals["CDFs"];
 		CDF_temp = CDFs_sorted(_, 1);
 		CDFs_sorted(_, 1) = CDF_temp.sort(); //  marginals["CDFs"];
+
+		
+		Rcout << " TIBS RCPP Data BEFORE MARGINAL SORTING" << endl;
+		for(i=0; i<5; i++)
+		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+		
+		
 		NumericMatrix xy_sorted = as<NumericMatrix>(marginals["xy"]); // get sorted CDFs 
 		NumericVector xy_temp = xy_sorted(_, 0);
 		xy_sorted(_, 0) = xy_temp.sort(); //  marginals["CDFs"];
 		xy_temp = xy_sorted(_, 1);
 		xy_sorted(_, 1) = xy_temp.sort(); //  marginals["CDFs"];
 
+		Rcout << " TIBS RCPP Data AFTER MARGINAL SORTING" << endl;
+		for(i=0; i<5; i++)
+		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+		
+		
 		List marginals_bootstrap_new;
 
 		prms["w.max"] = set_w_max_rcpp_sample(data, w_fun); // set w.max for bootstrap sampling 
 
+		Rcout << " TIBS RCPP Data BEFORE BOOTSTRAP" << endl;
+		for(i=0; i<5; i++)
+		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+		
+		
 //		Rcout << "Run Bootstrap, NEW=" << new_bootstrap << endl; 
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{
@@ -1439,9 +1468,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 					bootstrap_sample = Bootstrap_rcpp(xy_sorted, CDFs_sorted /*marginals["CDFs"]*/, w_fun, prms, n); // draw new sample. Problem: which pdf and data ?
 				if (!fast_bootstrap) // re - estimate marginals for null expectation for each bootstrap sample
 				{
-					if (!new_bootstrap)
+				  List NullT = TIBS_steps_rcpp(bootstrap_sample["sample"], w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
+				  if (!new_bootstrap)
 					{
-						List NullT = TIBS_steps_rcpp(bootstrap_sample["sample"], w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
 						List NullT_marginals = NullT["marginals"];
 						statistics_under_null[ctr] = NullT["Statistic"];
 					} else
@@ -1455,16 +1484,42 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 						expectations_table_new = double(n) * QuarterProbFromBootstrap_rcpp(
 							marginals_bootstrap_new["xy"], null_distribution_bootstrap_new["distribution"], grid_points);
 						statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table_new); // TEMP FOR TIMING !!! _new); // NEW!Compute null statistic without recomputing the entire matrix 
+						
+						Rcout << "Expected old, new:" << endl;
+						NumericMatrix NullT_expectations_table = as<NumericMatrix>(NullT["expectations_table"]);
+						for(i=0; i<5; i++)
+						{
+						  Rcout << "Old: ";
+						  for(j=0; j<4; j++)
+						    Rcout << NullT_expectations_table(i, j) << " "; 
+						  Rcout << endl << "New: "; 
+						  for(j=0; j<4; j++)
+						    Rcout << expectations_table_new(i, j) << " "; 
+						  Rcout << endl; 
+						}
+						double z0 = max(abs(expectations_table_new - as<NumericMatrix>(NullT["expectations_table"])));
+						if(z0>0.00001)
+						  Rcout << "Should be zero expected table:" << z0 << endl; 
+						double z1 = statistics_under_null[ctr] - as<double>(NullT["Statistic"]);
+						if(abs(z1>0.00001))
+						  Rcout << "Should be zero statistic:" << statistics_under_null[ctr] << ", " 
+              << as<double>(NullT["Statistic"]) << endl;
+
 					}
 				} else // if fast bootstrap
 		//		Rcout << "Compute Bootstrap Statistic Under Null " << ctr << endl;
 					statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table);
-			}
+			} // counter for bootstrap iterations
+		
+		Rcout << " TIBS RCPP Data AFTER ALL BOOTSTRAPS" << endl;
+		for(i=0; i<5; i++)
+		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+		
 
 		output["TrueT"] = TrueT;
 		output["statistics_under_null"] = statistics_under_null;
 	}
-	/**/
+	
 	if(test_type == "permutations")
 	{
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
@@ -1587,6 +1642,12 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			Pvalue += (statistics_under_null[i] >= as<double>(output["TrueT"]));
 		output["Pvalue"] = Pvalue / double(B);
 	}
-	/**/
+
+
+		for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
+	  for (j = 0; j < 2; j++)
+	      data(i, j) = new_data(i, j); // copy back !! 
+
+		
 	return(output);
 }
