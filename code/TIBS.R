@@ -145,7 +145,7 @@ TIBS <- function(data, w.fun, test.type, prms)
   #  w.mat=w_fun_to_mat(data, w.fun)
   # 2.Create a grid of points, based on the data:
   #  grid.points <- cbind(data[,1], data[,2])  # keep original points 
-  grid.points <- unique.matrix(data)  # set unique for ties? for discrete data
+  grid.points <- data # no unique !!! unique.matrix(data)  # set unique for ties? for discrete data
   
 
   switch(test.type,

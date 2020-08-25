@@ -11,7 +11,7 @@ IS.permute <- function(data, B, w.fun=function(x){1}, expectations.table=c()){
   if(inverse.weight)
     TrueT <- ComputeStatistic.W(data, data, w.fun)$Statistic # no unique in grid-points 
   else
-    TrueT <- ComputeStatistic(data, data, expectations.table)$Statistic # no unique in grid-points 
+    TrueT <- ComputeStatistic(data, data, expectations.table)$Statistic # no unique in grid-points !!
   
   p.w <- matrix(0, B, 1)
   T.b <- matrix(0, B, 1) # statistics under null 

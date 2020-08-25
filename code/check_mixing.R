@@ -1,5 +1,7 @@
 # Test permutations mixing
-setwd("C:/Users/Or Zuk/Documents/GitHub/TIBS/code")  # Set to your directory 
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
+path = getwd()
+
 source('TIBS.R')
 library(PerMallows)
 
