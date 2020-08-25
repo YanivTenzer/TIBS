@@ -1394,9 +1394,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	{
 		NumericMatrix w_mat(1, 1);
 		NumericMatrix expectations_table(1, 1);
-		Rcout << "Start TIBS RCPP Bootstrap Data Before" << endl;
-    for(i=0; i<5; i++)
-      Rcout << data(i,0) << " " << data(i,1) << endl; 
+//		Rcout << "Start TIBS RCPP Bootstrap Data Before" << endl;
+//    for(i=0; i<5; i++)
+//      Rcout << data(i,0) << " " << data(i,1) << endl; 
   
 		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
 		TrueT = TrueTList["Statistic"];
@@ -1419,8 +1419,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericVector statistics_under_null(B);
 //		List null_distribution_bootstrap = null_distribution;
 //		NumericMatrix w_mat_bootstrap(1,1);
-		NumericMatrix marginals_bootstrap_new_CDFs(n, 2);
-		NumericMatrix marginals_bootstrap_new_xy(n, 2);
 		IntegerMatrix bootstrap_indices(n, 2);
 		List null_distribution_bootstrap_new;
 		NumericMatrix expectations_table_new(n, 4);
@@ -1433,9 +1431,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		CDFs_sorted(_, 1) = CDF_temp.sort(); //  marginals["CDFs"];
 
 		
-		Rcout << " TIBS RCPP Data BEFORE MARGINAL SORTING" << endl;
-		for(i=0; i<5; i++)
-		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+//		Rcout << " TIBS RCPP Data BEFORE MARGINAL SORTING" << endl;
+//		for(i=0; i<5; i++)
+//		  Rcout << data(i,0) << " " << data(i,1) << endl; 
 		
 		
 		NumericMatrix xy_sorted = as<NumericMatrix>(marginals["xy"]); // get sorted CDFs 
@@ -1444,18 +1442,17 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		xy_temp = xy_sorted(_, 1);
 		xy_sorted(_, 1) = xy_temp.sort(); //  marginals["CDFs"];
 
-		Rcout << " TIBS RCPP Data AFTER MARGINAL SORTING" << endl;
-		for(i=0; i<5; i++)
-		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+//		Rcout << " TIBS RCPP Data AFTER MARGINAL SORTING" << endl;
+//		for(i=0; i<5; i++)
+//		  Rcout << data(i,0) << " " << data(i,1) << endl; 
 		
 		
 		List marginals_bootstrap_new;
-
 		prms["w.max"] = set_w_max_rcpp_sample(data, w_fun); // set w.max for bootstrap sampling 
 
-		Rcout << " TIBS RCPP Data BEFORE BOOTSTRAP" << endl;
-		for(i=0; i<5; i++)
-		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+//		Rcout << " TIBS RCPP Data BEFORE BOOTSTRAP" << endl;
+//		for(i=0; i<5; i++)
+//		  Rcout << data(i,0) << " " << data(i,1) << endl; 
 		
 		
 //		Rcout << "Run Bootstrap, NEW=" << new_bootstrap << endl; 
@@ -1468,10 +1465,10 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 					bootstrap_sample = Bootstrap_rcpp(xy_sorted, CDFs_sorted /*marginals["CDFs"]*/, w_fun, prms, n); // draw new sample. Problem: which pdf and data ?
 				if (!fast_bootstrap) // re - estimate marginals for null expectation for each bootstrap sample
 				{
-				  List NullT = TIBS_steps_rcpp(bootstrap_sample["sample"], w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
 				  if (!new_bootstrap)
 					{
-						List NullT_marginals = NullT["marginals"];
+				    List NullT = TIBS_steps_rcpp(bootstrap_sample["sample"], w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
+				    List NullT_marginals = NullT["marginals"];
 						statistics_under_null[ctr] = NullT["Statistic"];
 					} else
 					{
@@ -1485,7 +1482,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 							marginals_bootstrap_new["xy"], null_distribution_bootstrap_new["distribution"], grid_points);
 						statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table_new); // TEMP FOR TIMING !!! _new); // NEW!Compute null statistic without recomputing the entire matrix 
 						
-						Rcout << "Expected old, new:" << endl;
+/**						Rcout << "Expected old, new:" << endl;
 						NumericMatrix NullT_expectations_table = as<NumericMatrix>(NullT["expectations_table"]);
 						for(i=0; i<5; i++)
 						{
@@ -1504,16 +1501,16 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 						if(abs(z1>0.00001))
 						  Rcout << "Should be zero statistic:" << statistics_under_null[ctr] << ", " 
               << as<double>(NullT["Statistic"]) << endl;
-
+**/
 					}
 				} else // if fast bootstrap
 		//		Rcout << "Compute Bootstrap Statistic Under Null " << ctr << endl;
 					statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table);
 			} // counter for bootstrap iterations
 		
-		Rcout << " TIBS RCPP Data AFTER ALL BOOTSTRAPS" << endl;
-		for(i=0; i<5; i++)
-		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+//		Rcout << " TIBS RCPP Data AFTER ALL BOOTSTRAPS" << endl;
+//		for(i=0; i<5; i++)
+//		  Rcout << data(i,0) << " " << data(i,1) << endl; 
 		
 
 		output["TrueT"] = TrueT;
@@ -1523,16 +1520,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	if(test_type == "permutations")
 	{
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
-/**
-		Rcout << "w_mat:" << endl;
-		for (i = 0; i < 5; i++)
-		{
-			Rcout << "i:" << i;
-			for (j = 0; j < 5; j++)
-				Rcout << ", " << w_mat(i, j);
-			Rcout << endl;
-		}
-**/
 		List PermutationsList = PermutationsMCMC_rcpp(w_mat, prms);
 		NumericMatrix expectations_table(1,1);
 					
