@@ -90,9 +90,6 @@ sum(p.val < 0.05)
 sum(p.val.cpp < 0.05)
 
   
-p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
-
-
 
 
 for(n in n_vec)
