@@ -1,5 +1,6 @@
 # Run diagnostic for weighted permutations tests 
-path = 'C:/Users/Or Zuk/Documents/GitHub/TIBS/code'  # change to your path
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
+path = getwd()
 setwd(path)
 args=commandArgs(trailingOnly = TRUE)
 Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
@@ -25,19 +26,74 @@ n_vec <- c(100, 200, 500)
 prms$sample.size <- n_vec[1]  # sample size 
 prms$use.cpp <- 0
 prms$sample.by.bootstrap <- 0 # enable new sampling method for general w 
-w.fun <- 'truncation' # truncation'
+w.fun <- 'sum'
 dependence.type <- 'LogNormal'
 pvals <- matrix(0, iters, length(B_vec))
 
 prms$rho <- 0
 biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
+# FIX SO W>MAX ISN"T SET TO ! IN BIASED DATA. 
+# THEN CHECK BOTH OPTIONS SUM AND TRUNCATION ON R AND CPP 
+
+temp.data <- biased.data
+temp.data$data <- biased.data$data+0.0000001
+temp.data.sorted <- biased.data
+temp.data.sorted$data[,1]= sort(temp.data.sorted$data[,1])
+temp.data.sorted$data[,2]= sort(temp.data.sorted$data[,2])
 if(!('w.max' %in% names(prms)))
   prms$w.max <- biased.data$w.max
 prms$B <- 200
-prms$new.bootstrap = FALSE
-
+plot(biased.data$data[,1], biased.data$data[,2])
+points(temp.data$data[,1], temp.data$data[,2], col='red')
+points(temp.data.sorted$data[,1], temp.data.sorted$data[,2], col='blue')
 p.zero <- TIBS(biased.data$data, w.fun, test.type, prms)
+prms$new.bootstrap = FALSE
+# test.type = 'permutations'
+test.type = 'bootstrap'
 p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
+prms$new.bootstrap = TRUE
+p.zero.cpp.new <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
+
+points(biased.data$data[,1], biased.data$data[,2], col='green') # Problem: C code CHANGES the data !!!! 
+points(temp.data$data[,1], temp.data$data[,2], col='orange') # Problem: C code CHANGES the data !!!! 
+
+p.zero$TrueT
+p.zero.cpp$TrueT
+p.zero.cpp.new$TrueT
+
+p.zero$Pvalue
+p.zero.cpp$Pvalue
+p.zero.cpp.new$Pvalue
+
+mean(p.zero$statistics.under.null)
+mean(p.zero.cpp$statistics_under_null)
+mean(p.zero.cpp.new$statistics_under_null)
+
+
+# Next, run permutations test, and verify that it is valud
+iters <- 100
+p.val <- matrix(0, iters)
+p.val.cpp <- matrix(0, iters)
+test.type = "permutations"
+prms$B=200
+for(iter in c(1:iters))
+{
+  print(paste0("Run Iter ", iter))
+  biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
+  p.val[iter] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue
+  p.val.cpp[iter] <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)$Pvalue
+}
+plot(sort(p.val))
+points(sort(p.val.cpp), col="red")
+
+sum(p.val < 0.05)
+sum(p.val.cpp < 0.05)
+
+  
+p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
+
+
+
 
 for(n in n_vec)
 {
@@ -73,3 +129,19 @@ for(n in n_vec)
 
 
 # Compute auto-correlation function of MCMC
+
+
+
+
+
+# TEMP Run Yaniv's example - permutations aren't valid?? 
+load("input_for_debugging.Rdata")
+
+plot(biased.data[,1], biased.data[,2])
+prms$B = 100
+T = TIBS(biased.data, w.fun, 'permutations', prms)
+T = TIBS(biased.data, w.fun, 'bootstrap', prms)
+
+T = TIBS(biased.data, w.fun, cur.test.type, prms)
+
+
