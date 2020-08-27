@@ -22,8 +22,8 @@ library(Matrix)
 
 
 
-datasets <- c('huji', 'AIDS', 'ICU', 'Infection', 'Dementia', 'ChanningHouse')  # SHOULD ADD Channing and remove Dementia. 
-w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
+datasets <- c('huji', 'AIDS', 'ICU', 'Infection',  'ChanningHouse')  # Run Channing and skipping Dementia. 
+w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'Hyperplane_Truncation_censoring') # last one is dementia (sum?)
 
 # Read real dataset 
 ReadDataset <- function(data_str)
@@ -55,13 +55,16 @@ ReadDataset <- function(data_str)
          }, 
          'Dementia'={ # this dataset is not part of the released package
            # DEMENTIA DATA
-           
-           if(first_time) ### Get data.
+           first_time <- 0
+           if(file.exists('../data/Dementia.Rdata')) ### Get data.
+           {
+             load('../data/Dementia.Rdata')  # should be added 
+           } else
            {
              prevdata<-read.csv("C:/Users/mm/Dropbox/marco/Nonparametric bivariate estimation/Old folder/Data analysis/cshaforRCSV.csv"); # change to relative path 
              ### Clean data.
              badindex<-which(prevdata$duration-prevdata$truncation<=0);
-             prevdata<-prevdata[-badindex,];
+             prevdata <- prevdata[-badindex,];
              
              ### Order data according to disease duration.
              x<-prevdata$AAO;
@@ -84,9 +87,8 @@ ReadDataset <- function(data_str)
              
              # before ommiting the largest 3
              KM <- survfit(Surv(v-(w-x),!delta) ~ 1,data=cshadata)
-             Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
              Srv.C2 <- stepfun(KM$time,c(1,KM$surv))
-             w.fun <- function(x,y){(x<y)*Srv.C1(y-x)}
+             
              w.fun2 <- function(x,y){(x<y)*Srv.C2(y-x)}
              x.csha <- cshadata$w-cshadata$x
              y.csha <- cshadata$v
@@ -96,37 +98,25 @@ ReadDataset <- function(data_str)
              # Save data frame (next time we can load only this)
              save(input.data, KM, file='../data/Dementia.Rdata')          
            }                
-           else
-           {
-             load('../data/Dementia.Rdata')
-             Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
-             w.fun <- function(x,y){(x<y)*Srv.C1(y-x)}  # modify w.fun 
-           }
+           Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
+           w.fun <- function(x,y){(x<y)*Srv.C1(y-x)}  # modify w.fun 
          }, # end Dementia
          #           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
-         'ChanningHouse'={
+         'ChanningHouse'={ # Read Channing House dataset : FILL CODE
            library(survival)
-           data("channing",package = "boot")
+           data("channing", package = "boot")
            ok <- which(channing$exit>channing$entry) # keep only these 
            ### Create data frame.
-           ch.data <- data.frame(list("x"=channing$entry[ok],"y"=channing$exit[ok],"delta"=channing$cens[ok]))
+           ch.data <- data.frame(list("x"=channing$entry[ok], "y"=channing$exit[ok], "delta"=channing$cens[ok]))
 
            # estimating censoring distribution and calculating W function
            KM <- survfit(Surv(y-x,!delta) ~ 1, data=ch.data)
-           Srv.C <- stepfun(KM$time,c(1,KM$surv))
+           Srv.C <- stepfun(KM$time, c(1,KM$surv))
            w.fun <- function(x,y){(x<y)*Srv.C(y-x)}
            
-           ###################################
-           ##   TESTS
-           ###################################
-           
-           set.seed(4820)
            # filter the uncensored observations and apply TIBS
-           input.data <- data.frame(x=xx[delta==1],y=yy[delta==1])
-           
-           # Read Channing House dataset : FILL CODE
+           input.data <- data.frame(x=ch.data$x[ch.data$delta==1],y=ch.data$y[ch.data$delta==1])
          }
-         
   ) # end switch 
   
   if(!is.numeric(input.data))   # unlist and keep dimensions for data 
@@ -170,29 +160,34 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
   prms$use.cpp <- 1 # New! enable one to run with c++ code (faster)
   for(t in 1:3) # n.tests) # run all tests 
   {
-    if((!(w.fun[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
-      next  # these tests run only for truncation 
-    if((test.type[t] == 'bootstrap') & (w.fun[d] %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
+    if(is.character(dat$w.fun))
+      if((!(dat$w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
+        next  # these tests run only for truncation 
+    if(is.character(dat$w.fun))
+      if((test.type[t] == 'bootstrap') & (dat$w.fun %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
+        next # can't run bootstrap because w can be zero 
+    if((test.type[t] == 'bootstrap') & (min(w_fun_to_mat(dat$input.data, dat$w.fun))==0))
       next # can't run bootstrap because w can be zero 
+
     set.seed(100)
     
-    print(paste0(datasets[d], ", ", test.type[t], ":"))
+    print(paste0("Running ", datasets[d], ", ", test.type[t], ":"))
     start.time <- Sys.time()
-    if(prms$use.cpp)
-    {
-      library(Rcpp)
-      library(RcppArmadillo)
-      Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
-      results.test <- TIBS_rcpp(dat$input.data, dat$w.fun, test.type[t], prms)
-    } else
-      results.test <- TIBS(dat$input.data, dat$w.fun, test.type[t], prms)
+#    if(prms$use.cpp & is.character(dat$w.fun))  # cpp supported only for hard-coded w marked by a string
+#    {
+#      library(Rcpp)
+#      library(RcppArmadillo)
+#      Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+#      results.test <- TIBS_rcpp(dat$input.data, dat$w.fun, test.type[t], prms)
+#    } else
+    results.test <- TIBS(dat$input.data, dat$w.fun, test.type[t], prms)  # can also be cpp 
     test.time[d,t] <- Sys.time() - start.time
-    print(test.time[d,t])
+    print(paste0("test time: ", test.time[d,t]))
     test.pvalue[d,t] <- results.test$Pvalue 
     cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')
     if(plot.flag & (t==2)) # permutations
     {
-      xy <- cbind(data.frame(input.data), as.data.frame(results.test$permuted.data))
+      xy <- cbind(data.frame(dat$input.data), as.data.frame(results.test$permuted.data))
       ggplot(xy, aes(x=xy[,1], y=xy[,2])) + 
         geom_point(aes(x=xy[,1], y=xy[,2], col="original")) + 
         geom_point(shape=3, aes(x=xy[,3], y=xy[,4], col="permuted")) + 

@@ -1387,7 +1387,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			statistics_under_null[ctr] = NullT; //  ["Statistic"] ;
 		}
 		output["TrueT"] = TrueT;
-		output["statistics_under_null"] = statistics_under_null;
+		output["statistics.under.null"] = statistics_under_null;
 	}
 
 	if(test_type == "bootstrap") 
@@ -1514,7 +1514,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		
 
 		output["TrueT"] = TrueT;
-		output["statistics_under_null"] = statistics_under_null;
+		output["statistics.under.null"] = statistics_under_null;
 	}
 	
 	if(test_type == "permutations")
@@ -1572,9 +1572,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			statistics_under_null[ctr] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table);
 		}
 		output["TrueT"] = TrueT;
-		output["statistics_under_null"] = statistics_under_null;
+		output["statistics.under.null"] = statistics_under_null;
 		output["Permutations"] = Permutations;
-		output["permuted_data"] = permuted_data;
+		output["permuted.data"] = permuted_data;
 	} // end permutations test
 	/**/
 	if(test_type == "permutations_inverse_weighting")
@@ -1600,7 +1600,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			statistics_under_null[ctr] = NullT;
 		}
 		output["TrueT"] = TrueT;
-		output["statistics_under_null"] = statistics_under_null;
+		output["statistics.under.null"] = statistics_under_null;
 		output["Permutations"] = Permutations;
 	} // end permutations with inverse weighting test
 	/**/
@@ -1618,14 +1618,14 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
  // results = IS.permute(dat, prms$B, w.fun) # W);  // ComputeStatistic.W(dat, grid_points, w.fun)		
 // } // end switch 
 /**/
-	if (!(output.containsElementNamed("permuted_data")))
-		output["permuted_data"] = NULL;
+	if (!(output.containsElementNamed("permuted.data")))
+		output["permuted.data"] = NULL;
 /**/
 	if (!(output.containsElementNamed("Pvalue"))) //    ("Pvalue" % in % names(output))) // Compute empirical P - value
 	{
 //		output["Pvalue"] = length(which(output["statistics_under_null"] >= output["TrueT"])) / B;
 		double Pvalue = 0.0; 
-		NumericVector statistics_under_null = as<NumericVector>(output["statistics_under_null"]);
+		NumericVector statistics_under_null = as<NumericVector>(output["statistics.under.null"]);
 		for (i = 0; i < B; i++)
 			Pvalue += (statistics_under_null[i] >= as<double>(output["TrueT"]));
 		output["Pvalue"] = Pvalue / double(B);
