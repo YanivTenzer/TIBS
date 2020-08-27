@@ -3,7 +3,6 @@
 # Due to privacy issues, the data files for the ICU datasets are not part of the released package. 
 # Please contact the authors if you are interested in them. 
 
-
 rm(list=ls())
 gc()
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
@@ -22,35 +21,153 @@ library(ggplot2)
 library(Matrix)
 
 
+
+datasets <- c('huji', 'AIDS', 'ICU', 'Infection', 'Dementia', 'ChanningHouse')  # SHOULD ADD Channing and remove Dementia. 
+w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
+
+# Read real dataset 
+ReadDataset <- function(data_str)
+{
+  switch(data_str,  # read dataset 
+         'huji'={
+           load('../data/APage_APtime.RData')
+           input.data <- HUJI.dat
+           w.fun <- 'huji'
+         },
+         'AIDS'={
+           library(DTDA)
+           data("AIDS")
+           input.data <- AIDS[,2:3]
+           w.fun <- 'Hyperplane_Truncation'
+         },
+         'ICU'={  # this dataset is not part of the released package
+           input.data <- read.table("../data/ICU_data.txt", header = TRUE)
+           input.data <- input.data[,c(1:2)]  # discard third column 
+           input.data[,2] <- input.data[,2]-0.02 # correction: reduce by 1: the truncation criterion is L<TU (L==TU is removed)
+           w.fun <- 'Hyperplane_Truncation'
+         }, 
+         'Infection'={ # this dataset is not part of the released package
+           load('../data/ICU_INF.Rdata')
+           input.data <- cbind(X,Y)
+#           w.max <- max(X)+max(Y) # for truncation we need 
+           w.fun <- 'Hyperplane_Truncation'
+           
+         }, 
+         'Dementia'={ # this dataset is not part of the released package
+           # DEMENTIA DATA
+           
+           if(first_time) ### Get data.
+           {
+             prevdata<-read.csv("C:/Users/mm/Dropbox/marco/Nonparametric bivariate estimation/Old folder/Data analysis/cshaforRCSV.csv"); # change to relative path 
+             ### Clean data.
+             badindex<-which(prevdata$duration-prevdata$truncation<=0);
+             prevdata<-prevdata[-badindex,];
+             
+             ### Order data according to disease duration.
+             x<-prevdata$AAO;
+             v<-prevdata$duration;
+             w<-prevdata$AAO+prevdata$truncation;
+             delta<-prevdata$death;
+             order.v<-order(v);
+             x<-x[order.v];
+             v<-v[order.v];
+             w<-w[order.v];
+             delta<-delta[order.v];
+             
+             ### Create data frame.
+             cshadata <- data.frame(list("x"=x,"v"=v,"w"=w,"delta"=delta))  # cshadata
+             
+             # the risk set vanishes before the last observation. 
+             # remove the largest 3 v's to take care of that.
+             id.rs <- which(cshadata$v>25)
+             cshadata1 <- cshadata[-id.rs,] 
+             
+             # before ommiting the largest 3
+             KM <- survfit(Surv(v-(w-x),!delta) ~ 1,data=cshadata)
+             Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
+             Srv.C2 <- stepfun(KM$time,c(1,KM$surv))
+             w.fun <- function(x,y){(x<y)*Srv.C1(y-x)}
+             w.fun2 <- function(x,y){(x<y)*Srv.C2(y-x)}
+             x.csha <- cshadata$w-cshadata$x
+             y.csha <- cshadata$v
+             delta.csha <- cshadata$delta
+             input.data <- data.frame(x.csha[delta.csha],y.csha[delta.csha])  # csha.delta1
+             
+             # Save data frame (next time we can load only this)
+             save(input.data, KM, file='../data/Dementia.Rdata')          
+           }                
+           else
+           {
+             load('../data/Dementia.Rdata')
+             Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
+             w.fun <- function(x,y){(x<y)*Srv.C1(y-x)}  # modify w.fun 
+           }
+         }, # end Dementia
+         #           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
+         'ChanningHouse'={
+           library(survival)
+           data("channing",package = "boot")
+           ok <- which(channing$exit>channing$entry) # keep only these 
+           ### Create data frame.
+           ch.data <- data.frame(list("x"=channing$entry[ok],"y"=channing$exit[ok],"delta"=channing$cens[ok]))
+
+           # estimating censoring distribution and calculating W function
+           KM <- survfit(Surv(y-x,!delta) ~ 1, data=ch.data)
+           Srv.C <- stepfun(KM$time,c(1,KM$surv))
+           w.fun <- function(x,y){(x<y)*Srv.C(y-x)}
+           
+           ###################################
+           ##   TESTS
+           ###################################
+           
+           set.seed(4820)
+           # filter the uncensored observations and apply TIBS
+           input.data <- data.frame(x=xx[delta==1],y=yy[delta==1])
+           
+           # Read Channing House dataset : FILL CODE
+         }
+         
+  ) # end switch 
+  
+  if(!is.numeric(input.data))   # unlist and keep dimensions for data 
+    input.data <- array(as.numeric(unlist(input.data)), dim(input.data))  
+  
+  return(list(input.data=input.data, w.fun=w.fun)) # new! return list with also w (also update for other datasets).  
+}
+
+
+
 # example of a cpp function
 cppFunction('NumericVector timesTwo(NumericVector x) {
   return x * 2;
 }')
 
 
-B = 100 # 10000 # number of permutations/bootstrap samples 
+B = 999 # number of permutations/bootstrap samples 
+min.p.B = 99 # for minP take a smaller value due to running time 
 plot.flag <- 1
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
-datasets <- c('huji', 'AIDS', 'ICU', 'Infection', 'Dementia', 'ChanningHouse')  # SHOULD ADD Channing and remove Dementia. 
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
-w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
-w.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
+# w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
+# w.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
 n.datasets <- length(datasets)
 n.tests <- length(test.type)
 Hyperplane.prms<-c(-1,1,0)
 test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 test.time <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 
-for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
+for(d in 1:n.datasets) # loop on datasets (last is dementia)
 {
 #    if(datasets[d] %in% c('ICU', 'Infection'))  # these datasets are available by request. Uncomment this line if you don't have them 
 #      next
-  input.data <- ReadDataset(datasets[d]) # read dataset 
-  
-  prms <- list(B = 1000)  # NOTE: for minP we may need a lower number of permutations
-  prms$w.max <- max(w.max[d], max(w_fun_to_mat(input.data, w.fun[d]))) # update max 
-  prms$use.cpp <- 0 # New! enable one to run with c++ code 
+  dat <- ReadDataset(datasets[d]) # read dataset 
+
+  prms <- list(B = B)  # NOTE: for minP we may need a lower number of permutations
+  prms$w.max <- set_w_max_sample(dat$input.data, dat$w.fun) # set maximum value of w for the dataset
+    
+#    max(w.max[d], max(w_fun_to_mat(dat$input.data, dat$w.fun))) # update max 
+  prms$use.cpp <- 1 # New! enable one to run with c++ code (faster)
   for(t in 1:3) # n.tests) # run all tests 
   {
     if((!(w.fun[d] %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
@@ -66,9 +183,9 @@ for(d in 1:(n.datasets-1)) # loop on datasets (last is dementia)
       library(Rcpp)
       library(RcppArmadillo)
       Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
-      results.test<-TIBS_rcpp(input.data, w.fun[d], test.type[t], prms)
+      results.test <- TIBS_rcpp(dat$input.data, dat$w.fun, test.type[t], prms)
     } else
-      results.test<-TIBS(input.data, w.fun[d], test.type[t], prms)
+      results.test <- TIBS(dat$input.data, dat$w.fun, test.type[t], prms)
     test.time[d,t] <- Sys.time() - start.time
     print(test.time[d,t])
     test.pvalue[d,t] <- results.test$Pvalue 
@@ -111,22 +228,4 @@ save(test.pvalue, test.time, test.type,
 
 
 #####################################################
-
-# Add test for reproduciability of the pvalue: (Yaniv)
-# Take B=100,500,1000,2000
-# For each B run 20 iterations and compute the pvalues for the SAME dataset, P_1,...P_20.
-# Check that P_1,..,P_20 look like they were P_i ~ Binom(B, p) / B   i.i.d. and don't have a higher variance 
-# Here check also minP (for one time this is feasible)
-test.pvalues.variance = 1; 
-if(test.pvalues.variance)  
-{
-  # To complete ...
-  
-}
-  
-
-
-
-
-
 

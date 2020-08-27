@@ -86,7 +86,7 @@ for(iter in c(1:iters))
 plot(sort(p.val))
 points(sort(p.val.cpp), col="red")
 
-sum(p.val < 0.05)
+sum(p.val < 0.05)  # power at alpha=0.05
 sum(p.val.cpp < 0.05)
 
   
@@ -128,17 +128,23 @@ for(n in n_vec)
 # Compute auto-correlation function of MCMC
 
 
+# Add test for reproduciability of the pvalue: (Yaniv)
+# Take B=100,500,1000,2000
+# For each B run 20 iterations and compute the pvalues for the SAME dataset, P_1,...P_20.
+# Check that P_1,..,P_20 look like they were P_i ~ Binom(B, p) / B   i.i.d. and don't have a higher variance 
+# Here check also minP (for one time this is feasible)
+test.pvalues.variance = 1; 
+if(test.pvalues.variance)  
+{
+  # To complete ...
+  
+}
 
 
 
-# TEMP Run Yaniv's example - permutations aren't valid?? 
-load("input_for_debugging.Rdata")
 
-plot(biased.data[,1], biased.data[,2])
-prms$B = 100
-T = TIBS(biased.data, w.fun, 'permutations', prms)
-T = TIBS(biased.data, w.fun, 'bootstrap', prms)
 
-T = TIBS(biased.data, w.fun, cur.test.type, prms)
+
+
 
 

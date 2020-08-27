@@ -1316,11 +1316,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long ctr;
 	double TrueT, NullT;
 	List output; 
+//	Rcout << "Start TIBS " << endl; 
 
 	// Set defaults
-//	long use_cpp = 0;
-//	if (prms.containsElementNamed("use_cpp"))
-//		use_cpp = prms["use_cpp"];
 	long fast_bootstrap = FALSE;
 	if (prms.containsElementNamed("fast.bootstrap"))
 		fast_bootstrap = prms["fast.bootstrap"];
@@ -1344,26 +1342,28 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long n = data.nrow();
 	long i, j; 
 
-	
-  NumericMatrix new_data(n, 2); // copy data 
-  for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
-     for (j = 0; j < 2; j++)
-         new_data(i, j) = data(i, j);
+//	Rcout << "Start TIBS n= " << n << endl; 
+ 	NumericMatrix new_data(n, 2); // copy data 
+  	for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
+    	for (j = 0; j < 2; j++)
+        	new_data(i, j) = data(i, j);
 
 	
 //	Rcout << " Read Input TIBS_RCPP. TEST-TYPE: " << test_type << endl; 
 
 
-	// 1.Compute weights matrix W : (not needed here, just for permutations test)
-	// 2.Create a grid of points, based on the data :
-	arma::mat grid_points_arma = unique_rows(as<arma::mat>(data));  // set unique for ties ? for discrete data
+	// Create a grid of points, based on the data :
+	NumericMatrix grid_points = new_data;
+/*	arma::mat grid_points_arma = unique_rows(as<arma::mat>(data));  // set unique for ties ? for discrete data
 	NumericMatrix grid_points(n, 2);
 	for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
 		for (j = 0; j < 2; j++)
-			grid_points(i, j) = grid_points_arma(i, j);
+			grid_points(i, j) = grid_points_arma(i, j); **/
 //	= as<NumericMatrix>(wrap(grid_points_arma));  // set unique for ties ? for discrete data
 	List null_distribution;
 
+
+//	Rcout << "Set TIBS grid points " << endl; 
 	// no switch (test_type) for strings in cpp
 	if(test_type == "bootstrap_inverse_weighting") 
 	{
@@ -1519,6 +1519,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	
 	if(test_type == "permutations")
 	{
+//		Rcout << "Compute w_mat Perms" << endl; 
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
 		List PermutationsList = PermutationsMCMC_rcpp(w_mat, prms);
 		NumericMatrix expectations_table(1,1);

@@ -34,7 +34,7 @@ const.seed <- 1 # set constant seed
 # Vectors with different dependency settings 
 dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 
                      'LD', 'nonmonotone_nonexchangeable', 'CLmix', 'Gaussian',
-                     'strictly_positive')
+                     'strictly_positive') # The last one is only 
 w.fun <- c('truncation', 'truncation', 'truncation', 'truncation', 
                'truncation', 'truncation', 'truncation', 
            'exponent_minus_sum_abs', 'sum') # not good that we have only one simulation with positive W. Should add X+Y?

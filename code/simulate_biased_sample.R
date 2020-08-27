@@ -217,3 +217,11 @@ set_w_max <- function(n=1000, dependence.type, w.fun, prms)
   xy <- SimulateSample(n, dependence.type, prms)
   return(5 * (max(w_fun_eval(xy[,1], xy[,2], w.fun)) + 5 * std(w_fun_eval(xy[,1], xy[,2], w.fun)) + 1.0))     
 } 
+
+# Set maximum value for a specific sample 
+set_w_max_sample <- function(data, w.fun)
+{
+    return(max(w_fun_to_mat(data, w.fun)))
+}
+
+
