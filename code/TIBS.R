@@ -9,7 +9,7 @@ add.one.sqrt <- function(x) {
 # Special function for arranging bootstrap marginals in the indices of the original sample 
 MarginalsBootstrapOrganized <- function(data.marginals, bootstrap, w.fun, prms)
 {
-  if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
+  if(!is.function(w.fun) && (w.fun %in% c('truncation', 'Hyperplane_Truncation')))
     marginals.n <- 2*prms$sample.size
   else
     marginals.n <- prms$sample.size
@@ -18,7 +18,7 @@ MarginalsBootstrapOrganized <- function(data.marginals, bootstrap, w.fun, prms)
   marginals.bootstrap.organized <- c()
   marginals.bootstrap.organized$xy <- data.marginals$xy
   marginals.bootstrap.organized$PDFs <- matrix(0, marginals.n, 2) #   TrueT$marginals; marginals.bootstrap.organized$PDFs[] <-0 # reorder marginals
-  if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
+  if(!is.function(w.fun) && (w.fun %in% c('truncation', 'Hyperplane_Truncation')))
   {
     for(i in c(1:prms$sample.size))
       for(j in c(1:2))
@@ -29,7 +29,6 @@ MarginalsBootstrapOrganized <- function(data.marginals, bootstrap, w.fun, prms)
         marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 2] <- 
           marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], 2] + 
           marginals.bootstrap$PDFs[i+(j-1)*prms$sample.size, 1]
-        
       } 
   } else 
     for(i in c(1:prms$sample.size))
@@ -63,7 +62,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
   }
   else 
     use.w <- w.fun
-  if(prms$use.cpp)  # run in cpp 
+  if(prms$use.cpp && !(is.function(use.w)))  # run in cpp 
   {
     if(missing(expectations.table) | isempty(expectations.table))
     {
@@ -128,7 +127,7 @@ TIBS <- function(data, w.fun, test.type, prms)
     prms$naive.expectation <- FALSE
   if(!('delta' %in% names(prms)))
     prms$delta <- NA
-  n <- dim(data)[1]
+  prms$sample.size <- n <- dim(data)[1]
 #  if(!('w.max' %in% names(prms)))
 #    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
   
@@ -138,9 +137,9 @@ TIBS <- function(data, w.fun, test.type, prms)
     library(RcppArmadillo)
     Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
     return(TIBS_rcpp(data, w.fun, test.type, prms)) # run all in cpp 
-  } else
-    if(test.type == 'bootstrap')
-      prms$use.cpp = 0 # make sure everything runs in R (only for esitmate marginals)
+  } # else
+    # if(test.type == 'bootstrap')
+    #  prms$use.cpp = 0 # make sure everything runs in R (only for esitmate marginals)
   
   
   #################################################################
@@ -159,7 +158,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            #           null.distribution.bootstrap <- null.distribution
            for(ctr in 1:prms$B) # heavy loop: run on bootstrap 
            {
-             if(prms$use.cpp)
+             if(prms$use.cpp && !(is.function(w.fun)))
                bootstrap <- Bootstrap_rcpp(TrueT$marginals$xy, TrueT$marginals$CDFs, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
              else
                bootstrap <- Bootstrap(TrueT$marginals$xy, TrueT$marginals$PDFs, w.fun, prms, dim(data)[1]) 

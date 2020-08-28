@@ -20,8 +20,6 @@ library(xtable)
 library(ggplot2)
 library(Matrix)
 
-
-
 datasets <- c('huji', 'AIDS', 'ICU', 'Infection',  'ChanningHouse')  # Run Channing and skipping Dementia. 
 w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'Hyperplane_Truncation_censoring') # last one is dementia (sum?)
 
@@ -50,7 +48,7 @@ ReadDataset <- function(data_str)
            load('../data/ICU_INF.Rdata')
            input.data <- cbind(X,Y)
 #           w.max <- max(X)+max(Y) # for truncation we need 
-           w.fun <- 'Hyperplane_Truncation'
+           w.fun <- 'sum'
            
          }, 
          'Dementia'={ # this dataset is not part of the released package
@@ -108,14 +106,13 @@ ReadDataset <- function(data_str)
            ok <- which(channing$exit>channing$entry) # keep only these 
            ### Create data frame.
            ch.data <- data.frame(list("x"=channing$entry[ok], "y"=channing$exit[ok], "delta"=channing$cens[ok]))
-
+           # filter the uncensored observations and apply TIBS
+           input.data <- data.frame(x=ch.data$x[ch.data$delta==1], y=ch.data$y[ch.data$delta==1])
+           
            # estimating censoring distribution and calculating W function
            KM <- survfit(Surv(y-x,!delta) ~ 1, data=ch.data)
            Srv.C <- stepfun(KM$time, c(1,KM$surv))
            w.fun <- function(x,y){(x<y)*Srv.C(y-x)}
-           
-           # filter the uncensored observations and apply TIBS
-           input.data <- data.frame(x=ch.data$x[ch.data$delta==1],y=ch.data$y[ch.data$delta==1])
          }
   ) # end switch 
   
@@ -133,8 +130,8 @@ cppFunction('NumericVector timesTwo(NumericVector x) {
 }')
 
 
-B = 999 # number of permutations/bootstrap samples 
-min.p.B = 99 # for minP take a smaller value due to running time 
+B = 10000 # number of permutations/bootstrap samples 
+minP2.B = 1000 # for minP take a smaller value due to running time 
 plot.flag <- 1
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
@@ -147,6 +144,7 @@ Hyperplane.prms<-c(-1,1,0)
 test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 test.time <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 
+overll.time <-  Sys.time()
 for(d in 1:n.datasets) # loop on datasets (last is dementia)
 {
 #    if(datasets[d] %in% c('ICU', 'Infection'))  # these datasets are available by request. Uncomment this line if you don't have them 
@@ -158,28 +156,25 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     
 #    max(w.max[d], max(w_fun_to_mat(dat$input.data, dat$w.fun))) # update max 
   prms$use.cpp <- 1 # New! enable one to run with c++ code (faster)
-  for(t in 1:3) # n.tests) # run all tests 
+  for(t in 1:4) # n.tests) # run all tests 
   {
+    if(test.type[t] == 'minP2')  # smaller sample size for minP2 (slower)
+      prms$B = minP2.B
+    else
+      prms$B = B
     if(is.character(dat$w.fun))
       if((!(dat$w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
         next  # these tests run only for truncation 
     if(is.character(dat$w.fun))
       if((test.type[t] == 'bootstrap') & (dat$w.fun %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
         next # can't run bootstrap because w can be zero 
-    if((test.type[t] == 'bootstrap') & (min(w_fun_to_mat(dat$input.data, dat$w.fun))==0))
+    if((test.type[t] == 'bootstrap') & (min(w_fun_eval(dat$input.data[,1], dat$input.data[,2], dat$w.fun))==0))  # check for icu that we can run it
       next # can't run bootstrap because w can be zero 
 
     set.seed(100)
     
     print(paste0("Running ", datasets[d], ", ", test.type[t], ":"))
     start.time <- Sys.time()
-#    if(prms$use.cpp & is.character(dat$w.fun))  # cpp supported only for hard-coded w marked by a string
-#    {
-#      library(Rcpp)
-#      library(RcppArmadillo)
-#      Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
-#      results.test <- TIBS_rcpp(dat$input.data, dat$w.fun, test.type[t], prms)
-#    } else
     results.test <- TIBS(dat$input.data, dat$w.fun, test.type[t], prms)  # can also be cpp 
     test.time[d,t] <- Sys.time() - start.time
     print(paste0("test time: ", test.time[d,t]))
@@ -220,6 +215,7 @@ save(test.pvalue, test.time, test.type,
 #      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # save also in latex format 
 
 
+print(paste0("Overall real-life-datasets time: ", sum(test.time)))
 
 
 #####################################################
