@@ -34,23 +34,23 @@ IS.permute <- function(data, B, w.fun=function(x){1}, expectations.table=c()){
 # B - number of permutations
 # r - correlation (must be non-negative)
 #############################################################
-simul <- function(rep=100,B=2000,r=0){
-  prep <- c()
-  for (i in 1:rep){
-    Z0 <- runif(200000)
-    Z1 <- sqrt(r)*Z0 + sqrt(1-r)*runif(200000)
-    Z2 <- sqrt(r)*Z0 + sqrt(1-r)*runif(200000)
-    samp <- sample(x = 200000,size = 100,replace = TRUE,prob = Z1+Z2)
-    x <- Z1[samp]
-    y <- Z2[samp]
-    dat <- data.frame(x,y)
-    res <- IS.permute(data = dat,B = 2000,w = function(x){sum(x)})
-    prep <- c(prep,res$p.val)
-    print(i)
-  }
-  return(prep)
-}
-
+#simul <- function(rep=100,B=2000,r=0){
+#  prep <- c()
+#  for (i in 1:rep){
+#    Z0 <- runif(200000)
+#    Z1 <- sqrt(r)*Z0 + sqrt(1-r)*runif(200000)
+#    Z2 <- sqrt(r)*Z0 + sqrt(1-r)*runif(200000)
+#   samp <- sample(x = 200000,size = 100,replace = TRUE,prob = Z1+Z2)
+#    x <- Z1[samp]
+#    y <- Z2[samp]
+#    dat <- data.frame(x,y)
+#    res <- IS.permute(data = dat,B = 2000,w = function(x){sum(x)})
+#    prep <- c(prep,res$p.val)
+#    print(i)
+#  }
+#  return(prep)
+#}
+#
 # prep <- simul(rep=100,B=2000,r=0.25)
 # summary(prep)
 # mean(prep<0.05)

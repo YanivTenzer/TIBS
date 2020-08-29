@@ -250,10 +250,10 @@ TIBS <- function(data, w.fun, test.type, prms)
          },  # end permutations test 
          'permutations_inverse_weighting'={ # weighted Hoeffding statistic with Our MCMC permutations 
            #             w.mat = w_fun_to_mat(data, w.fun)
-           TrueT = ComputeStatistic.W(data, grid.points, w.fun)$Statistic
-           w.mat=w_fun_to_mat(data, w.fun)
-           Permutations=PermutationsMCMC(w.mat, prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
-           Permutations=Permutations$Permutations
+           TrueT <- ComputeStatistic.W(data, grid.points, w.fun)$Statistic
+           w.mat <- w_fun_to_mat(data, w.fun)
+           Permutations <- PermutationsMCMC(w.mat, prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
+           Permutations <- Permutations$Permutations
            #Compute the statistics value for each permutation:
            statistics.under.null = matrix(0, prms$B, 1)
            for(ctr in 1:prms$B) 

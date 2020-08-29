@@ -225,4 +225,22 @@ set_w_max_sample <- function(data, w.fun)
     return(max(w_fun_to_mat(data, w.fun)))
 }
 
+# Determine if weighing function is positive 
+is_pos_w <- function(w.fun, data, mat.flag)
+{
+  if(!is.function(w.fun))
+  {
+    if(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const', 'naive'))
+      return(TRUE)
+    if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
+      return(FALSE)
+  } 
+  if(!mat.flag)  # run and compute values 
+      return(min(w_fun_eval(data[,1], data[,2], w.fun)) > 0) # test only on sample points x_i, y_i
+    else
+      return(min(w_fun_to_mat(data, w.fun)) > 0) # test all pairs x_i, y_j
+}
+
+
+
 
