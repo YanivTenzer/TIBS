@@ -211,7 +211,7 @@ double w_fun_eval_rcpp(double x, double y, string w_fun)
 	if ((w_fun == "exp") || (w_fun == "exponent_minus_sum_abs") || (w_fun == "stritcly_positive"))
 		r = exp((-abs(x) - abs(y)) / 4);
 	if (w_fun == "gaussian")
-
+		r = exp((-x*x - y*y) / 2);
 	if (w_fun == "huji")
 		r = fmax(fmin(65.0 - x - y, 18.0), 0.0);
 	if (w_fun == "sum")
@@ -905,20 +905,29 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 NumericVector rand_perm(long n)
 {
 	NumericVector perm(n); 
-	long i, j, ctr, r;
+	long i, temp, r;
 	NumericVector is_full(n); 
+
+
+
 	for (i = 0; i < n; i++)
-		is_full[i] = 0;
+		perm[i] = i; // start with the identiyt // is_full[i] = 0;
+
+		
 
 	for (i = 0; i < n; i++)
 	{
-		r = rand() % (n - i);
-		ctr = 0;
-		for (j = 0; j < r; j++)
-			ctr += (1 + is_full[ctr]);
+		r = rand() % (n - i) + i;
 
-		perm[i] = ctr;
-		is_full[perm[i]] = 1;
+		temp = perm[i]; // swap 
+		perm[i] = perm[r];
+		perm[r] = temp; 
+
+//		ctr = 0;
+//		for (j = 0; j < r; j++)
+//			ctr += (1 + is_full[ctr]);
+//		perm[i] = ctr;
+//		is_full[perm[i]] = 1;
 	}
 	return(perm);
 }
@@ -932,28 +941,37 @@ NumericVector rand_perm(long n)
 #############################################################
 **/
 // [[Rcpp::export]]
-List IS_permute_rcpp(NumericMatrix data, double B, string w_fun) // w = function(x) { 1 }) {
+List IS_permute_rcpp(NumericMatrix data, double B, string w_fun, NumericMatrix expectations_table) 
 {
 	long  n = data.nrow();
-	double Tobs = ComputeStatistic_w_rcpp(data, data, w_fun); 
+	double Tobs; // = ComputeStatistic_w_rcpp(data, data, w_fun); 
 	double reject = 0.0; //  , sum_p = 0;
 	long i, j;
 	NumericVector pw(B); 
 	NumericVector Tb(B); 
 	IntegerVector perm(n);
 	NumericMatrix permuted_data(n, 2);
-//	NumericMatrix w_mat(n, n);
+
+
+  	long inverse_weight = (expectations_table.ncol() == 1);   // | isempty(expectations.table) # default is using inverse weighting 
+  	if(inverse_weight)
+    	Tobs = ComputeStatistic_w_rcpp(data, data, w_fun); // weights. no unique in grid-points 
+	else
+    	Tobs = ComputeStatistic_rcpp(data, data, expectations_table); // no weights
+
 	for (i = 0; i < B; i++) 
 	{
 		perm = rand_perm(n);  // get a random permutation from the uniform disitribution
-
 		permuted_data(_, 0) = data(_, 0);
 		for (j = 0; j < n; j++)
 			permuted_data(j, 1) = data(perm[j], 1); // permute data 
-		Tb[i] = ComputeStatistic_w_rcpp(permuted_data, data, w_fun); // grid depends on permuted data
+		if(inverse_weight)
+			Tb[i] = ComputeStatistic_w_rcpp(permuted_data, data, w_fun); // grid depends on permuted data. Compute weighted statistic! 
+		else 
+			Tb[i] = ComputeStatistic_rcpp(permuted_data, data, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
 		pw[i] = 0.0;
 		for(j=0; j<n; j++)
-			pw[i] += log(w_fun_eval_rcpp(permuted_data(j,0), permuted_data(j,1), w_fun));
+			pw[i] += log(w_fun_eval_rcpp(permuted_data(j,0), permuted_data(j,1), w_fun));  // take log to avoid underflow 
 	}
 
 	double pw_max = max(pw);
@@ -967,6 +985,7 @@ List IS_permute_rcpp(NumericMatrix data, double B, string w_fun) // w = function
 	List ret; 
 	ret["Pvalue"] = reject / sum(pw);
 	ret["TrueT"] = Tobs; 
+//	ret["statistics.under.null"] = Tb; // get null statistics. But they're not weighted equally!
 	return(ret);
 }
 
@@ -1479,7 +1498,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		output["permuted.data"] = permuted_data;
 	} // end permutations test
 	/**/
-	if(test_type == "permutations_inverse_weighting")
+	if(test_type == "permutations_inverse_weighting") // Use inverse-weighing Hoeffding's statistic, with MCMC to give pvalue
 	{
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
 		TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun); //  $Statistic
@@ -1505,16 +1524,55 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		output["statistics.under.null"] = statistics_under_null;
 		output["Permutations"] = Permutations;
 	} // end permutations with inverse weighting test
+
+
+
 	/**/
-	if(test_type == "tsai") 
-	{ cout << "Can't run Tsai's test from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
-		
-	if(test_type == "minP2") { cout << "Can't run minP2 from cpp" << endl;}
-	if (test_type == "uniform_importance_sampling") { // new importance sampling permutations test(not working yet)
-		output = IS_permute_rcpp(data, B, w_fun);} // w = function(x) { 1 }) {
-	if (test_type == "uniform_importance_sampling_inverse_weighting") { // new importance sampling permutations test(not working yet)
-		output = IS_permute_rcpp(data, B, w_fun); // need to change!
+	if (test_type == "uniform_importance_sampling") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
+		NumericMatrix permuted_data(n, 2);
+		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun); 
+		List PermutationsList = PermutationsMCMC_rcpp(w_mat, prms); //
+		NumericMatrix Permutations = PermutationsList["Permutations"];
+		NumericMatrix P = PermutationsList["P"];
+		NumericMatrix expectations_table(1, 1); // set empty (0) table 
+		if(!(PL_expectation || naive_expectation))
+			expectations_table = QuarterProbFromPermutations_rcpp(data, P, grid_points);
+
+//		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms);   // compute statistic. Use permutations for expected table 
+//		TrueT = TrueTList["Statistic"];
+		permuted_data(_, 0) = data(_, 0);
+		for (i = 0; i < n; i++)
+			permuted_data(i, 1) = data(Permutations(i, 0)-1, 1); // save one example
+		output = IS_permute_rcpp(data, B, w_fun, expectations_table);} // instead of w_fun we should give expectation table 
+
+
+// R code below
+/**	           w.mat=w_fun_to_mat(data, w.fun)
+           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
+             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
+           else
+             Permutations <- PermutationsMCMC(w.mat, prms)
+           P=Permutations$P
+           Permutations=Permutations$Permutations
+           if((!prms$naive.expectation) & (!prms$PL.expectation))
+           {
+             if(prms$use.cpp)
+               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
+             else
+               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
+           } else
+             expectations.table <- c()
+           TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
+           permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
+           
+           output <- IS.permute(data, prms$B, w.fun, TrueT$expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun) **/
+
+	if (test_type == "uniform_importance_sampling_inverse_weighting") { // inverse-weighting Hoeffding's statistic with importance sampling uniform permutations  
+		NumericMatrix expectations_table(1, 1); // set empty (0) table 
+		output = IS_permute_rcpp(data, B, w_fun, expectations_table); // need to change!
 	} // w = function(x) { 1 }) {
+	if(test_type == "tsai") { cout << "Can't run Tsai's test from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}		
+	if(test_type == "minP2") { cout << "Can't run minP2 from cpp" << endl;} // minP2 test, relevant only for truncation W(x,y)=1_{x<=y}
 
 
  // results = IS.permute(dat, prms$B, w.fun) # W);  // ComputeStatistic.W(dat, grid_points, w.fun)		

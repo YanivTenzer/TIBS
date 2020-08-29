@@ -64,7 +64,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
     use.w <- w.fun
   if(prms$use.cpp && !(is.function(use.w)))  # run in cpp 
   {
-    if(missing(expectations.table) | isempty(expectations.table))
+    if(missing(expectations.table) || isempty(expectations.table))
     {
       marginals <- EstimateMarginals_rcpp(data, use.w)
       if((!prms$naive.expectation) & (missing(w.mat) | isempty(w.mat)))
@@ -75,7 +75,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
     T <- ComputeStatistic_rcpp(data, grid.points, expectations.table)  # keep same grid points for bootstrap sample?
   } else # use R
   {
-    if(missing(expectations.table) | isempty(expectations.table))
+    if(missing(expectations.table) || isempty(expectations.table))
     {
       marginals <- EstimateMarginals(data, use.w)
       if((!prms$naive.expectation) & (missing(w.mat) | isempty(w.mat)))
@@ -215,7 +215,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
          },
          'permutations'={
-           w.mat=w_fun_to_mat(data, w.fun)
+           w.mat = w_fun_to_mat(data, w.fun)
            if(prms$use.cpp)
              Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
            else
@@ -265,13 +265,13 @@ TIBS <- function(data, w.fun, test.type, prms)
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations with inverse weighting test 
          'uniform_importance_sampling' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W 
-           w.mat=w_fun_to_mat(data, w.fun)
+           w.mat = w_fun_to_mat(data, w.fun)
            if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
              Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
            else
              Permutations <- PermutationsMCMC(w.mat, prms)
-           P=Permutations$P
-           Permutations=Permutations$Permutations
+           P = Permutations$P
+           Permutations = Permutations$Permutations
            if((!prms$naive.expectation) & (!prms$PL.expectation))
            {
              if(prms$use.cpp)
@@ -280,10 +280,10 @@ TIBS <- function(data, w.fun, test.type, prms)
                expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
            } else
              expectations.table <- c()
-           TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
+  #         TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
-           
-           output <- IS.permute(data, prms$B, w.fun, TrueT$expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+           output <- IS.permute(data, prms$B, w.fun, expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+           output.cpp <- IS_permute_rcpp(data, prms$B, w.fun, expectations.table)
          },
          'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with weighted Hoeffding statistic - only for positive W
            output <- IS.permute(data, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
