@@ -152,24 +152,35 @@ TIBS <- function(data, w.fun, test.type, prms)
   switch(test.type,
          'bootstrap'={
            TrueT <- TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)  # compute statistic 
-           
+         #  if(prms$use.cpp)
+         #     marginals <- EstimateMarginals(data, w.fun, prms)
            #2. Compute statistic for bootstrap sample:
            statistics.under.null = matrix(0, prms$B, 1)
            #           null.distribution.bootstrap <- null.distribution
            for(ctr in 1:prms$B) # heavy loop: run on bootstrap 
            {
-             if(prms$use.cpp && !(is.function(w.fun)))
-               bootstrap <- Bootstrap_rcpp(TrueT$marginals$xy, TrueT$marginals$CDFs, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
+             if(prms$use.cpp) #  && !(is.function(w.fun)))
+               bootstrap <- Bootstrap_rcpp(TrueT$marginals$xy, TrueT$marginals$CDFs, TrueT$w.mat, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
              else
                bootstrap <- Bootstrap(TrueT$marginals$xy, TrueT$marginals$PDFs, w.fun, prms, dim(data)[1]) 
              if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
              {
                 marginals.bootstrap.new <- MarginalsBootstrapOrganized(TrueT$marginals, bootstrap, w.fun, prms)
                  
-                null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
-                expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap(
-                  marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
-                statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!                
+                if(prms$use.cpp)
+                {
+                  null.distribution.bootstrap.new <- GetNullDistribution_rcpp(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
+                  expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap_rcpp(
+                      marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
+                    statistics.under.null[ctr] <- ComputeStatistic_rcpp(bootstrap$sample, grid.points, expectations.table.new) # NEW! Compute null statistic without recomputing the entire matrix !!              
+                }
+                else
+                {
+                  null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
+                  expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap(
+                    marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
+                  statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!          
+                }
              }
              else # use same expectation as original sample 
              {
@@ -237,7 +248,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            }
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations test 
-         'permutations_inverse_weighting'={ # statistic Our MCMC permutations 
+         'permutations_inverse_weighting'={ # weighted Hoeffding statistic with Our MCMC permutations 
            #             w.mat = w_fun_to_mat(data, w.fun)
            TrueT = ComputeStatistic.W(data, grid.points, w.fun)$Statistic
            w.mat=w_fun_to_mat(data, w.fun)
@@ -253,9 +264,9 @@ TIBS <- function(data, w.fun, test.type, prms)
            }
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations with inverse weighting test 
-         'uniform_importance_sampling' = {  # new uniform importance sampling permutations test with the weighted Hoeffding statistic - only for positive W 
+         'uniform_importance_sampling' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W 
            w.mat=w_fun_to_mat(data, w.fun)
-           if(prms$use.cpp)
+           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
              Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
            else
              Permutations <- PermutationsMCMC(w.mat, prms)
@@ -274,7 +285,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            
            output <- IS.permute(data, prms$B, w.fun, TrueT$expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          },
-         'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W
+         'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with weighted Hoeffding statistic - only for positive W
            output <- IS.permute(data, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          }, 
          'tsai' = {result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}

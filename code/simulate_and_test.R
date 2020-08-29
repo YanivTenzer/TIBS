@@ -43,16 +43,15 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   {
     prms$rho = prms.rho[i.prm] # [[s]]
     prms$minp.eps <- "in"
-    prms$keep.all <- 0 # set to 1 for plotting
-    
+
     ## Parallel on multiple cores 
     ##    results.table<- foreach(i=seq(prms$iterations), .combine=rbind) %dopar%{ 
     ##      iteration_result <- matrix(0, 4, B+1)
     for(i in 1:prms$iterations) # run simulations multiple times 
     { 
-      if(dependence.type=='strictly_positive' && w.fun=='sum')
+      if(dependence.type=='strictly_positive' && w.fun=='sum') # why simualte only once? 
       {
-        if(i==1)
+        if(i>=1)  # Change !! (Yaniv's simulation : same data or new data each time)
         {
           biased.data <- SimulateBiasedSample(prms$sample.size, 
                                               dependence.type, w.fun, 
@@ -76,7 +75,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         all.data <- biased.data$all.data
         biased.data <- biased.data$data 
       }
-      
+#      print(paste0("sampling ratio: ", dim(all.data)[1] / dim(biased.data)[1]))      
       
       if((!run.flag) & file.exists(paste0(output.file, '.Rdata'))) # simulate only once 
         break
@@ -119,7 +118,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         if(prms$sequential.stopping)
         {
           #browser()
-          block.size <- 50  # must divide prms$B !!! 
+          block.size <- 100  # must divide prms$B !!! 
           prms$B <- ceil(prms$B / block.size) * block.size  # set a multiplication of block size 
           # prms$B <- block.size # wtf?
           prms$gamma <- 0.0001  # chance that we miss being below/above alpha at an early stop - 1/10000 for each block
@@ -169,7 +168,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     
     # New: save intermediate results also for latex format 
     # Compute power (this is also type-1-error alpha under the null)
-    test.power <- apply(test.pvalue<prms$alpha, 1, rowMeans) 
+    test.power <- apply(test.pvalue < prms$alpha, 1, rowMeans) 
     # Save results in one file per dataset 
     test.output <- t(cbind(test.power, colSums(rowSums(test.time, dims=2))))
     colnames(test.output) <- test.type
@@ -190,7 +189,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     }
   } # end simulation and testing for one dependency type (loop over i.prm)
   
-  return(list(test.power=test.power, test.output=test.output))
+  return(list(test.power=test.power, test.output=test.output, test.pvalue=test.pvalue))
   
 } # end function
 

@@ -142,7 +142,7 @@ n.datasets <- length(datasets)
 n.tests <- length(test.type)
 Hyperplane.prms<-c(-1,1,0)
 test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
-test.time <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
+test.time <- matrix(-0.01, n.datasets, n.tests) # -1 denotes test wasn't performed
 
 overll.time <-  Sys.time()
 for(d in 1:n.datasets) # loop on datasets (last is dementia)
@@ -176,7 +176,8 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     print(paste0("Running ", datasets[d], ", ", test.type[t], ":"))
     start.time <- Sys.time()
     results.test <- TIBS(dat$input.data, dat$w.fun, test.type[t], prms)  # can also be cpp 
-    test.time[d,t] <- Sys.time() - start.time
+    difftime(Sys.time() , start.time, units="secs")
+    test.time[d,t] <- as.numeric(difftime(Sys.time() , start.time, units="secs")) # Sys.time() - start.time
     print(paste0("test time: ", test.time[d,t]))
     test.pvalue[d,t] <- results.test$Pvalue 
     cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')

@@ -174,21 +174,21 @@ PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow 
   Idx <- ctr <- 1
   Permutations = matrix(0, n, prms$B)
   Perm = 1:n # start with the identity 
-  while(Idx<=prms$B)
+  while(Idx <= prms$B)
   {
     # A Metropolis Hastings algorithm with target stationary distribution \pi
     # Choose the two indices to be switched
     switchIdx = sample(1:n, 2, replace = FALSE)  
     i = switchIdx[1]
     j = switchIdx[2]
-    ratio = w.mat[i,Perm[j]]*w.mat[j,Perm[i]]/(w.mat[i,Perm[i]]*w.mat[j,Perm[j]]) 
+    ratio = w.mat[i,Perm[j]]*w.mat[j,Perm[i]] / (w.mat[i,Perm[i]]*w.mat[j,Perm[j]]) 
     
     if(rand() < ratio) #     rbinom(1, 1, min(1,ratio))) #we accept the transition with probability min(1, ratio)
     {
       temp <- Perm[i] # SWAP 
       Perm[i] <- Perm[j]
       Perm[j] <- temp
-      if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in))
+      if(ctr==prms$burn.in || (ctr%%prms$Cycle==0 && ctr>prms$burn.in)) # save permutation
       {
         Permutations[,Idx]=Perm;
         Idx = Idx+1;

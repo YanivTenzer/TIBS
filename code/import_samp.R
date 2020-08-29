@@ -15,8 +15,9 @@ IS.permute <- function(data, B, w.fun=function(x){1}, expectations.table=c()){
   
   p.w <- matrix(0, B, 1)
   T.b <- matrix(0, B, 1) # statistics under null 
-  for (b in 1:B){
-    perm <- sample(n)
+  for (b in 1:B)
+  {
+    perm <- sample(n)  # uniformly sampled permutation 
     if(inverse.weight)
       T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), data, w.fun)$Statistic # grid depends on permuted data
     else
