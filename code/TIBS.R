@@ -265,25 +265,31 @@ TIBS <- function(data, w.fun, test.type, prms)
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations with inverse weighting test 
          'uniform_importance_sampling' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W 
-           w.mat = w_fun_to_mat(data, w.fun)
-           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
-             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
-           else
-             Permutations <- PermutationsMCMC(w.mat, prms)
-           P = Permutations$P
-           Permutations = Permutations$Permutations
-           if((!prms$naive.expectation) & (!prms$PL.expectation))
-           {
-             if(prms$use.cpp)
-               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
-             else
-               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
-           } else
-             expectations.table <- c()
+          # TEMP DEBUG: RANDOM GRID POINTs           
+           grid.points <- matrix(rnorm(2*n, 0, 1), n, 2)
+## TEMP DEBUG MISSING           
+##           w.mat = w_fun_to_mat(data, w.fun)
+##           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
+##             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
+##           else
+##             Permutations <- PermutationsMCMC(w.mat, prms)
+##           P = Permutations$P
+##           Permutations = Permutations$Permutations
+##           if((!prms$naive.expectation) & (!prms$PL.expectation))
+##           {
+##             if(prms$use.cpp)
+##               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
+##             else
+##               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
+##           } else
+##             expectations.table <- c()
+##          permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
+           expectations.table.exact <- n * QuarterProbGaussianAnalytic(grid.points, w.fun)
+           expectations.table.exact.cpp <- n * QuarterProbGaussianAnalytic_rcpp(grid.points, w.fun)
+           expectations.table = expectations.table.exact # TEMP DEBUG!!
   #         TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
-           permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
            output <- IS.permute(data, prms$B, w.fun, expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
-           output.cpp <- IS_permute_rcpp(data, prms$B, w.fun, expectations.table)
+#           output.cpp <- IS_permute_rcpp(data, prms$B, w.fun, expectations.table)
          },
          'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with weighted Hoeffding statistic - only for positive W
            output <- IS.permute(data, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)

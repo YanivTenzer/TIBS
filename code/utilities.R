@@ -38,8 +38,7 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
     Obs[4] <- sum(Ry)-Obs[1]-sum(Eqy)
     Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) - sum(Eqx) - sum(Eqy) + sum(Eqx*Eqy) # new! don't count points equal 
     obs.table[i,] <- Obs
-    #    print(Exp)
-    #    print(Obs)
+#    print(paste0("Sum-Exp:", sum(Exp), " Sum-Obs:", sum(Obs)))
     if (min(Exp)>1) {
       #      print("Add To Expected")
       Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
@@ -421,21 +420,31 @@ QuarterProbFromPermutations <- function(data, P, grid.points) #Permutations
 }
 
 ###################################################################################################
-# Compute quarter probabilities for standard bivariate Gaussians 
+# Compute quarter probabilities for the standard bivariate Gaussians 
 # with truncation y>x. We assume grid.points satisfy y>x
 #
 # grid.points - where to evaluate probabilitites 
 ###################################################################################################
-QuarterProbGaussianAnalytic <- function(grid.points)
+QuarterProbGaussianAnalytic <- function(grid.points, w.fun)
 {
   mass.table<-matrix(0, dim(grid.points)[1], 4)
   x <- grid.points[,1]
   y <- grid.points[,2]
-  
-  mass.table[,1]<-(1-pnorm(y))*(1+pnorm(y)-2*pnorm(x))
-  mass.table[,2]<-(pnorm(x)-pnorm(y))^2
-  mass.table[,3]<-pnorm(x)*(2*pnorm(y)-pnorm(x))
-  mass.table[,4]<-2*pnorm(x)*(1-pnorm(y))
+
+  if(w.fun %in% c("truncation", "Hyperplane_truncation")) 
+  {
+    mass.table[,1] <- (1-pnorm(y))*(1+pnorm(y)-2*pnorm(x))
+    mass.table[,2] <- (pnorm(x)-pnorm(y))^2
+    mass.table[,3] <- pnorm(x)*(2*pnorm(y)-pnorm(x))
+    mass.table[,4] <- 2*pnorm(x)*(1-pnorm(y))
+  }
+  if(w.fun %in% c('naive', 'const'))
+  {
+    mass.table[,1] <- (1-pnorm(x))*(1-pnorm(y))
+    mass.table[,2] <- (1-pnorm(x))*pnorm(y)
+    mass.table[,3] <- pnorm(x)*pnorm(y)
+    mass.table[,4] <- pnorm(x)*(1-pnorm(y))
+  }
   return(mass.table)
 }
 

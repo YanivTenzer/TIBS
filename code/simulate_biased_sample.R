@@ -60,12 +60,6 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
       n.keep <- length(keep)
       if(prms$keep.all)
       {
-#        print("DIMS: all.data, n, k, xy, all.k")
-#        print(dim(all.data))
-#        print(n)
-#        print(k)
-#        print(dim(xy))
-#        print(all.k)
         if(all.k + n-k <= dim(all.data)[1])
           all.data[(all.k+1):(all.k+n-k),] <- xy
         else
@@ -78,6 +72,8 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
         k <- k+n.keep
       }
     }  # if bootstrap/rejection sampling
+#    if(prms$keep.all)
+#      print(paste0("Sampling Ratio = ", all.k / n))
     #    print(k)
   } # end while   k <= n
   #  print("return")
@@ -94,7 +90,14 @@ SimulateSample <- function(n, dependence.type, prms)
 {
   switch(dependence.type, # First sample from Fxy
          'Gaussian' ={ library(mvtnorm)
-           xy.mat <- rmvnorm(n, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))         
+           xy.mat <- rmvnorm(n, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2))    
+#           if(prms$rho == 0)
+#           {
+#             print("Randomize 2!!!")
+#             xy.mat[,1] <- rnorm(n)
+#             xy.mat[,2] <- rnorm(n)
+#           }
+             
          },
          'LogNormal'={ library(mvtnorm)
            xy.mat <- exp(rmvnorm(n, c(0,0), matrix(c(1, prms$rho, prms$rho,1),2,2)))         

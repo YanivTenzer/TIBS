@@ -35,7 +35,10 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   if((!run.flag) & file.exists(paste0(output.file, '.Rdata')))
     load(file=paste0(output.file, '.Rdata'))
   else
-    test.pvalue <- test.time <- array(-1, c(num.prms, num.tests, prms$iterations)) 
+  {
+    test.pvalue <- test.time <- test.stat <- array(-1, c(num.prms, num.tests, prms$iterations)) 
+    test.null.stat <- array(-1, c(num.prms, num.tests, prms$iterations, prms$B)) 
+  }
   
   if(!('w.max' %in% names(prms)))
     prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun, prms)
@@ -158,6 +161,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         }
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue
+        test.stat[i.prm, t, i] <- test.results$TrueT
+        test.null.stat[i.prm, t, i, ] <- test.results$statistics.under.null
         print(paste0(dependence.type, ', rho=', prms$rho, '. Test: ', test.type[t], 
                      ' i=', i, ' of ', prms$iterations, '. Pval=', round(test.pvalue[i.prm, t, i], 3), '. Time (sec.)=', round(test.time[i.prm, t, i], 2)))
       } # end loop on tests 
@@ -189,7 +194,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     }
   } # end simulation and testing for one dependency type (loop over i.prm)
   
-  return(list(test.power=test.power, test.output=test.output, test.pvalue=test.pvalue))
+  return(list(test.power=test.power, test.output=test.output, test.pvalue=test.pvalue, 
+              test.time=test.time, test.stat=test.stat, test.null.stat=test.null.stat))
   
 } # end function
 
