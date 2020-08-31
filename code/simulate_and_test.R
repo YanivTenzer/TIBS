@@ -92,7 +92,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
            (test.type[t] %in% c('tsai', 'minP2')))
           next  # these tests run only for truncation 
         
-        if( !(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const', 'naive')) & (test.type[t] %in% c("permutations_inverse_weighting")) )  # run only for positive distributions 
+        if( !(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const', 'naive')) && 
+            (test.type[t] %in% c("permutations_inverse_weighting", "bootstrap_inverse_weighting", "uniform_importance_sampling", "uniform_importance_sampling_inverse_weighting")) )  # run only for positive distributions 
           next
         if(test.type[t] == 'bootstrap')
         {

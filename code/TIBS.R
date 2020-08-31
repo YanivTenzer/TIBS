@@ -85,6 +85,9 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
     }
     T <- ComputeStatistic(data, grid.points, expectations.table)$Statistic  # keep same grid points for bootstrap sample?
   }  
+  
+  print("expectations sum inside tibs.steps")
+  print(rowSums(expectations.table))
   return(list(Statistic=T, expectations.table=expectations.table, marginals=marginals, w.mat=w.mat, null.distribution=null.distribution))
 }
 
@@ -130,6 +133,8 @@ TIBS <- function(data, w.fun, test.type, prms)
     prms$naive.expectation <- FALSE
   if(!('delta' %in% names(prms)))
     prms$delta <- NA
+  if(!('perturb.grid' %in% names(prms)))  # default: perturb grid to avoid ties 
+    prms$perturb.grid <- TRUE
   prms$sample.size <- n <- dim(data)[1]
 #  if(!('w.max' %in% names(prms)))
 #    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
@@ -151,8 +156,8 @@ TIBS <- function(data, w.fun, test.type, prms)
   # 2.Create a grid of points, based on the data:
   #  grid.points <- cbind(data[,1], data[,2])  # keep original points 
   grid.points <- data # no unique !!! unique.matrix(data)  # set unique for ties? for discrete data
-  perturb.grid = 1
-  if(perturb.grid)  # new! add a small perturbation to avoid ties with data 
+
+  if(prms$perturb.grid)  # new! add a small perturbation to avoid ties with data 
     grid.points = grid.points + epsilon * matrix( rnorm(2*n), n, 2)
 
   switch(test.type,
@@ -187,6 +192,8 @@ TIBS <- function(data, w.fun, test.type, prms)
                     marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
                   statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!          
                 }
+                print("Expectations sum bootstrap:")
+                print(rowSums(expectations.table.new))
              }
              else # use same expectation as original sample 
              {
@@ -233,6 +240,8 @@ TIBS <- function(data, w.fun, test.type, prms)
                expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
            } else
              expectations.table <- c()
+           print("Expectations sum permutations:")
+           print(rowSums(expectations.table))
            TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
            
@@ -269,25 +278,29 @@ TIBS <- function(data, w.fun, test.type, prms)
           # TEMP DEBUG: RANDOM GRID POINTs           
            grid.points <- matrix(rnorm(2*n, 0, 1), n, 2)
 ## TEMP DEBUG MISSING           
-##           w.mat = w_fun_to_mat(data, w.fun)
-##           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
-##             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
-##           else
-##             Permutations <- PermutationsMCMC(w.mat, prms)
-##           P = Permutations$P
-##           Permutations = Permutations$Permutations
-##           if((!prms$naive.expectation) & (!prms$PL.expectation))
-##           {
-##             if(prms$use.cpp)
-##               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
-##             else
-##               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
-##           } else
-##             expectations.table <- c()
+           w.mat = w_fun_to_mat(data, w.fun)
+           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
+             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
+           else
+             Permutations <- PermutationsMCMC(w.mat, prms)
+           P = Permutations$P
+           Permutations = Permutations$Permutations
+           if((!prms$naive.expectation) & (!prms$PL.expectation))
+           {
+             if(prms$use.cpp)
+               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
+             else
+               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
+           } else
+             expectations.table <- c()
 ##          permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
-           expectations.table.exact <- n * QuarterProbGaussianAnalytic(grid.points, w.fun)
-           expectations.table.exact.cpp <- n * QuarterProbGaussianAnalytic_rcpp(grid.points, w.fun)
-           expectations.table = expectations.table.exact # TEMP DEBUG!!
+##           expectations.table.exact <- n * QuarterProbGaussianAnalytic(grid.points, w.fun)
+##           expectations.table.exact.cpp <- n * QuarterProbGaussianAnalytic_rcpp(grid.points, w.fun)
+##           expectations.table = expectations.table.exact # TEMP DEBUG!!
+           
+           print("Expectations sum uniform_importance_sampling:")
+           print(rowSums(expectations.table))
+           
   #         TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            output <- IS.permute(data, grid.points, prms$B, w.fun, expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
 #           output.cpp <- IS_permute_rcpp(data, prms$B, w.fun, expectations.table)

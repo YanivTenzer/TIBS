@@ -453,10 +453,17 @@ double ComputeStatistic_rcpp(NumericMatrix data, NumericMatrix grid_points, Nume
 			Obs[1] += (Rx[j]-Eqx[j]);
 			Obs[3] += (Ry[j]-Eqy[j]);
 			Obs[2] += (-Eqx[j] - Eqy[j] + Eqx[j] * Eqy[j]);
+
+///			if( (Eqx[j]>0) || (Eqy[j]>0) )
+///				Rcout << "Found data == grid point" << endl; 
 		}
 		Obs[1] -= Obs[0];
 		Obs[3] -= Obs[0];
 		Obs[2] += (n - Obs[0] - Obs[1] - Obs[3]);  // here need to check the total number of observed! 
+
+///		double sum_exp = Exp[0] + Exp[1] + Exp[2] + Exp[3];
+///		double sum_obs = Obs[0] + Obs[1] + Obs[2] + Obs[3];
+///		Rcout << "SUM-EXP=" << sum_exp << " SUM-OBS=" << sum_obs << endl; 
 
 		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
 			for (j = 0; j < 4; j++)
@@ -511,8 +518,8 @@ double ComputeStatistic_w_rcpp(NumericMatrix data, NumericMatrix grid_points, st
 			Lx[j] = data(j, 0) < grid_points(i, 0);
 			Ly[j] = data(j, 1) < grid_points(i, 1);
 
-			if( (data(j,0) == grid_points(i,0)) || (data(j,1) == grid_points(i,1)) )
-				Rcout << "found point data == grid!! " << endl;
+///			if( (data(j,0) == grid_points(i,0)) || (data(j,1) == grid_points(i,1)) )
+///				Rcout << "found point data == grid!! " << endl;
 
 			Rx_sum += Rx[j] / w_vec[j];
 			Ry_sum += Ry[j] / w_vec[j];
@@ -1480,8 +1487,8 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	if(perturb_grid)
 	{
 		NumericMatrix perturb(n, 2);
-		perturb(_, 0) = epsilon * rnorm(n);
-		perturb(_, 1) = epsilon * rnorm(n);
+		perturb(_, 0) = epsilon * ( max(grid_points(_,0))-min(grid_points(_,0)) ) * rnorm(n);
+		perturb(_, 1) = epsilon * ( max(grid_points(_,1))-min(grid_points(_,1)) ) * rnorm(n);
 		grid_points += perturb; 
 	}
 /*	arma::mat grid_points_arma = unique_rows(as<arma::mat>(data));  // set unique for ties ? for discrete data
@@ -1497,7 +1504,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	// no switch (test_type) for strings in cpp
 	if(test_type == "bootstrap_inverse_weighting") 
 	{
-		TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun); //  $Statistic
+		TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun); //  compute true statistic before data is sorted 
 		List marginals = EstimateMarginals_rcpp(data, w_fun);
 
 		NumericMatrix CDFs_sorted = as<NumericMatrix>(marginals["CDFs"]); // get sorted CDFs 
@@ -1758,7 +1765,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			Rcout << endl; 
 		} **/
 		// New: set analytic expectations table
-		expectations_table = double(n) * QuarterProbGaussianAnalytic_rcpp(data, w_fun);  // TEMP FOR DEBUGGING. ONLY FOR GAUSSIAN DEPENDENCIES
+///		expectations_table = double(n) * QuarterProbGaussianAnalytic_rcpp(data, w_fun);  // TEMP FOR DEBUGGING. ONLY FOR GAUSSIAN DEPENDENCIES
 /**		Rcout << "SET ANALYTIC EXPECTATIONS TABLE" << endl; 
 		Rcout << "After analytic, expected:" << endl; 
 		for(i=0; i < 5; i++)

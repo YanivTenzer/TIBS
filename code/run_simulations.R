@@ -30,10 +30,10 @@ const.seed <- 1 # set constant seed
 # Vectors with different dependency settings 
 dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 
                      'LD', 'nonmonotone_nonexchangeable', 'CLmix', 'Gaussian',
-                     'strictly_positive', 'Gaussian') # The last one is log-normal 
+                     'LogNormal', 'Gaussian') # The last one is log-normal 
 w.fun <- c('truncation', 'truncation', 'truncation', 'truncation', 
                'truncation', 'truncation', 'truncation', 
-           'exponent_minus_sum_abs', 'sum', 'const') # not good that we have only one simulation with positive W. Should add X+Y?
+           'exponent_minus_sum_abs', 'sum', 'truncation') # not good that we have only one simulation with positive W. Should add X+Y?
 monotone.type <- c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) # is monotone
 exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE) # is exchangeable
 # sample.size <- c(500, 100, 100, 100, 100, 100, 100, 100) # set all sample.sizes to 100 
@@ -74,7 +74,7 @@ for(s in run.dep) # Run all on the farm
 {
   for(num_of_observations in c(100))#seq(250, 400, 50))
   {
-    prms = list(B=50, sample.size=num_of_observations, iterations=100, plot.flag=0, alpha=0.05, sequential.stopping=0, 
+    prms = list(B=100, sample.size=num_of_observations, iterations=500, plot.flag=0, alpha=0.05, sequential.stopping=0, 
                 use.cpp=1, keep.all=1, perturb.grid=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     prms$w.max = 1
     if(run.flag != 1)
@@ -84,7 +84,7 @@ for(s in run.dep) # Run all on the farm
     # Call function. # run simulations function 
     print(paste("n=", prms$sample.size))
     if(const.seed)
-      prms$seed <- 9844765 # 4524553
+      prms$seed <- 92669484 # 4524553
     T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], w.fun[s], test.type, prms) # run all tests 
   }
 } # end loop on dependency types
@@ -100,12 +100,21 @@ legend(0, 200, test.legend, lwd=c(2,2), col=col.vec[1:length(test.type)], y.inte
 # points(T.OUT$test.stat[1,,]- rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
 
 
-
+jpeg(paste0("../figs/check_valid_", dependence.type[s], "_",  w.fun[s],  "_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
 plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
      main=paste0("Tests pvals and power, n=", num_of_observations, ", alpha=", prms$alpha, " pert=", prms$perturb.grid))
-for(i in 1:length(test.type))
-  points(sort(T.OUT$test.pvalue[1,i,]), col=col.vec[i], pch=20)
-legend(0, 1, test.legend, lwd=c(2,2), col=col.vec[1:num.tests], y.intersp=0.8, cex=0.6)
+valid.tests <- rep(0, num.tests)
+for(i in 1:num.tests)
+{
+  if(max(T.OUT$test.pvalue[1,i,])> -1)
+  {
+    points(sort(T.OUT$test.pvalue[1,i,]), col=col.vec[i], pch=20)
+    valid.tests[i] <- 1
+  }
+}
+legend(0, 1, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], y.intersp=0.8, cex=0.6)
+dev.off()
+
 
 #library(matrixStats)
 #plot(T.OUT$test.stat[1,,], rowMeans(T.OUT$test.null.stat[1,1,,]))
