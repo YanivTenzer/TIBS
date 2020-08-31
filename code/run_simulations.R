@@ -42,8 +42,8 @@ prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
                  #c(0)) # Parameters for each sampling type 
 
 # test.type<- c('uniform_importance_sampling') # ,'bootstrap')#c( 'permutations','permutations_inverse_weighting',
-test.type<- c('permutations', 'uniform_importance_sampling', 'permutations_inverse_weighting', 'uniform_importance_sampling_inverse_weighting', 
-              'bootstrap', 'bootstrap_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
+test.type <- c('permutations', 'uniform_importance_sampling', 'permutations_inverse_weighting', 'uniform_importance_sampling_inverse_weighting', 
+            'bootstrap', 'bootstrap_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
             #  #'uniform_importance_sampling',
             #  'uniform_importance_sampling_inverse_weighting',
             #  'bootstrap', 
@@ -74,7 +74,7 @@ for(s in run.dep) # Run all on the farm
 {
   for(num_of_observations in c(100))#seq(250, 400, 50))
   {
-    prms = list(B=100, sample.size=num_of_observations, iterations=200, plot.flag=0, alpha=0.05, sequential.stopping=0, 
+    prms = list(B=50, sample.size=num_of_observations, iterations=100, plot.flag=0, alpha=0.05, sequential.stopping=0, 
                 use.cpp=1, keep.all=1, perturb.grid=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     prms$w.max = 1
     if(run.flag != 1)
@@ -84,7 +84,7 @@ for(s in run.dep) # Run all on the farm
     # Call function. # run simulations function 
     print(paste("n=", prms$sample.size))
     if(const.seed)
-      prms$seed <- 98765 # 4524553
+      prms$seed <- 9844765 # 4524553
     T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], w.fun[s], test.type, prms) # run all tests 
   }
 } # end loop on dependency types

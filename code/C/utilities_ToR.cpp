@@ -484,7 +484,10 @@ double ComputeStatistic_w_rcpp(NumericMatrix data, NumericMatrix grid_points, st
 
 	// New: enable not to give a grid_points as input: set it as data 
 	if (grid_points.nrow() <= 1)
+	{
+		Rcout << "SETTING GRID=DATA!!!" << endl;
 		grid_points = data;
+	}
 
 	for (i = 0; i < n; i++)
 	{
@@ -508,13 +511,13 @@ double ComputeStatistic_w_rcpp(NumericMatrix data, NumericMatrix grid_points, st
 			Lx[j] = data(j, 0) < grid_points(i, 0);
 			Ly[j] = data(j, 1) < grid_points(i, 1);
 
+			if( (data(j,0) == grid_points(i,0)) || (data(j,1) == grid_points(i,1)) )
+				Rcout << "found point data == grid!! " << endl;
+
 			Rx_sum += Rx[j] / w_vec[j];
 			Ry_sum += Ry[j] / w_vec[j];
 			Lx_sum += Lx[j] / w_vec[j];
 			Ly_sum += Ly[j] / w_vec[j];
-
-//			Rx_not_sum += (1-Rx[j]) / w_vec[j];
-//			Ry_not_sum += (1-Ry[j]) / w_vec[j];
 
 
 			Obs[0] += (Rx[j] * Ry[j] / (w_vec[j] * n_w));
@@ -1241,7 +1244,7 @@ NumericMatrix iterative_marginal_estimation_rcpp(NumericMatrix data, string w_fu
 # (Problem: what if prob.(rejection) close to 1?)
 # Parameters:
 # data - n * 2 array with(X, Y) samples
-# cdfs - fx and fy - cumulatives (not pdfs!)
+# cdfs - fx and fy - cumulatives (not pdfs!) SORTED!
 # w.fun - Biased sampling function w
 # prms - for w max
 # n - allow a different sample size
@@ -1268,7 +1271,6 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 	double r;
 	while (k < n)
 	{	
-		ctr++;	
 		for(t=0; t<2; t++)
 		{
 			r = double(rand()) / RAND_MAX;
@@ -1276,15 +1278,18 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 			while (a < b) 
 			{
 				mid = (a + b) / 2;
+
+///				Rcout << "Bin search: (a, mid, b) = " << a << ", " << mid << ", " << b << ")" << endl; 
 				if (cdfs(mid,t) < r) 
 					a = mid+1;
 			    else 
 					b = mid;
 			}
 			if(t == 0)
-				i = mid;
+				i = a;
 			else
-				j = mid;
+				j = a;
+///			Rcout << "r=" << r << " a=" << a << " cdf=" << cdfs(a,t) << endl; 
 		}
 //		x = data(i, 0); y = data(j, 1); //		rand() data(d0(gen), 0); //  rand() % (n - k); // sample with replacement 		 //data(d1(gen), 1); //  rand() % (n - k);
 //		if ((double(rand()) / RAND_MAX) < (w_fun_eval_rcpp(x, y, w_fun) / w_max)) // compare to probability (rejection - can be costly when w_max is large!!)
@@ -1430,7 +1435,7 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 // [[Rcpp::export]]
 List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 {
-	double epsilon = 0.00000000000001;
+	double epsilon = 0.00000000001;
 	long ctr;
 	double TrueT, NullT;
 	List output; 
@@ -1492,24 +1497,28 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	// no switch (test_type) for strings in cpp
 	if(test_type == "bootstrap_inverse_weighting") 
 	{
+		TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun); //  $Statistic
 		List marginals = EstimateMarginals_rcpp(data, w_fun);
 
-//		for (i = 0; i < n; i++)
-	//		cout << "i: " << i << "PDF: " << as<NumericVector>(marginals["PDFs"])(i, 0) << ", " << as<NumericVector>(marginals["PDFs"])(i, 1) << 
-		//	" CDF: " << as<NumericVector>(marginals["CDFs"])(i, 0) << ", " << as<NumericVector>(marginals["CDFs"])(i, 1) << endl;
-		NumericMatrix w_mat = w_fun_to_mat_rcpp(marginals["xy"], w_fun);
-		null_distribution = GetNullDistribution_rcpp(marginals["PDFs"], w_mat);
-		TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun); //  $Statistic
+		NumericMatrix CDFs_sorted = as<NumericMatrix>(marginals["CDFs"]); // get sorted CDFs 
+		NumericVector CDF_temp = CDFs_sorted(_, 0);
+		CDFs_sorted(_, 0) = CDF_temp.sort(); //  marginals["CDFs"];
+		CDF_temp = CDFs_sorted(_, 1);
+		CDFs_sorted(_, 1) = CDF_temp.sort(); //  marginals["CDFs"];
+		NumericMatrix xy_sorted = as<NumericMatrix>(marginals["xy"]); // get sorted CDFs 
+		NumericVector xy_temp = xy_sorted(_, 0);
+		xy_sorted(_, 0) = xy_temp.sort(); //  marginals["CDFs"];
+		xy_temp = xy_sorted(_, 1);
+		xy_sorted(_, 1) = xy_temp.sort(); //  marginals["CDFs"];
+
+		NumericMatrix w_mat = w_fun_to_mat_rcpp(xy_sorted, w_fun);
+//		null_distribution = GetNullDistribution_rcpp(marginals["PDFs"], w_mat);
 		NumericVector statistics_under_null(B);
 		List bootstrap_sample; //		NumericMatrix bootstrap_sample(n, 2);
 		for (ctr = 0; ctr < B; ctr++)
 		{
-//			if (ctr % 100 == 0)
-//				Rcout << "Run Boots=" << ctr << endl;
-			bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_mat,  prms, n); // draw new sample.Problem: which pdf and data ?
-	//		NumericMatrix w_mat_bootstrap = w_fun_to_mat_rcpp(bootstrap_sample["sample"], w_fun);
-			NullT = ComputeStatistic_w_rcpp(bootstrap_sample["sample"], grid_points, w_fun); // should sample grid points again! 
-			statistics_under_null[ctr] = NullT; //  ["Statistic"] ;
+			bootstrap_sample = Bootstrap_rcpp(xy_sorted, CDFs_sorted, w_mat,  prms, n); // draw new sample.Problem: which pdf and data ?
+			statistics_under_null[ctr] = ComputeStatistic_w_rcpp(bootstrap_sample["sample"], grid_points, w_fun); // should sample grid points again! 
 		}
 		output["TrueT"] = TrueT;
 		output["statistics.under.null"] = statistics_under_null;

@@ -201,22 +201,19 @@ TIBS <- function(data, w.fun, test.type, prms)
          'bootstrap_inverse_weighting'={
            TrueT <- ComputeStatistic.W(data, grid.points, w.fun)
            if(prms$use.cpp)
-           {
              marginals <- EstimateMarginals_rcpp(data, w.fun)
-             null.distribution <- GetNullDistribution_rcpp(marginals$PDFs, TrueT$w.mat)
-           } else {
+           else 
              marginals <- EstimateMarginals(data, w.fun)
-             null.distribution <- GetNullDistribution(marginals$PDFs, TrueT$w.mat)
-           }
-           
+           w.mat <- w_fun_to_mat(marginals$xy, w.fun)
+
+
            statistics.under.null=matrix(0, prms$B, 1)
            for(ctr in 1:prms$B) 
            {
              if(mod(ctr,100)==0)
                print(paste0("Run Boots=", ctr))
              bootstrap <- Bootstrap(marginals$xy, marginals$PDFs, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
-             NullT <- ComputeStatistic.W(bootstrap$sample, grid.points, w.fun)
-             statistics.under.null[ctr] <- NullT$Statistic
+             statistics.under.null[ctr] <- ComputeStatistic.W(bootstrap$sample, grid.points, w.fun)$Statistic
            }
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
          },
@@ -236,8 +233,6 @@ TIBS <- function(data, w.fun, test.type, prms)
                expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
            } else
              expectations.table <- c()
-           #           print(expectations.table[1:5,])
-           #           print(P[1:5,1:5]) # show P_ij 
            TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
            
