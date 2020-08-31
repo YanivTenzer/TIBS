@@ -4,12 +4,12 @@
 #  multiply the weight function by a constant so the weights
 #  are in some sense centered at 1)
 #############################################################
-IS.permute <- function(data, B, w.fun=function(x){1}, expectations.table=c())
+IS.permute <- function(data, grid.points, B, w.fun=function(x){1}, expectations.table=c())
 {
-  grid.points = data
   n <- dim(data)[1]
-#  grid.points <- matrix(rnorm(2*n, 0, 1), n, 2) # TEMP DEBUG!!
-  inverse.weight = missing(expectations.table) | isempty(expectations.table) # default is using inverse weighting 
+  if(missing(grid.points) || isempty(grid.points))
+    grid.points = data #  grid.points <- matrix(rnorm(2*n, 0, 1), n, 2) # TEMP DEBUG!!
+  inverse.weight = missing(expectations.table) || isempty(expectations.table) # default is using inverse weighting 
   if(inverse.weight)
     TrueT <- ComputeStatistic.W(data, grid.points, w.fun)$Statistic # no unique in grid-points 
   else

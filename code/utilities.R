@@ -38,7 +38,9 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
     Obs[4] <- sum(Ry)-Obs[1]-sum(Eqy)
     Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) - sum(Eqx) - sum(Eqy) + sum(Eqx*Eqy) # new! don't count points equal 
     obs.table[i,] <- Obs
-#    print(paste0("Sum-Exp:", sum(Exp), " Sum-Obs:", sum(Obs)))
+    
+#    if(i < 5)
+#      print(paste0("i:", i, " Sum-Exp:", sum(Exp), " Sum-Obs:", sum(Obs)))
     if (min(Exp)>1) {
       #      print("Add To Expected")
       Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
@@ -118,9 +120,9 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
   Statistic <- 0 
   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
   {
-    Rx <- data[,1] > grid.points[i,1]
+    Rx <- data[,1] > grid.points[i,1] # ties are ignored in both observed and expected 
     Ry <- data[,2] > grid.points[i,2]
-    Lx <- data[,1] < grid.points[i,1] # new: deal with ties !
+    Lx <- data[,1] < grid.points[i,1] 
     Ly <- data[,2] < grid.points[i,2]
     Exp[1] <- sum(Rx/w.vec)*sum(Ry/w.vec)/n.w^2
     Exp[2] <- sum(Rx/w.vec)*sum(Ly/w.vec)/n.w^2

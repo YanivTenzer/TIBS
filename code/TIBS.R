@@ -110,6 +110,9 @@ TIBS <- function(data, w.fun, test.type, prms)
   source('simulate_biased_sample.R')
   source('marginal_estimation.R')
   
+  epsilon <- 0.0000000001 # tolerance 
+  
+  
   if(!is.numeric(data))   # unlist and keep dimensions for data 
     data <- array(as.numeric(unlist(data)), dim(data))  
   
@@ -148,6 +151,9 @@ TIBS <- function(data, w.fun, test.type, prms)
   # 2.Create a grid of points, based on the data:
   #  grid.points <- cbind(data[,1], data[,2])  # keep original points 
   grid.points <- data # no unique !!! unique.matrix(data)  # set unique for ties? for discrete data
+  perturb.grid = 1
+  if(perturb.grid)  # new! add a small perturbation to avoid ties with data 
+    grid.points = grid.points + epsilon * matrix( rnorm(2*n), n, 2)
 
   switch(test.type,
          'bootstrap'={
@@ -193,15 +199,15 @@ TIBS <- function(data, w.fun, test.type, prms)
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
          },
          'bootstrap_inverse_weighting'={
+           TrueT <- ComputeStatistic.W(data, grid.points, w.fun)
            if(prms$use.cpp)
            {
              marginals <- EstimateMarginals_rcpp(data, w.fun)
-             null.distribution <- GetNullDistribution_rcpp(marginals$PDFs, w.mat)
+             null.distribution <- GetNullDistribution_rcpp(marginals$PDFs, TrueT$w.mat)
            } else {
              marginals <- EstimateMarginals(data, w.fun)
-             null.distribution <- GetNullDistribution(marginals$PDFs, w.mat)
+             null.distribution <- GetNullDistribution(marginals$PDFs, TrueT$w.mat)
            }
-           TrueT <- ComputeStatistic.W(data, grid.points, w.fun)$Statistic
            
            statistics.under.null=matrix(0, prms$B, 1)
            for(ctr in 1:prms$B) 
@@ -212,7 +218,7 @@ TIBS <- function(data, w.fun, test.type, prms)
              NullT <- ComputeStatistic.W(bootstrap$sample, grid.points, w.fun)
              statistics.under.null[ctr] <- NullT$Statistic
            }
-           output<-list(TrueT=TrueT,statistics.under.null=statistics.under.null)
+           output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
          },
          'permutations'={
            w.mat = w_fun_to_mat(data, w.fun)
@@ -288,11 +294,11 @@ TIBS <- function(data, w.fun, test.type, prms)
            expectations.table.exact.cpp <- n * QuarterProbGaussianAnalytic_rcpp(grid.points, w.fun)
            expectations.table = expectations.table.exact # TEMP DEBUG!!
   #         TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
-           output <- IS.permute(data, prms$B, w.fun, expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+           output <- IS.permute(data, grid.points, prms$B, w.fun, expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
 #           output.cpp <- IS_permute_rcpp(data, prms$B, w.fun, expectations.table)
          },
          'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with weighted Hoeffding statistic - only for positive W
-           output <- IS.permute(data, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+           output <- IS.permute(data, grid.points, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          }, 
          'tsai' = {result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
          output <- list(Pvalue=result[4])

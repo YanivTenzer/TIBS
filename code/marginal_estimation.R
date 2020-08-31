@@ -74,7 +74,7 @@ EstimateMarginals <- function(data, w.fun, prms=c())
 ##############################################################################
 iterative_marginal_estimation <- function(data, w.fun)  
 {
-  epsilon <- 0.00000001
+  epsilon <- 0.00000001 # tolerance for convergence 
   iters <- 1000 
   f_x <- rep(0, n)
   f_y <- rep(0, n)
