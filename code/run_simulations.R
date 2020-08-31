@@ -74,8 +74,8 @@ for(s in run.dep) # Run all on the farm
 {
   for(num_of_observations in c(100))#seq(250, 400, 50))
   {
-    prms = list(B=100, sample.size=num_of_observations, iterations=2, plot.flag=0, alpha=0.05, sequential.stopping=0, 
-                use.cpp=1, keep.all=1, perturb.grid=0) # , sample.by.bootstrap=1) # set running parameters here ! 
+    prms = list(B=100, sample.size=num_of_observations, iterations=200, plot.flag=0, alpha=0.05, sequential.stopping=0, 
+                use.cpp=1, keep.all=1, perturb.grid=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     prms$w.max = 1
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
@@ -84,7 +84,7 @@ for(s in run.dep) # Run all on the farm
     # Call function. # run simulations function 
     print(paste("n=", prms$sample.size))
     if(const.seed)
-      prms$seed <- 987 # 4524553
+      prms$seed <- 98765 # 4524553
     T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], w.fun[s], test.type, prms) # run all tests 
   }
 } # end loop on dependency types
@@ -101,13 +101,11 @@ legend(0, 200, test.legend, lwd=c(2,2), col=col.vec[1:length(test.type)], y.inte
 
 
 
-
 plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
-     main=paste0("Tests pvals and power, n=", num_of_observations, ", alpha=", prms$alpha))
+     main=paste0("Tests pvals and power, n=", num_of_observations, ", alpha=", prms$alpha, " pert=", prms$perturb.grid))
 for(i in 1:length(test.type))
   points(sort(T.OUT$test.pvalue[1,i,]), col=col.vec[i], pch=20)
 legend(0, 1, test.legend, lwd=c(2,2), col=col.vec[1:num.tests], y.intersp=0.8, cex=0.6)
-
 
 #library(matrixStats)
 #plot(T.OUT$test.stat[1,,], rowMeans(T.OUT$test.null.stat[1,1,,]))

@@ -238,10 +238,10 @@ double ecdf2_rcpp(NumericVector xy, NumericMatrix cdf_2d, NumericMatrix data)
 	for(i=0; i<data.nrow(); i++)
 	{
 		if(data(i,0) <= xy[0])
-			if((i_max == -1) || (data(i,0) >= data(i_max,0)))
+			if((i_max == -1) || (data(i,0) > data(i_max,0)))
 				i_max = i;
 		if(data(i,1) <= xy[1])
-			if((j_max == -1) || (data(i,0) >= data(j_max,0)))
+			if((j_max == -1) || (data(i,1) > data(j_max,1)))
 				j_max = i;
 	}
 
@@ -250,7 +250,10 @@ double ecdf2_rcpp(NumericVector xy, NumericMatrix cdf_2d, NumericMatrix data)
 	if( (i_max==-1) || (j_max==-1))
     	return(0.0);
 	else
+	{
+//		Rcout << "INDEX MAX CPP: i,j: " << i_max << ", " << j_max << endl; 
   		return(cdf_2d(i_max,j_max));
+	}
 }
 
 
@@ -684,13 +687,14 @@ double GetQuarterExpectedProb_rcpp2(NumericVector Point, long QId, NumericMatrix
 	double s = 0.0; 
 	double max_x = max(data(_,0)); 
 	double max_y = max(data(_,1));
-	NumericVector Point_minus = Point;
+	NumericVector Point_minus(2); //  = Point;
 	double epsilon = 0.0000000000001;
-	Point_minus[0] -= epsilon;
-	Point_minus[1] -= epsilon;
-	NumericVector Point_max = Point;
+	Point_minus[0] = Point[0] - epsilon;
+	Point_minus[1] = Point[1] - epsilon;
+	NumericVector Point_max(2); //  = Point;
 
-///	Rcout << " Quarter: " << QId << " max_x = " << max_x << " max_y = " << max_y << endl; 
+///	Rcout << " Quarter: " << QId << " max_x = " << max_x << " max_y = " << max_y << " Point: " << Point[0] << ", " << Point[1] << endl; 
+
 	switch (QId) { // different quardants
 	case 0:	{
 		s = 1.0 +  ecdf2_rcpp(Point, null_distribution_CDF, data); ///Rcout << "Did 1st ";
@@ -699,16 +703,20 @@ double GetQuarterExpectedProb_rcpp2(NumericVector Point, long QId, NumericMatrix
 		Point_max[0] = max_x; Point_max[1] = Point[1]; 
 		s -= ecdf2_rcpp(Point_max, null_distribution_CDF, data);  break;	}
 	case 1: {
-		Point_max[0] = max_x; Point_max[1] = Point_minus[1];
+		Point_max[0] = max_x; Point_max[1] = Point_minus[1]; 
+///		Rcout << "PointMax1: " <<  Point_max[0] << ", " << Point_max[1] << endl; 
 		s = ecdf2_rcpp(Point_max, null_distribution_CDF, data);
 		Point_max[0] = Point[0]; Point_max[1] = Point_minus[1];
+///		Rcout << "PointMax2: " <<  Point_max[0] << ", " << Point_max[1] << endl; 
 		s -= ecdf2_rcpp(Point_max, null_distribution_CDF, data); break;}
 	case 2: {
 		s = ecdf2_rcpp(Point_minus, null_distribution_CDF, data); break;}
 	case 3: {
 		Point_max[0] = Point_minus[0]; Point_max[1] = max_y;
+///		Rcout << "PointMax1: " <<  Point_max[0] << ", " << Point_max[1] << endl; 
 		s = ecdf2_rcpp(Point_max, null_distribution_CDF, data);
 		Point_max[0] = Point_minus[0]; Point_max[1] = Point[1];
+///		Rcout << "PointMax2: " <<  Point_max[0] << ", " << Point_max[1] << endl; 
 		s -= ecdf2_rcpp(Point_max, null_distribution_CDF, data);}
 	} // end switch 
 	return(s);

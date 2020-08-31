@@ -51,48 +51,7 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
 }
 
-#########################################################################################
-# Not UseD: 
-# ComputeStatistic_inverse_weighting<- function(data, grid.points, w_mat)
-# {
-#   obs.table<-matrix(0, dim(grid.points)[1], 4)
-#   Obs<-Exp<-matrix(0,4,1) # observed & expected
-#   n_tilde <- sum(1/diag(w_mat))  # why diag and not all w_mat?
-#   Statistic <- 0  
-#   min_Exp<-1/dim(data)[1]
-#   
-#   for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
-#   {
-#     Rx <- data[,1]>grid.points[i,1]
-#     Ry <- data[,2]>grid.points[i,2]
-#     
-#     idx1 <- which(Rx*Ry==1)
-#     Obs[1] <- sum(1/diag(w_mat)[idx1])
-#     idx2 <- which(Rx*(!Ry)==1)
-#     Obs[2] <- sum(1/diag(w_mat)[idx2])
-#     idx3 <- which((!Rx)*(!Ry)==1)
-#     Obs[3] <- sum(1/diag(w_mat)[idx3])
-#     idx4 <- which(Ry*(!Rx)==1)
-#     Obs[4] <- sum(1/diag(w_mat)[idx4])
-#     Obs <- Obs*(n_tilde^(-1))
-#     
-#     Exp[1] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[Ry])
-#     Exp[2] <- sum(1/diag(w_mat)[Rx])*sum(1/diag(w_mat)[which(!Ry==1)])
-#     Exp[3] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[which(!Ry==1)])
-#     Exp[4] <- sum(1/diag(w_mat)[which(!Rx==1)])*sum(1/diag(w_mat)[Ry])
-#     Exp <- Exp*(n_tilde^(-2))
-#     
-#     obs.table[i,] <- Obs
-#     
-#     if (min(Exp)>min_Exp){
-#       Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
-#     }
-#   } # end loop on grid points 
-#   
-#   return(list(Statistic=Statistic, obs.table=obs.table)) # return also observed table for diagnostics
-#
-#
-#########################################################################################
+
 ##################################################################################################
 # Compute the modified Hoeffding's test statistic corrected for w:
 # Observed and Expected calculated using inverse weighting
@@ -335,17 +294,15 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 {
   Point.minus <-  Point - .Machine$double.eps*100 # need to have lower tolerance! 
   switch(QId, # First sample from Fxy
-         {S <- 1 + ecdf2(Point, null.distribution.CDF, data)  - 
+         {s <- 1 + ecdf2(Point, null.distribution.CDF, data)  - 
            ecdf2(c(Point[1], max(data[,2])), null.distribution.CDF, data) - 
            ecdf2(c(max(data[,1]), Point[2]), null.distribution.CDF, data)}, # 1
-         {S <- ecdf2(c(max(data[,1]), Point.minus[2]), null.distribution.CDF, data) - 
+         {s <- ecdf2(c(max(data[,1]), Point.minus[2]), null.distribution.CDF, data) - 
            ecdf2(c(Point[1], Point.minus[2]), null.distribution.CDF, data)}, # 2
-         {S <- ecdf2(Point.minus, null.distribution.CDF, data)}, # 3
-         {S <-  ecdf2(c(Point.minus[1], max(data[,2])), null.distribution.CDF, data) - 
+         {s <- ecdf2(Point.minus, null.distribution.CDF, data)}, # 3
+         {s <-  ecdf2(c(Point.minus[1], max(data[,2])), null.distribution.CDF, data) - 
            ecdf2(c(Point.minus[1], Point[2]), null.distribution.CDF, data)}) # 4
-  return(S)       
-  
-  
+  return(s)       
 }  
 
 ###################################################################################################
@@ -372,6 +329,18 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
     for(j in 1:4) # print index ? 
     {
       mass.table[i,j] <- GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)  # new! try using ecdf2 
+#      temp.cpp <- GetQuarterExpectedProb_rcpp(grid.points[i,], j-1, data, null.distribution.CDF)
+#      temp.cpp2 <- GetQuarterExpectedProb_rcpp2(grid.points[i,], j-1, data, null.distribution.CDF)
+#      print(paste0("j=", j, " R=", mass.table[i,j], " cpp=", temp.cpp, " cpp2=", temp.cpp2))
+#      x.diff = mass.table[i,j] - temp.cpp + 0.0000000000000001
+      
+#      if(j == 3)  # just take ecdf2
+#      {
+#        print(paste0("ecdf2: ", ecdf2(grid.points[i,], null.distribution.CDF, data)))
+#        print(paste0("ecdf2.cpp: ", ecdf2_rcpp(grid.points[i,], null.distribution.CDF, data)))
+#      }
+        
+      
 #      tmp_debug <-   GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)
 #      if(abs(tmp_debug - mass.table[i,j]) > 0.000001)
 #      {
@@ -542,6 +511,8 @@ ecdf2 <- function(xy, cdf.2d, data)
   j <- j[which.max(data[j,2])]
   if(isempty(i) | isempty(j))
     return(0.0)
+  
+#  print(paste0("MAX.INDEX i,j: ", i, ", ", j))
   return(cdf.2d[i,j])  
 }
 

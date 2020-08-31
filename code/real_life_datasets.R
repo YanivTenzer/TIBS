@@ -49,7 +49,6 @@ ReadDataset <- function(data_str)
            input.data <- cbind(X,Y)
 #           w.max <- max(X)+max(Y) # for truncation we need 
            w.fun <- 'sum'
-           
          }, 
          'Dementia'={ # this dataset is not part of the released package
            # DEMENTIA DATA

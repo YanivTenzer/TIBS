@@ -214,7 +214,6 @@ w_str_to_fun <- function(w.str)
 }
 
 
-
 # Determine empirically  w_max for functions where we don't know it (this is approximate and may fail)
 set_w_max <- function(n=1000, dependence.type, w.fun, prms)
 {
@@ -227,6 +226,7 @@ set_w_max_sample <- function(data, w.fun)
 {
     return(max(w_fun_to_mat(data, w.fun)))
 }
+
 
 # Determine if weighing function is positive 
 is_pos_w <- function(w.fun, data, mat.flag)
