@@ -278,7 +278,7 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
 # Output: 
 # S - expected probability at the quardant QId centered at Point for the distribution defined by null.distribution.CDF and data 
 ###################################################################################################
-GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
+GetQuarterExpectedProb_old <- function(Point, QId, data, null.distribution.CDF)
 {
   if(QId %in% c(1,2))
     idx.x <- which(data[,1] <= Point[1])  # >= 
@@ -331,7 +331,7 @@ GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 }
 
 # New function version: using ecdf
-GetQuarterExpectedProb2 <- function(Point, QId, data, null.distribution.CDF)
+GetQuarterExpectedProb <- function(Point, QId, data, null.distribution.CDF)
 {
   Point.minus <-  Point - .Machine$double.eps*100 # need to have lower tolerance! 
   switch(QId, # First sample from Fxy
@@ -371,7 +371,7 @@ QuarterProbFromBootstrap <- function(data, null.distribution, grid.points)
   {
     for(j in 1:4) # print index ? 
     {
-      mass.table[i,j] <- GetQuarterExpectedProb2(grid.points[i,], j, data, null.distribution.CDF)  # new! try using ecdf2 
+      mass.table[i,j] <- GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)  # new! try using ecdf2 
 #      tmp_debug <-   GetQuarterExpectedProb(grid.points[i,], j, data, null.distribution.CDF)
 #      if(abs(tmp_debug - mass.table[i,j]) > 0.000001)
 #      {

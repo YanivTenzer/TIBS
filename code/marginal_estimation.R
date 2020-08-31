@@ -49,12 +49,12 @@ EstimateMarginals <- function(data, w.fun, prms=c())
           data <- cbind(c(data[,1], data[,2]), c(data[,1], data[,2])) # change data size: n-> 2*n . This looses counts !!!! 
           indices <- cbind(c(1:(2*n)), c(1:(2*n)))
         }
-        F1 <- ecdf(data[,1])  # Wrong! this doesn't take ties into account 
+        F1 <- ecdf(data[,1])  # this doesn't take ties into account 
         F2 <- ecdf(data[,2])
 #        data <- unique(data)  # remove duplicates 
         Fx <- (F1(data[,1])+F2(data[,1]))/2  # Fx, Fy are the same CDFs evaluated at different data x,y
         Fy <- (F1(data[,2])+F2(data[,2]))/2   
-        CDF.table<-cbind(Fx,Fy)
+        CDF.table <- cbind(Fx,Fy)
       }
     } # end if 
     PDF.table <- CDFToPDFMarginals(CDF.table)

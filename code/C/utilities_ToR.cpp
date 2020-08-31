@@ -114,6 +114,19 @@ IntegerVector sort_indexes_rcpp(NumericVector data)
 	return(index);
 }
 
+// Gaussian density
+double normalPDF(double value)
+{
+   return exp(-value*value*0.5) /  2.506628; // divide by sqrt(2*pi) 
+}
+
+
+// Gaussian cumulative
+double normalCDF(double value)
+{
+   return 0.5 * erfc(-value * M_SQRT1_2);
+}
+
 
 /** Copied from here: https://stackoverflow.com/questions/37143283/finding-unique-rows-in-armamat **/
 template <typename T>
@@ -182,9 +195,9 @@ int binary_search_rcpp(NumericVector array, double pattern, long exact_match=0) 
 }
 
 
-// compute empirical cdf 
+// Compute empirical cdf 
 // [[Rcpp::export]]
-NumericVector empirical_cdf_rcpp(NumericVector x)
+NumericVector ecdf_rcpp(NumericVector x)  
 {
 	long i;
 	long n = x.length();
@@ -196,6 +209,63 @@ NumericVector empirical_cdf_rcpp(NumericVector x)
 		ecdf[Px[i]] = double(i+1) / double(n); // use double division here
 	return(ecdf);
 }
+
+
+
+// Compute one-dimensional empirical cdf
+// [[Rcpp::export]]
+double ecdf1_rcpp(double x, NumericVector cdf, NumericVector data)
+{
+	long i, i_max=-1; 
+	for(i=0; i<data.length(); i++)
+		if(data[i] <= x)
+			if((i_max == -1) || (data[i] >= data[i_max]))
+				i_max = i;
+	if(i_max == -1)
+    	return(0.0);
+	else
+	  return(cdf[i_max]);  
+}
+
+
+// Compute empirical cdf 2d
+// [[Rcpp::export]]
+double ecdf2_rcpp(NumericVector xy, NumericMatrix cdf_2d, NumericMatrix data)
+{
+	long i, i_max=-1, j_max=-1;
+
+	for(i=0; i<data.length(); i++)
+	{
+		if(data(i,0) <= xy[0])
+			if((i_max == -1) || (data(i,0) >= data(i_max,0)))
+				i_max = i;
+		if(data(i,1) <= xy[1])
+			if((j_max == -1) || (data(i,0) >= data(j_max,0)))
+				j_max = i;
+	}
+	if( (i_max==-1) || (j_max==-1))
+    	return(0.0);
+	else
+  		return(cdf_2d(i_max,j_max));
+}
+
+
+// Compute matrix empirical cdf 2d from just values
+/**
+NumericVector ecdf2_rcpp(NumericVector x, NumericVector y)
+{
+	long i, j;
+	long n = x.length();
+	IntegerVector Px(n), Py(n); 
+	NumericMatrix ecdf2(n, n);
+
+	Px = sort_indexes_rcpp(x); 
+	for (i = 0; i < n; i++)
+		for(j = 0; j < n; j++)
+			ecdf[Px[i]][Py[j]] = double(i+1) / double(n); // use double division here
+	return(ecdf2);
+}
+**/
 
 
 // should have a similar function for a vector !! 
@@ -241,6 +311,8 @@ NumericVector w_fun_eval_vec_rcpp(NumericVector x, double y, string w_fun)
 		{
 			r[i] = exp((-abs(x[i]) - abs(y)) / 4); continue;
 		}
+		if (w_fun == "gaussian")
+			r[i] = exp((-x[i]*x[i] - y*y) / 2);
 		if (w_fun == "huji")
 		{
 			r[i] = fmax(fmin(65.0 - x[i] - y, 18.0), 0.0); continue;
@@ -249,7 +321,7 @@ NumericVector w_fun_eval_vec_rcpp(NumericVector x, double y, string w_fun)
 		{
 			r[i] = x[i] + y; continue;
 		}
-		if (w_fun == "naive")
+		if ((w_fun == "naive") || (w_fun == "const"))
 		{
 			r[i] = 1.0; continue;
 		}
@@ -352,7 +424,7 @@ double ComputeStatistic_rcpp(NumericMatrix data, NumericMatrix grid_points, Nume
 		}
 		Obs[1] -= Obs[0];
 		Obs[3] -= Obs[0];
-		Obs[2] += (n - Obs[0] - Obs[1] - Obs[3]);
+		Obs[2] += (n - Obs[0] - Obs[1] - Obs[3]);  // here need to check the total number of observed! 
 
 		if ((Exp[0] > 1) && (Exp[1] > 1) && (Exp[2] > 1) && (Exp[3] > 1))
 			for (j = 0; j < 4; j++)
@@ -525,10 +597,10 @@ double GetQuarterExpectedProb_rcpp(NumericVector Point, long QId, NumericMatrix 
 {
 	// convert below R to C++:
 	long idx_x = -1, idx_y = -1, i;
-	double S = 0.0;
+	double s = 0.0;
 	long n = data.nrow();
 
-	double epsilon = 0.00000000000001;
+	double epsilon = 0.00000000000001; // should be much smaller than grid perturbation 
 	double point_x_minus = Point[0];
 	double point_y_minus = Point[1];
 	if ((QId == 2) || (QId == 3)) // work with 0-3 coordinates for quadrants
@@ -568,18 +640,51 @@ double GetQuarterExpectedProb_rcpp(NumericVector Point, long QId, NumericMatrix 
 	}
 
 	switch (QId) { // different quardants
-	case 0: {S = 1 + cdf_point - cdf_x - cdf_y; break; } // "huji" prints "1",
-	case 1: {S = cdf_y - cdf_point; break; }
-	case 2: {S = cdf_point; break; }
-	case 3: {S = cdf_x - cdf_point; break; }
+	case 0: {s = 1 + cdf_point - cdf_x - cdf_y; break; } // "huji" prints "1",
+	case 1: {s = cdf_y - cdf_point; break; }
+	case 2: {s = cdf_point; break; }
+	case 3: {s = cdf_x - cdf_point; break; }
 	} // end switch 
 	
-	return(S);
+	return(s);
+}
+
+// [[Rcpp::export]]
+double GetQuarterExpectedProb_rcpp2(NumericVector Point, long QId, NumericMatrix data, NumericMatrix null_distribution_CDF)
+{
+	double s = 0.0; 
+	double max_x = max(data(_,0)); 
+	double max_y = max(data(_,1));
+	NumericVector Point_minus = Point;
+	double epsilon = 0.0000000000001;
+	Point_minus[0] -= epsilon;
+	Point_minus[1] -= epsilon;
+	NumericVector Point_max = Point;
+
+	switch (QId) { // different quardants
+	case 0:	{
+		s = 1.0 +  ecdf2_rcpp(Point, null_distribution_CDF, data);
+		Point_max[0] = Point[0]; Point_max[1] = max_y; 
+		s -= ecdf2_rcpp(Point_max, null_distribution_CDF, data);
+		Point_max[0] = max_x; Point_max[1] = Point[1]; 
+		s -= ecdf2_rcpp(Point_max, null_distribution_CDF, data); break;	}
+	case 1: {
+		Point_max[0] = max_x; Point_max[1] = Point_minus[1];
+		s = ecdf2_rcpp(Point_max, null_distribution_CDF, data);
+		Point_max[0] = Point[0]; Point_max[1] = Point_minus[1];
+		s -= ecdf2_rcpp(Point_max, null_distribution_CDF, data); break;}
+	case 2: {
+		s = ecdf2_rcpp(Point_minus, null_distribution_CDF, data); break;}
+	case 3: {
+		Point_max[0] = Point_minus[0]; Point_max[1] = max_y;
+		s = ecdf2_rcpp(Point_max, null_distribution_CDF, data);
+		Point_max[0] = Point_minus[0]; Point_max[1] = Point[1];
+		s -= ecdf2_rcpp(Point_max, null_distribution_CDF, data);}
+	} // end switch 
+	return(s);
 }
 
 
-//double QuarterProbFromBootstrap(double* data[2], double** null_distribution, double* grid_points[2], long n,
-//	double* mass_table[4])
 // [[Rcpp::export]]
 NumericMatrix QuarterProbFromBootstrap_rcpp(NumericMatrix data, NumericMatrix null_distribution, NumericMatrix grid_points)
 {
@@ -590,16 +695,26 @@ NumericMatrix QuarterProbFromBootstrap_rcpp(NumericMatrix data, NumericMatrix nu
 	NumericVector cur_grid_points(2);
 	NumericMatrix mass_table(n_grid, 4);
 
+	Rcout << "Running PDF->CDF2d" << endl;
 	null_distribution_CDF = PDFToCDF2d_rcpp(null_distribution, data);  // convert PDF to CDF 
+	Rcout << "Did PDF->CDF2d" << endl;
 
 //	cout << "n: " << n << " n_grid: " << n_grid << " null-dist: " << null_distribution.nrow() << ", " << null_distribution.ncol() << endl;
 	for (i = 0; i < n_grid; i++)  // loop on grid-points
 	{
-		cur_grid_points = grid_points(i,_); // 		cur_grid_points[1] = grid_points(i,1);
+		Rcout << "Copy i=" << endl; 
+		cur_grid_points = grid_points(i, _); // 		cur_grid_points[1] = grid_points(i,1);
+		Rcout << "Copied i=" << endl; 
 		for (j = 0; j < 4; j++)  // compute probabilities (normalize outside the function)
-			mass_table(i, j) = GetQuarterExpectedProb_rcpp(cur_grid_points, j, data, null_distribution_CDF);
+		{
+			Rcout << "Try expected (" << i << ", " << j << ")";	
+			mass_table(i, j) = GetQuarterExpectedProb_rcpp2(cur_grid_points, j, data, null_distribution_CDF); // try new version 
+			Rcout << " mass=" << mass_table(i, j); 
+		}
+		Rcout << endl;
 //		mass_table(i,3) = n - mass_table(i,2) - mass_table(i,1) - mass_table(i,0);  // we can't complete to one 
 	}
+	Rcout << "Did loop" << endl; 
 	return(mass_table);
 }  // end function QuarterProbFromBootstrap
 
@@ -627,6 +742,41 @@ NumericMatrix QuarterProbFromPermutations_rcpp(NumericMatrix data, NumericMatrix
 	return(mass_table);
 }
 
+
+/*
+###################################################################################################
+# Compute quarter probabilities for the standard bivariate Gaussians 
+# with truncation y>x. We assume grid.points satisfy y>x
+#
+# grid.points - where to evaluate probabilitites 
+###################################################################################################*/
+// [[Rcpp::export]]
+NumericMatrix QuarterProbGaussianAnalytic_rcpp(NumericMatrix grid_points, string w_fun)
+{
+  	long n = grid_points.nrow();	
+  	NumericMatrix mass_table(n, 4); 
+	NumericVector x = grid_points(_,0); 
+	NumericVector y = grid_points(_,1); 
+
+	for(long i = 0; i < n; i++)
+	{
+		if((w_fun == "truncation") || (w_fun == "Hyperplane_truncation"))
+		{
+			mass_table(i,0) =  (1-normalCDF(y[i]))*(1+normalCDF(y[i])-2*normalCDF(y[i]));
+			mass_table(i,1) =  pow((normalCDF(x[i])-normalCDF(y[i])), 2);
+			mass_table(i,2) =  normalCDF(x[i])*(2*normalCDF(y[i])-normalCDF(x[i]));
+			mass_table(i,3) =  2*normalCDF(x[i])*(1-normalCDF(y[i]));
+		}
+		if((w_fun == "const") || (w_fun == "naive"))
+		{
+			mass_table(i,0) =  (1-normalCDF(x[i]))*(1-normalCDF(y[i]));
+			mass_table(i,1) =  (1-normalCDF(x[i]))*normalCDF(y[i]);
+			mass_table(i,2) =  normalCDF(x[i])*normalCDF(y[i]);
+			mass_table(i,3) =  normalCDF(x[i])*(1-normalCDF(y[i]));
+		}
+	}
+  	return(mass_table);
+}
 
 
 /****************************************************************************************************************************/
@@ -746,8 +896,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 		if (naive_flag) // no bias(assume W(x, y) = 1)
 		{
 			CDFs = CDFs(Range(0, n - 1), _);
-			CDFs(_, 0) = empirical_cdf_rcpp(data(_, 0));
-			CDFs(_, 1) = empirical_cdf_rcpp(data(_, 1));
+			CDFs(_, 0) = ecdf_rcpp(data(_, 0));
+			CDFs(_, 1) = ecdf_rcpp(data(_, 1));
 			ret["xy"] = data;
 		}
 		else { // use W , symmetric , exchangable 
@@ -772,7 +922,6 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 					for (j = 0; j < n; j++)
 						new_data(j, i) = data(j, i);
 			}
-
 			// need here permutations !! 
 			NumericVector Px(2 * n);
 			NumericVector Py(2 * n);
@@ -791,8 +940,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 //			Rcout << "Generated new sorted data:" << endl;
 //			for (i = 0; i < 5; i++) // copy sorted 
 //				Rcout << new_data_sorted(i,0) << " " << new_data_sorted(i, 1) << endl;
-			NumericVector F0 = empirical_cdf_rcpp(new_data_sorted(_, 0)); // can be used instead of binary search 
-			NumericVector F1 = empirical_cdf_rcpp(new_data_sorted(_, 1));
+			NumericVector F0 = ecdf_rcpp(new_data_sorted(_, 0)); // can be used instead of binary search 
+			NumericVector F1 = ecdf_rcpp(new_data_sorted(_, 1));
 			// alternative: take average of F0 and F1
 			CDFs(_, 0) = (F0 + F1) / 2;
 			CDFs(_, 1) = CDFs(_, 0); //  (F0 + F1) / 2;
@@ -901,33 +1050,23 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 	return(ret); // return list with also P
 }
 
+
+
+// Sample a random permutation from the uniform distribution over S_n 
 // [[Rcpp::export]]
 NumericVector rand_perm(long n)
 {
 	NumericVector perm(n); 
 	long i, temp, r;
-	NumericVector is_full(n); 
-
-
 
 	for (i = 0; i < n; i++)
-		perm[i] = i; // start with the identiyt // is_full[i] = 0;
-
-		
-
+		perm[i] = i; // start with the identity 
 	for (i = 0; i < n; i++)
 	{
 		r = rand() % (n - i) + i;
-
 		temp = perm[i]; // swap 
 		perm[i] = perm[r];
 		perm[r] = temp; 
-
-//		ctr = 0;
-//		for (j = 0; j < r; j++)
-//			ctr += (1 + is_full[ctr]);
-//		perm[i] = ctr;
-//		is_full[perm[i]] = 1;
 	}
 	return(perm);
 }
@@ -941,7 +1080,7 @@ NumericVector rand_perm(long n)
 #############################################################
 **/
 // [[Rcpp::export]]
-List IS_permute_rcpp(NumericMatrix data, double B, string w_fun, NumericMatrix expectations_table) 
+List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, double B, string w_fun, NumericMatrix expectations_table) 
 {
 	long  n = data.nrow();
 	double Tobs; // = ComputeStatistic_w_rcpp(data, data, w_fun); 
@@ -952,12 +1091,15 @@ List IS_permute_rcpp(NumericMatrix data, double B, string w_fun, NumericMatrix e
 	IntegerVector perm(n);
 	NumericMatrix permuted_data(n, 2);
 
+	if(grid_points.ncol() == 1) // no input grid
+		grid_points = data;
 
   	long inverse_weight = (expectations_table.ncol() == 1);   // | isempty(expectations.table) # default is using inverse weighting 
+//	Rcout << "Start IS Permute Inverse Weight: " << inverse_weight << " Dim(Exp-Table)=" << expectations_table.nrow() << ", " << expectations_table.ncol() << endl; 
   	if(inverse_weight)
-    	Tobs = ComputeStatistic_w_rcpp(data, data, w_fun); // weights. no unique in grid-points 
+    	Tobs = ComputeStatistic_w_rcpp(data, grid_points, w_fun); // weights. no unique in grid-points 
 	else
-    	Tobs = ComputeStatistic_rcpp(data, data, expectations_table); // no weights
+    	Tobs = ComputeStatistic_rcpp(data, grid_points, expectations_table); // no weights
 
 	for (i = 0; i < B; i++) 
 	{
@@ -966,18 +1108,20 @@ List IS_permute_rcpp(NumericMatrix data, double B, string w_fun, NumericMatrix e
 		for (j = 0; j < n; j++)
 			permuted_data(j, 1) = data(perm[j], 1); // permute data 
 		if(inverse_weight)
-			Tb[i] = ComputeStatistic_w_rcpp(permuted_data, data, w_fun); // grid depends on permuted data. Compute weighted statistic! 
+			Tb[i] = ComputeStatistic_w_rcpp(permuted_data, grid_points, w_fun); // grid depends on permuted data. Compute weighted statistic! 
 		else 
-			Tb[i] = ComputeStatistic_rcpp(permuted_data, data, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
+			Tb[i] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
 		pw[i] = 0.0;
 		for(j=0; j<n; j++)
 			pw[i] += log(w_fun_eval_rcpp(permuted_data(j,0), permuted_data(j,1), w_fun));  // take log to avoid underflow 
+		
 	}
 
 	double pw_max = max(pw);
 	for (i = 0; i < B; i++)
 	{
 		pw[i] = exp(pw[i] - pw_max);
+//		Rcout << "i = " << i << " pw[i]=" << pw[i] << endl; 
 		reject += (Tb[i] >= Tobs) * pw[i];
 //		sum_p += pw[i];
 	}
@@ -985,6 +1129,7 @@ List IS_permute_rcpp(NumericMatrix data, double B, string w_fun, NumericMatrix e
 	List ret; 
 	ret["Pvalue"] = reject / sum(pw);
 	ret["TrueT"] = Tobs; 
+	ret["statistics.under.null"] = Tb;
 //	ret["statistics.under.null"] = Tb; // get null statistics. But they're not weighted equally!
 	return(ret);
 }
@@ -1072,10 +1217,13 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 	IntegerMatrix boot_indices(n, 2);
 	NumericMatrix boot_sample(n, 2);
 
+
 //	double x = 0.0, y = 0.0; //  , r; //  keep;
 	long k = 0, ctr=0; 
 	long i=0, j=0;
 	double w_max = prms["w.max"];
+
+//	Rcout << "Start Bootstrap, w_max=" << w_max << endl; 
 //	long m;
 	long a, b, t, mid=(n-1)/2;
 	double r;
@@ -1099,9 +1247,9 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 			else
 				j = mid;
 		}
-
 //		x = data(i, 0); y = data(j, 1); //		rand() data(d0(gen), 0); //  rand() % (n - k); // sample with replacement 		 //data(d1(gen), 1); //  rand() % (n - k);
 //		if ((double(rand()) / RAND_MAX) < (w_fun_eval_rcpp(x, y, w_fun) / w_max)) // compare to probability (rejection - can be costly when w_max is large!!)
+//		Rcout << "Try k=" << k << " i=" << i << " j=" << j << " w(x,y)=" << w_mat(i, j) << endl; 
 		if ((double(rand()) / RAND_MAX) < (w_mat(i, j) / w_max)) // compare to probability (rejection - can be costly when w_max is large!!)
 		{
 			boot_indices(k, 0) = i; boot_indices(k, 1) = j;
@@ -1128,8 +1276,6 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 // A special function for copying bootstrap data 
 List BootstrapOrganize_rcpp(List data_marginals, List bootstrap, string w_fun, List prms)
 {
-
-
 	long i, j;
 	long n = prms["sample.size"];
 	long marginals_n = n; 
@@ -1143,7 +1289,7 @@ List BootstrapOrganize_rcpp(List data_marginals, List bootstrap, string w_fun, L
   	List marginals_bootstrap_organized; 
 	marginals_bootstrap_organized["xy"] = as<NumericMatrix>(data_marginals["xy"]);
 	NumericMatrix marginals_bootstrap_organized_PDFs(marginals_n, 2);
-	if((w_fun == "truncation") || (w_fun == "Hyperplane_Truncation"))
+	if((w_fun == "truncation") || (w_fun == "Hyperplane_Truncation")) // here data was duplicated 
 	{
 		for(i=0; i<n; i++)
 			for(j=0; j<2; j++)
@@ -1245,6 +1391,7 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, Nume
 // [[Rcpp::export]]
 List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 {
+	double epsilon = 0.00000000000001;
 	long ctr;
 	double TrueT, NullT;
 	List output; 
@@ -1265,6 +1412,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long new_bootstrap = TRUE; 
 	if (prms.containsElementNamed("new.bootstrap"))
 		new_bootstrap = prms["new.bootstrap"];
+	long perturb_grid = TRUE; // add a small perturbation to avoid ties (default: TRUE)
+	if (prms.containsElementNamed("perturb.grid"))
+		perturb_grid = prms["perturb.grid"];
 
 
 //	if (!prms.containsElementNamed("delta"))
@@ -1279,13 +1429,17 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
   	for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
     	for (j = 0; j < 2; j++)
         	new_data(i, j) = data(i, j);
-
 	
 //	Rcout << " Read Input TIBS_RCPP. TEST-TYPE: " << test_type << endl; 
-
-
 	// Create a grid of points, based on the data :
 	NumericMatrix grid_points = new_data;
+	if(perturb_grid)
+	{
+		NumericMatrix perturb(n, 2);
+		perturb(_, 0) = epsilon * rnorm(n);
+		perturb(_, 1) = epsilon * rnorm(n);
+		grid_points += perturb; 
+	}
 /*	arma::mat grid_points_arma = unique_rows(as<arma::mat>(data));  // set unique for ties ? for discrete data
 	NumericMatrix grid_points(n, 2);
 	for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)
@@ -1311,8 +1465,8 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		List bootstrap_sample; //		NumericMatrix bootstrap_sample(n, 2);
 		for (ctr = 0; ctr < B; ctr++)
 		{
-			if (ctr % 100 == 0)
-				Rcout << "Run Boots=" << ctr << endl;
+//			if (ctr % 100 == 0)
+//				Rcout << "Run Boots=" << ctr << endl;
 			bootstrap_sample = Bootstrap_rcpp(marginals["xy"], marginals["CDFs"], w_mat,  prms, n); // draw new sample.Problem: which pdf and data ?
 	//		NumericMatrix w_mat_bootstrap = w_fun_to_mat_rcpp(bootstrap_sample["sample"], w_fun);
 			NullT = ComputeStatistic_w_rcpp(bootstrap_sample["sample"], grid_points, w_fun); // should sample grid points again! 
@@ -1328,7 +1482,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericMatrix expectations_table(1, 1);
 //		Rcout << "Start TIBS RCPP Bootstrap Data Before" << endl;
 //    for(i=0; i<5; i++)
-//      Rcout << data(i,0) << " " << data(i,1) << endl; 
+//    Rcout << data(i,0) << " " << data(i,1) << endl; 
   
 		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
 		TrueT = TrueTList["Statistic"];
@@ -1341,7 +1495,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
     	data(_, 1) = data_temp.sort(); //  marginals["CDFs"];
     
     
-		//		Rcout << "Computed TrueT TIBS RCPP Bootstrap" << endl;
+//		Rcout << "Computed TrueT TIBS RCPP Bootstrap" << endl;
     // Run tibs again
 		TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
 		List marginals = TrueTList["marginals"]; // marginals for true data 
@@ -1371,15 +1525,22 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		w_mat = w_fun_to_mat_rcpp(xy_sorted, w_fun); // compute matrix once 
 		prms["w.max"] = set_w_max_rcpp_sample(data, w_fun); // set w.max for bootstrap sampling 
 
-//		Rcout << " TIBS RCPP Data BEFORE BOOTSTRAP" << endl;
-//		for(i=0; i<5; i++)
-//		  Rcout << data(i,0) << " " << data(i,1) << endl; 
-		
-		
-//		Rcout << "Run Bootstrap, NEW=" << new_bootstrap << endl; 
+/**		Rcout << " TIBS RCPP Data BEFORE BOOTSTRAP" << endl;
+		for(i=0; i<5; i++)
+		  Rcout << data(i,0) << " " << data(i,1) << endl; 
+
+
+		Rcout << " TIBS RCPP w_mat BEFORE BOOTSTRAP, w_fun=" << w_fun << endl;
+		for(i=0; i<5; i++)
+		{
+			for(j=0; j<5; j++)
+				Rcout << w_mat(i,j) << " "; 
+			Rcout << endl; 
+		}
+		Rcout << "Run Bootstrap, NEW=" << new_bootstrap << endl; **/
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{
-//				Rcout << "Run Bootstrap B = " << ctr << endl;
+				Rcout << "Run Bootstrap B = " << ctr << endl;
 
 				// statistics_under_null[ctr] = TIBS_steps_rcpp(bootstrap_sample, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
 ////				if(ctr==0)
@@ -1393,14 +1554,15 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 						statistics_under_null[ctr] = NullT["Statistic"];
 					} else
 					{
-//						Rcout << "Organize Marginals B = " << ctr << endl;
+						Rcout << "Organize Marginals B = " << ctr << endl;
 						marginals_bootstrap_new = BootstrapOrganize_rcpp(marginals, bootstrap_sample, w_fun, prms);
-//						Rcout << "Estimate Marginals B = " << ctr << "xy : PDFs : CDFs " << endl;
-////						NumericMatrix marginals_bootstrap_new_xy = as<NumericMatrix>(marginals_bootstrap_new["xy"]);
+						Rcout << "Get Null Distribution B = " << ctr << " xy : PDFs : CDFs " << endl;
 
 						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new["PDFs"], TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA!
+						Rcout << "Compute Expected B = " << ctr << " xy : PDFs : CDFs " << endl;
 						expectations_table_new = double(n) * QuarterProbFromBootstrap_rcpp(
 							marginals_bootstrap_new["xy"], null_distribution_bootstrap_new["distribution"], grid_points);
+						Rcout << "Compute Statistic B = " << ctr << " xy : PDFs : CDFs " << endl;
 						statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table_new); // TEMP FOR TIMING !!! _new); // NEW!Compute null statistic without recomputing the entire matrix 
 						
 /**						Rcout << "Expected old, new:" << endl;
@@ -1537,13 +1699,31 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericMatrix expectations_table(1, 1); // set empty (0) table 
 		if(!(PL_expectation || naive_expectation))
 			expectations_table = QuarterProbFromPermutations_rcpp(data, P, grid_points);
-
+/**
+		Rcout << "Before analytic, expected:" << endl; 
+		for(i=0; i < 5; i++)
+		{
+			for(j=0; j < 4; j++)
+				Rcout << expectations_table(i, j) << ", ";
+			Rcout << endl; 
+		} **/
+		// New: set analytic expectations table
+		expectations_table = double(n) * QuarterProbGaussianAnalytic_rcpp(data, w_fun);  // TEMP FOR DEBUGGING. ONLY FOR GAUSSIAN DEPENDENCIES
+/**		Rcout << "SET ANALYTIC EXPECTATIONS TABLE" << endl; 
+		Rcout << "After analytic, expected:" << endl; 
+		for(i=0; i < 5; i++)
+		{
+			for(j=0; j < 4; j++)
+				Rcout << expectations_table(i, j) << ", ";
+			Rcout << endl; 
+		}
+**/
 //		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms);   // compute statistic. Use permutations for expected table 
 //		TrueT = TrueTList["Statistic"];
 		permuted_data(_, 0) = data(_, 0);
 		for (i = 0; i < n; i++)
 			permuted_data(i, 1) = data(Permutations(i, 0)-1, 1); // save one example
-		output = IS_permute_rcpp(data, B, w_fun, expectations_table);} // instead of w_fun we should give expectation table 
+		output = IS_permute_rcpp(data, grid_points, B, w_fun, expectations_table);} // instead of w_fun we should give expectation table 
 
 
 // R code below
@@ -1569,7 +1749,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 
 	if (test_type == "uniform_importance_sampling_inverse_weighting") { // inverse-weighting Hoeffding's statistic with importance sampling uniform permutations  
 		NumericMatrix expectations_table(1, 1); // set empty (0) table 
-		output = IS_permute_rcpp(data, B, w_fun, expectations_table); // need to change!
+		output = IS_permute_rcpp(data, grid_points, B, w_fun, expectations_table); // need to change!
 	} // w = function(x) { 1 }) {
 	if(test_type == "tsai") { cout << "Can't run Tsai's test from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}		
 	if(test_type == "minP2") { cout << "Can't run minP2 from cpp" << endl;} // minP2 test, relevant only for truncation W(x,y)=1_{x<=y}
