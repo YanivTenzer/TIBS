@@ -74,8 +74,8 @@ for(s in run.dep) # Run all on the farm
 {
   for(num_of_observations in c(100))#seq(250, 400, 50))
   {
-    prms = list(B=100, sample.size=num_of_observations, iterations=500, plot.flag=0, alpha=0.05, sequential.stopping=0, 
-                use.cpp=1, keep.all=1, perturb.grid=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+    prms = list(B=100, sample.size=num_of_observations, iterations=100, plot.flag=0, alpha=0.05, sequential.stopping=0, 
+                use.cpp=0, keep.all=1, perturb.grid=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     prms$w.max = 1
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
@@ -100,7 +100,7 @@ legend(0, 200, test.legend, lwd=c(2,2), col=col.vec[1:length(test.type)], y.inte
 # points(T.OUT$test.stat[1,,]- rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
 
 
-jpeg(paste0("../figs/check_valid_", dependence.type[s], "_",  w.fun[s],  "_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
+##jpeg(paste0("../figs/check_valid_", dependence.type[s], "_",  w.fun[s],  "_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
 plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
      main=paste0("Tests pvals and power, n=", num_of_observations, ", alpha=", prms$alpha, " pert=", prms$perturb.grid))
 valid.tests <- rep(0, num.tests)
@@ -113,7 +113,7 @@ for(i in 1:num.tests)
   }
 }
 legend(0, 1, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], y.intersp=0.8, cex=0.6)
-dev.off()
+##dev.off()
 
 
 #library(matrixStats)

@@ -86,8 +86,8 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
     T <- ComputeStatistic(data, grid.points, expectations.table)$Statistic  # keep same grid points for bootstrap sample?
   }  
   
-  print("expectations sum inside tibs.steps")
-  print(rowSums(expectations.table))
+#  print("expectations sum inside tibs.steps")
+#  print(rowSums(expectations.table))
   return(list(Statistic=T, expectations.table=expectations.table, marginals=marginals, w.mat=w.mat, null.distribution=null.distribution))
 }
 
@@ -192,8 +192,8 @@ TIBS <- function(data, w.fun, test.type, prms)
                     marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
                   statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!          
                 }
-                print("Expectations sum bootstrap:")
-                print(rowSums(expectations.table.new))
+#                print("Expectations sum bootstrap:")
+#                print(rowSums(expectations.table.new))
              }
              else # use same expectation as original sample 
              {
@@ -240,8 +240,8 @@ TIBS <- function(data, w.fun, test.type, prms)
                expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
            } else
              expectations.table <- c()
-           print("Expectations sum permutations:")
-           print(rowSums(expectations.table))
+#           print("Expectations sum permutations:")
+#           print(rowSums(expectations.table))
            TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
            

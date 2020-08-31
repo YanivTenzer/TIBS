@@ -32,16 +32,16 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
     # new: deal also with ties 
     Eqx <- data[,1] == grid.points[i,1]
     Eqy <- data[,2] == grid.points[i,2]
-    if((Eqx > 0) || (Eqy > 0))
-      print(paste0("Equal X,Y, Xy:", sum(Eqx), " ", sum(Eqy), " ", sum(Eqx*Eqy)))
+#    if((Eqx > 0) || (Eqy > 0))
+#      print(paste0("Equal X,Y, Xy:", sum(Eqx), " ", sum(Eqy), " ", sum(Eqx*Eqy)))
     Obs[1] <- sum(Rx*Ry)
     Obs[2] <- sum(Rx)-Obs[1]-sum(Eqx)
     Obs[4] <- sum(Ry)-Obs[1]-sum(Eqy)
     Obs[3] <- dim(data)[1]-sum(Obs[c(1,2,4)]) - sum(Eqx) - sum(Eqy) + sum(Eqx*Eqy) # new! don't count points equal 
     obs.table[i,] <- Obs
     
-    if(i < 5)
-      print(paste0("i:", i, " Sum-Exp:", sum(Exp), " Sum-Obs:", sum(Obs)))
+#    if(i < 5)
+#      print(paste0("i:", i, " Sum-Exp:", sum(Exp), " Sum-Obs:", sum(Obs)))
     if (min(Exp)>1) {
       #      print("Add To Expected")
       Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
