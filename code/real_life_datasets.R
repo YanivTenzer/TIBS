@@ -104,14 +104,16 @@ ReadDataset <- function(data_str)
            data("channing", package = "boot")
            ok <- which(channing$exit>channing$entry) # keep only these 
            ### Create data frame.
-           ch.data <- data.frame(list("x"=channing$entry[ok], "y"=channing$exit[ok], "delta"=channing$cens[ok]))
+           input.data <- data.frame(list("x"=channing$entry[ok], "y"=channing$exit[ok], "delta"=channing$cens[ok]))
            # filter the uncensored observations and apply TIBS
-           input.data <- data.frame(x=ch.data$x[ch.data$delta==1], y=ch.data$y[ch.data$delta==1])
+#           input.data <- data.frame(x=ch.data$x[ch.data$delta==1], y=ch.data$y[ch.data$delta==1])  # keep all values (including censored!)
            
            # estimating censoring distribution and calculating W function
            KM <- survfit(Surv(y-x,!delta) ~ 1, data=ch.data)
            Srv.C <- stepfun(KM$time, c(1,KM$surv))
            w.fun <- function(x,y){(x<y)*Srv.C(y-x)}
+#           return(list(input.data=input.data, w.fun=w.fun, delta=ch.data$delta)) # return also delta for censoring
+           
          }
   ) # end switch 
   
@@ -153,6 +155,12 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
   prms <- list(B = B)  # NOTE: for minP we may need a lower number of permutations
   prms$w.max <- set_w_max_sample(dat$input.data, dat$w.fun) # set maximum value of w for the dataset
     
+  if(dim(dat$input.data)[2]==3)  # enable censoring (delta)
+  {
+      prms$delta <- dat$input.data[,3]
+      dat$input.data <- dat$input.data[,1:2]
+  }
+  
 #    max(w.max[d], max(w_fun_to_mat(dat$input.data, dat$w.fun))) # update max 
   prms$use.cpp <- 1 # New! enable one to run with c++ code (faster)
   for(t in 1:4) # n.tests) # run all tests 
@@ -170,6 +178,7 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     if((test.type[t] == 'bootstrap') & (min(w_fun_eval(dat$input.data[,1], dat$input.data[,2], dat$w.fun))==0))  # check for icu that we can run it
       next # can't run bootstrap because w can be zero 
 
+    
     set.seed(100)
     
     print(paste0("Running ", datasets[d], ", ", test.type[t], ":"))

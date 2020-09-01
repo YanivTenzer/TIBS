@@ -116,9 +116,6 @@ TIBS <- function(data, w.fun, test.type, prms)
   epsilon <- 0.0000000001 # tolerance 
   
   
-  if(!is.numeric(data))   # unlist and keep dimensions for data 
-    data <- array(as.numeric(unlist(data)), dim(data))  
-  
   
   # Set defaults
   if(!('use.cpp' %in% names(prms)))  # new: a flag for using c++ code 
@@ -133,9 +130,23 @@ TIBS <- function(data, w.fun, test.type, prms)
     prms$naive.expectation <- FALSE
   if(!('delta' %in% names(prms)))
     prms$delta <- NA
+  else
+  {
+    if(!(test.type %in% c('tsai', 'minP2')))  # remove cenosred points
+      data <- data[prms$delta==1,]
+  }
+  if(!is.numeric(data))   # unlist and keep dimensions for data 
+    data <- array(as.numeric(unlist(data)), dim(data))  
+  
+  
   if(!('perturb.grid' %in% names(prms)))  # default: perturb grid to avoid ties 
     prms$perturb.grid <- TRUE
+  
+  
+  
   prms$sample.size <- n <- dim(data)[1]
+  print(paste0("RUN n=", n))
+  
 #  if(!('w.max' %in% names(prms)))
 #    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
   
@@ -295,8 +306,12 @@ TIBS <- function(data, w.fun, test.type, prms)
          'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with weighted Hoeffding statistic - only for positive W
            output <- IS.permute(data, grid.points, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          }, 
-         'tsai' = {result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
-         output <- list(Pvalue=result[4])
+         'tsai' = {
+           if(!('delta' %in% names(prms)))  # new: Tsai with censoring
+             result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
+           else
+             result <- Tsai.test(data[,1],data[,2], prms$delta) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
+           output <- list(Pvalue=result[4])
          },
          'minP2' = { library(permDep) #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
            require(survival)  
