@@ -298,8 +298,8 @@ TIBS <- function(data, w.fun, test.type, prms)
 ##           expectations.table.exact.cpp <- n * QuarterProbGaussianAnalytic_rcpp(grid.points, w.fun)
 ##           expectations.table = expectations.table.exact # TEMP DEBUG!!
            
-           print("Expectations sum uniform_importance_sampling:")
-           print(rowSums(expectations.table))
+##           print("Expectations sum uniform_importance_sampling:")
+##           print(rowSums(expectations.table))
            
   #         TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
            output <- IS.permute(data, grid.points, prms$B, w.fun, expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
