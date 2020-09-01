@@ -295,6 +295,8 @@ double w_fun_eval_rcpp(double x, double y, string w_fun)
 		r = x + y; 
 	if ((w_fun == "naive") || (w_fun == "const"))
 		r = 1;
+	if (w_fun == "step")
+		r = double(x <= y)+0.1; 
 
 	return(r);
 }
@@ -312,7 +314,7 @@ NumericVector w_fun_eval_vec_rcpp(NumericVector x, double y, string w_fun)
 		// different bias functions (instead of switch)
 		if ((w_fun == "truncation") || (w_fun == "Hyperplane_Truncation"))
 		{
-			r[i] = x[i] < y; continue;
+			r[i] = x[i] <= y; continue;
 		}
 		if ((w_fun == "exp") || (w_fun == "exponent_minus_sum_abs") || (w_fun == "stritcly_positive"))
 		{
@@ -327,6 +329,10 @@ NumericVector w_fun_eval_vec_rcpp(NumericVector x, double y, string w_fun)
 		if (w_fun == "sum")
 		{
 			r[i] = x[i] + y; continue;
+		}
+		if (w_fun == "step")
+		{
+			r[i] = double(x[i] <= y)+0.1; continue;
 		}
 		if ((w_fun == "naive") || (w_fun == "const"))
 		{
@@ -381,10 +387,10 @@ double set_w_max_rcpp_sample(NumericMatrix data, string w_fun)
 long is_pos_w_rcpp(string w_fun, NumericMatrix data, long mat_flag) // , data, mat.flag)
 {
 	long i; 
-	string pos_w[6] = {"sum", "sum_coordinates", "exponent_minus_sum_abs", "const", "naive", "gaussian"}; // all positive w -> should replace by a function checking for positivity 
+	string pos_w[7] = {"sum", "sum_coordinates", "exponent_minus_sum_abs", "const", "naive", "gaussian", "step"}; // all positive w -> should replace by a function checking for positivity 
 	string zero_w[2] = {"truncation", "Hyperplane_Truncation"}; // all positive w -> should replace by a function checking for positivity 
 
-	for(long i=0; i<6; i++)
+	for(long i=0; i<7; i++)
 		if(w_fun == pos_w[i])
 			return(TRUE);
 	for(long i=0; i<2; i++)
@@ -907,7 +913,7 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 	
 	long i, j;
 	long n = data.nrow();
-	NumericVector w_inv(n); //	double* w_inv = new double[n];
+	NumericVector w_inv(n); 
 	double w_inv_sum = 0.0;
 	NumericMatrix PDFs(2*n, 2);
 	NumericMatrix CDFs(2*n, 2);
@@ -916,7 +922,7 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 
 	long naive_flag = FALSE;
 //	string pos_w[4] = {"sum", "sum_coordinates", "exponent_minus_sum_abs", "const"}; // all positive w -> should replace by a function checking for positivity 
-	string naive_w[2] = { "naive", "no_bias" };
+	string naive_w[2] = {"naive", "no_bias"};
 	long pos_flag = is_pos_w_rcpp(w_fun, data, 0); // take mat_flag = 0
 
 //	for (i = 0; i < 4; i++)/
@@ -1266,11 +1272,11 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 	IntegerMatrix boot_indices(n, 2);
 	NumericMatrix boot_sample(n, 2);
 
-
 //	double x = 0.0, y = 0.0; //  , r; //  keep;
 	long k = 0, ctr=0; 
 	long i=0, j=0;
 	double w_max = prms["w.max"];
+
 
 //	Rcout << "Start Bootstrap, w_max=" << w_max << endl; 
 //	long m;
@@ -1281,7 +1287,7 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 		for(t=0; t<2; t++)
 		{
 			r = double(rand()) / RAND_MAX;
-			a = 0;  b = n - 1;  // do binary search 
+			a = 0;  b = cdfs.nrow() - 1;  // do binary search 
 			while (a < b) 
 			{
 				mid = (a + b) / 2;
@@ -1547,13 +1553,12 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
     	NumericVector data_temp = data(_, 0);
     	data(_, 0) = data_temp.sort(); //  marginals["CDFs"];
     	data_temp = data(_, 1);
-    	data(_, 1) = data_temp.sort(); //  marginals["CDFs"];
-    
+    	data(_, 1) = data_temp.sort(); //  marginals["CDFs"];    
     
 //		Rcout << "Computed TrueT TIBS RCPP Bootstrap" << endl;
     // Run tibs again
 		TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
-		List marginals = TrueTList["marginals"]; // marginals for true data 
+		List marginals = TrueTList["marginals"]; // marginals for true data (true data needs to be sorted for this)
 		List bootstrap_sample; //  (n, 2);
 
 		// 2. Compute statistic for bootstrap sample :
@@ -1563,7 +1568,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		IntegerMatrix bootstrap_indices(n, 2);
 		List null_distribution_bootstrap_new;
 		NumericMatrix expectations_table_new(n, 4);
-		List marginals_bootstrap;
+		List marginals_sorted;
 
 		NumericMatrix CDFs_sorted = as<NumericMatrix>(marginals["CDFs"]); // get sorted CDFs 
 		NumericVector CDF_temp = CDFs_sorted(_, 0);
@@ -1575,11 +1580,14 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		xy_sorted(_, 0) = xy_temp.sort(); //  marginals["CDFs"];
 		xy_temp = xy_sorted(_, 1);
 		xy_sorted(_, 1) = xy_temp.sort(); //  marginals["CDFs"];
+		marginals_sorted["xy"] = xy_sorted;
+		marginals_sorted["CDFs"] = CDFs_sorted; // we don't need pdfs 	
+
 
 ///		Rcout << "Dims: data: " << data.nrow() << " CDF " << CDFs_sorted.nrow() << " xy " << xy_sorted.nrow() << endl; 
 
 		List marginals_bootstrap_new;
-		w_mat = w_fun_to_mat_rcpp(xy_sorted, w_fun); // compute matrix once 
+		w_mat = w_fun_to_mat_rcpp(xy_sorted, w_fun); // compute matrix once (for sorted data)
 		prms["w.max"] = set_w_max_rcpp_sample(data, w_fun); // set w.max for bootstrap sampling 
 
 /**		Rcout << " TIBS RCPP Data BEFORE BOOTSTRAP" << endl;
@@ -1611,11 +1619,11 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 						statistics_under_null[ctr] = NullT["Statistic"];
 					} else
 					{
-///						Rcout << "Organize Marginals B = " << ctr << endl;
-						marginals_bootstrap_new = BootstrapOrganize_rcpp(marginals, bootstrap_sample, w_fun, prms);
+///						Rcout << "Organize Marginals B = " << ctr << endl;  TEMP! TRY MARGINALS SORTED !!! 
+						marginals_bootstrap_new = BootstrapOrganize_rcpp(marginals_sorted, bootstrap_sample, w_fun, prms); // here marginals AREN'T SORTED !!! 
 ///						Rcout << "Get Null Distribution B = " << ctr << " xy : PDFs : CDFs " << endl;
 
-						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new["PDFs"], TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA!
+						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new["PDFs"], w_mat); /// TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA! (NOT SORTED!)
 ///						Rcout << "Compute Expected B = " << ctr << " xy : PDFs : CDFs " << endl;
 						expectations_table_new = double(n) * QuarterProbFromBootstrap_rcpp(
 							marginals_bootstrap_new["xy"], null_distribution_bootstrap_new["distribution"], grid_points);

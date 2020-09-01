@@ -24,7 +24,10 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   }
   if('seed' %in% names(prms))
     set.seed(prms$seed)
-  print(paste0("rho.inside=", prms.rho))
+  
+  if(!('simulate.once' %in% names(prms)))  # default: simulate a new dataset for each iteration. 
+    prms$simulate.once = 0
+  
   run.flag = 1
   num.tests <- length(test.type)
   #browser()
@@ -42,6 +45,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   
   if(!('w.max' %in% names(prms)))
     prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun, prms)
+  print(paste0("w.max=", prms$w.max))
   for(i.prm in 1:num.prms) # loop on different simulation parameters - should plot for each of them? 
   {
     prms$rho = prms.rho[i.prm] # [[s]]
@@ -52,32 +56,16 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     ##      iteration_result <- matrix(0, 4, B+1)
     for(i in 1:prms$iterations) # run simulations multiple times 
     { 
-      if(dependence.type=='strictly_positive' && w.fun=='sum') # why simualte only once? 
-      {
-        if(i>=1)  # Change !! (Yaniv's simulation : same data or new data each time)
-        {
-          biased.data <- SimulateBiasedSample(prms$sample.size, 
-                                              dependence.type, w.fun, 
-                                              prms, NA) 
-          all.data <- biased.data$all.data
-          biased.data <- biased.data$data 
-          #browser()
-        }else{
-          #browser()
-          biased.data <- SimulateBiasedSample(prms$sample.size, 
-                                              dependence.type, w.fun, 
-                                              prms, all.data) 
-          all.data <- biased.data$all.data
-          biased.data <- biased.data$data
-        }
-        
-      }else{
-        biased.data <- SimulateBiasedSample(prms$sample.size, 
-                                            dependence.type, 
-                                            w.fun, prms, NA) 
-        all.data <- biased.data$all.data
-        biased.data <- biased.data$data 
-      }
+      if(prms$simulate.once && (i>1)) # all iterations are with the same simulated dataset 
+        sim.data <- all.data
+      else
+        sim.data <- NA
+      biased.data <- SimulateBiasedSample(prms$sample.size, 
+                                          dependence.type, w.fun, 
+                                          prms, sim.data) 
+      all.data <- biased.data$all.data
+      biased.data <- biased.data$data 
+      
 #      print(paste0("sampling ratio: ", dim(all.data)[1] / dim(biased.data)[1]))      
       
       if((!run.flag) & file.exists(paste0(output.file, '.Rdata'))) # simulate only once 

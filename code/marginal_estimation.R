@@ -18,7 +18,7 @@ EstimateMarginals <- function(data, w.fun, prms=c())
   n <- dim(data)[1]
   
   indices <- cbind(c(1:n), c((n+1):(2*n)))
-  if(is.function(w.fun) || (w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const'))) # for w(x,y)>0 cases 
+  if(is.function(w.fun) || is_pos_w(w.fun, data, 0)) #   %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const'))) # for w(x,y)>0 cases 
   { #case 1: strictly positive W, use ML estimator
     w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun)
     Fx <- Fy <- w.inv / sum(w.inv) # normalize
@@ -59,8 +59,7 @@ EstimateMarginals <- function(data, w.fun, prms=c())
     } # end if 
     PDF.table <- CDFToPDFMarginals(CDF.table)
   }  # else on w.fun type 
-#  save(data, PDF.table, CDF.table, file='cdfpdf.Rdata')
-  return( list(xy=data, CDFs=CDF.table, PDFs=PDF.table, indices=indices) ) # new: return also x,y (might be different than original)
+  return( sort_marginals(list(xy=data, CDFs=CDF.table, PDFs=PDF.table, indices=indices)) ) # new: return and sort also by x,y (might be different than original)
 }
 
 

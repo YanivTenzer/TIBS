@@ -169,6 +169,7 @@ w_fun_eval <- function(x, y, w.fun) {
                 'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
                 'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
                 'stritcly_positive'={exp((-abs(x)-abs(y))/4)}, # like exp? 
+                'step'={as.numeric(x<y)+0.1},
                 'sum'={x+y},
                 'naive'={rep(1, length(x))}, 
                 'const'={rep(1, length(x))})

@@ -622,3 +622,16 @@ GaussianDensityProduct <- function(mu1, mu2, sigma1, sigma2)
 }  
 
 
+# Use to keep marginals always sorted by x and y
+sort_marginals <- function(marginals)
+{
+  marginals_sorted <- marginals
+  marginals_sorted$xy = apply(marginals$xy, 2, sort)
+  marginals_sorted$CDFs = apply(marginals$CDFs, 2, sort)
+  marginals_sorted$PDFs[,1] = marginals_sorted$PDFs[order(marginals$CDFs[,1])] 
+  marginals_sorted$PDFs[,2] = marginals_sorted$PDFs[order(marginals$CDFs[,2])] 
+
+  return(marginals_sorted)  
+}  
+  
+  
