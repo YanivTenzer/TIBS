@@ -298,9 +298,9 @@ TIBS <- function(data, w.fun, test.type, prms)
          'tsai' = {result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
          output <- list(Pvalue=result[4])
          },
-         'minP2' = {  #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
+         'minP2' = { library(permDep) #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
            require(survival)  
-           library(permDep) # use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
+            # use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
            if(!is.na(prms$delta)) # when running minP we must have a delta parameter 
              dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = prms$delta))
            else
