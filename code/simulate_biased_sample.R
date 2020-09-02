@@ -239,10 +239,12 @@ is_pos_w <- function(w.fun, data, mat.flag)
     if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
       return(FALSE)
   } 
+  if(missing(mat.flag))  # default is checking matrix 
+    mat.flag = TRUE
   if(!mat.flag)  # run and compute values 
-      return(min(w_fun_eval(data[,1], data[,2], w.fun)) > 0) # test only on sample points x_i, y_i
-    else
-      return(min(w_fun_to_mat(data, w.fun)) > 0) # test all pairs x_i, y_j
+    return(min(w_fun_eval(data[,1], data[,2], w.fun)) > 0) # test only on sample points x_i, y_i
+  else
+    return(min(w_fun_to_mat(data, w.fun)) > 0) # test all pairs x_i, y_j
 }
 
 

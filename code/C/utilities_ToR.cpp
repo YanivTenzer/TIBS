@@ -958,7 +958,7 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 	long naive_flag = FALSE;
 //	string pos_w[4] = {"sum", "sum_coordinates", "exponent_minus_sum_abs", "const"}; // all positive w -> should replace by a function checking for positivity 
 	string naive_w[2] = {"naive", "no_bias"};
-	long pos_flag = is_pos_w_rcpp(w_fun, data, 0); // take mat_flag = 0
+	long pos_flag = is_pos_w_rcpp(w_fun, data, 1); // take mat_flag = 1
 
 	for (i = 0; i < 2; i++)
 		if (w_fun == naive_w[i])

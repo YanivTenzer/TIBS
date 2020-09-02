@@ -18,7 +18,7 @@ EstimateMarginals <- function(data, w.fun, prms=c())
   n <- dim(data)[1]
   
   indices <- cbind(c(1:n), c((n+1):(2*n)))
-  if(is.function(w.fun) || is_pos_w(w.fun, data, 0)) #   %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const'))) # for w(x,y)>0 cases 
+  if(is.function(w.fun) || is_pos_w(w.fun, data, 1)) #   %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const'))) # for w(x,y)>0 cases 
   { #case 1: strictly positive W, use ML estimator
     w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun)
     Fx <- Fy <- w.inv / sum(w.inv) # normalize
