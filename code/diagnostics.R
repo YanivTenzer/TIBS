@@ -74,21 +74,23 @@ mean(p.zero.cpp.new$statistics_under_null)
 iters <- 100
 p.val <- matrix(0, iters)
 p.val.cpp <- matrix(0, iters)
-test.type = "permutations"
+test.type = c("permutations", "bootstrap") # check scaling for both 
 prms$B=200
-for(iter in c(1:iters))
+for(t in c(1:2))
 {
-  print(paste0("Run Iter ", iter))
-  biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
-  p.val[iter] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue
-  p.val.cpp[iter] <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)$Pvalue
+  for(iter in c(1:iters))
+  {
+    print(paste0("Run Iter ", iter))
+    biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
+    p.val[iter] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue
+    p.val.cpp[iter] <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)$Pvalue
+  }
+  plot(sort(p.val))
+  points(sort(p.val.cpp), col="red")
+
+  sum(p.val < 0.05)  # power at alpha=0.05
+  sum(p.val.cpp < 0.05)
 }
-plot(sort(p.val))
-points(sort(p.val.cpp), col="red")
-
-sum(p.val < 0.05)  # power at alpha=0.05
-sum(p.val.cpp < 0.05)
-
   
 
 
