@@ -46,16 +46,17 @@ prms$B <- 200
 plot(biased.data$data[,1], biased.data$data[,2])
 points(temp.data$data[,1], temp.data$data[,2], col='red')
 points(temp.data.sorted$data[,1], temp.data.sorted$data[,2], col='blue')
+prms$w.max <- max(prms$w.max, set_w_max_sample(biased.data$data, w.fun))
+
+test.type = 'permutations'
 p.zero <- TIBS(biased.data$data, w.fun, test.type, prms)
 prms$new.bootstrap = FALSE
-# test.type = 'permutations'
-test.type = 'bootstrap'
 p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
 prms$new.bootstrap = TRUE
 p.zero.cpp.new <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
 
-points(biased.data$data[,1], biased.data$data[,2], col='green') # Problem: C code CHANGES the data !!!! 
-points(temp.data$data[,1], temp.data$data[,2], col='orange') # Problem: C code CHANGES the data !!!! 
+#points(biased.data$data[,1], biased.data$data[,2], col='green') # Problem: C code CHANGES the data !!!! 
+#points(temp.data$data[,1], temp.data$data[,2], col='orange') # Problem: C code CHANGES the data !!!! 
 
 p.zero$TrueT
 p.zero.cpp$TrueT

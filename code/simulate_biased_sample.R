@@ -23,8 +23,10 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
     all.data <- matrix(0, 2*n, 2)
     all.k <- 0
   }
-  
-  
+  if(!('rho' %in% names(prms)))   # set default rho: independent
+    prms$rho <- 0 
+    
+    
   if(!('w.max' %in% names(prms)))  # set w.max 
   {
     prms$w.max <- set_w_max(2*n, dependence.type, w.fun, prms)
