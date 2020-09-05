@@ -26,13 +26,11 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
   if(!('rho' %in% names(prms)))   # set default rho: independent
     prms$rho <- 0 
     
-    
   if(!('w.max' %in% names(prms)))  # set w.max 
   {
     prms$w.max <- set_w_max(2*n, dependence.type, w.fun, prms)
     print(paste0("Setting w.max=", round(prms$w.max, 4)))    
   }
-  
   
   if(!('sample.by.bootstrap' %in% names(prms)))  # new sampling method
     prms$sample.by.bootstrap = 0
@@ -227,7 +225,8 @@ set_w_max <- function(n=1000, dependence.type, w.fun, prms)
 # Set maximum value for a specific sample 
 set_w_max_sample <- function(data, w.fun)
 {
-    return(max(w_fun_to_mat(data, w.fun)))
+  epsilon <- 0.0001 # tolerance to avoid overflow over 1 
+  return(max(w_fun_to_mat(data, w.fun)) * (1+epsilon))
 }
 
 

@@ -60,6 +60,7 @@ EstimateMarginals <- function(data, w.fun, prms=c())
     PDF.table <- CDFToPDFMarginals(CDF.table)
   }  # else on w.fun type 
   return( sort_marginals(list(xy=data, CDFs=CDF.table, PDFs=PDF.table, indices=indices)) ) # new: return and sort also by x,y (might be different than original)
+##  return( list(xy=data, CDFs=CDF.table, PDFs=PDF.table, indices=indices) ) # new: return and sort also by x,y (might be different than original)
 }
 
 

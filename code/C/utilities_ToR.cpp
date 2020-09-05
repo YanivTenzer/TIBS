@@ -376,8 +376,9 @@ double set_w_max_rcpp(double n = 1000, string dependence_type, string w_fun)
 // [[Rcpp::export]]
 double set_w_max_rcpp_sample(NumericMatrix data, string w_fun)
 {
+	double epsilon = 0.000001;
 	NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
-	return max(w_mat); 
+	return max(w_mat)*(1+epsilon); 
 }
 
 
@@ -936,9 +937,7 @@ List sort_marginals_rcpp(List marginals)
 	marginals_sorted["PDFs"] = sorted_PDFs;
 	marginals_sorted["CDFs"] = sorted_CDFs;
  	return(marginals_sorted); 
-}  
-  
-  
+}    
 
 
 // [[Rcpp::export]]
@@ -1393,7 +1392,8 @@ List BootstrapOrganize_rcpp(List data_marginals, List bootstrap, string w_fun, L
 # 
 ########################################################################**/
 // [[Rcpp::export]]
-List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, NumericMatrix grid_points, NumericMatrix expectations_table, List prms)
+List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat, 
+	NumericMatrix grid_points, NumericMatrix expectations_table, List prms)
 {
 	List marginals;
 	List null_distribution;
@@ -1582,7 +1582,11 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 
 		List marginals_bootstrap_new;
 		w_mat = w_fun_to_mat_rcpp(xy_sorted, w_fun); // compute matrix once (for sorted data)
-		prms["w.max"] = set_w_max_rcpp_sample(data, w_fun); // set w.max for bootstrap sampling 
+		if (!(prms.containsElementNamed("w.max")))
+			prms["w.max"] = set_w_max_rcpp_sample(data, w_fun); // set w.max for bootstrap sampling 
+		else
+			prms["w.max"] = max(as<double>(prms["w.max"]), set_w_max_rcpp_sample(data, w_fun)); // set w.max for bootstrap sampling 
+		
 
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{

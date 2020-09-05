@@ -53,6 +53,9 @@ MarginalsBootstrapOrganized <- function(data.marginals, bootstrap, w.fun, prms)
 ########################################################################
 TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms)
 {
+  if(!('naive.expectation' %in% names(prms)))
+    prms$naive.expectation <- FALSE
+  
   marginals <- c()
   null.distribution <- c()
   if(prms$naive.expectation) # here we ignore W (using statistic for unbiased sampling)
@@ -69,7 +72,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
       marginals <- EstimateMarginals_rcpp(data, use.w)
       if((!prms$naive.expectation) & (missing(w.mat) | isempty(w.mat)))
         w.mat = w_fun_to_mat_rcpp(marginals$xy, w.fun) # compute W again for augmented data
-      null.distribution <- GetNullDistribution_rcpp(marginals$PDF, as.matrix(w.mat))
+      null.distribution <- GetNullDistribution_rcpp(marginals$PDFs, as.matrix(w.mat))
       expectations.table <- prms$sample.size * QuarterProbFromBootstrap_rcpp(marginals$xy, null.distribution$distribution, grid.points)          
     }
     T <- ComputeStatistic_rcpp(data, grid.points, expectations.table)  # keep same grid points for bootstrap sample?
@@ -80,7 +83,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
       marginals <- EstimateMarginals(data, use.w)
       if((!prms$naive.expectation) & (missing(w.mat) | isempty(w.mat)))
         w.mat = w_fun_to_mat(marginals$xy, w.fun) # compute W again for augmented data
-      null.distribution <- GetNullDistribution(marginals$PDF, w.mat)
+      null.distribution <- GetNullDistribution(marginals$PDFs, w.mat)
       expectations.table <- prms$sample.size * QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)             
     }
     T <- ComputeStatistic(data, grid.points, expectations.table)$Statistic  # keep same grid points for bootstrap sample?
@@ -114,7 +117,6 @@ TIBS <- function(data, w.fun, test.type, prms)
   source('marginal_estimation.R')
   
   epsilon <- 0.0000000001 # tolerance 
-  
   
   
   # Set defaults
@@ -174,6 +176,10 @@ TIBS <- function(data, w.fun, test.type, prms)
   switch(test.type,
          'bootstrap'={
            TrueT <- TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)  # compute statistic 
+#           TrueT.cpp <- TIBS_steps_rcpp(data, w.fun, matrix(1, 1, 1), grid.points, matrix(1, 1, 1), prms)
+#
+#           print("DIFF: ")
+#           print(TrueT$Statistic - TrueT.cpp$Statistic)
            statistics.under.null = matrix(0, prms$B, 1)
            #           null.distribution.bootstrap <- null.distribution
            for(ctr in 1:prms$B) # heavy loop: run on bootstrap 

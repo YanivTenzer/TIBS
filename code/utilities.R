@@ -211,6 +211,12 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
     J <- sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE)
     x <- data[I,1] # Sample X ~ Fx
     y <- data[J,2] # Sample Y ~ Fy
+    if(max(w_fun_eval(x, y, w.fun)/prms$w.max)>1)
+    {
+      print(paste0("WTF MAX: ", max(w_fun_eval(x, y, w.fun)/prms$w.max)))
+      print(cbind(I, J))
+    }
+      
     keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$w.max)))
     if(isempty(keep))
       next
@@ -628,8 +634,8 @@ sort_marginals <- function(marginals)
   marginals_sorted <- marginals
   marginals_sorted$xy = apply(marginals$xy, 2, sort)
   marginals_sorted$CDFs = apply(marginals$CDFs, 2, sort)
-  marginals_sorted$PDFs[,1] = marginals_sorted$PDFs[order(marginals$CDFs[,1])] 
-  marginals_sorted$PDFs[,2] = marginals_sorted$PDFs[order(marginals$CDFs[,2])] 
+  marginals_sorted$PDFs[,1] = marginals_sorted$PDFs[order(marginals$CDFs[,1]),1] 
+  marginals_sorted$PDFs[,2] = marginals_sorted$PDFs[order(marginals$CDFs[,2]),2] 
 
   return(marginals_sorted)  
 }  

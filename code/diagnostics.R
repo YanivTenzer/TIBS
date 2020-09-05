@@ -48,7 +48,22 @@ points(temp.data$data[,1], temp.data$data[,2], col='red')
 points(temp.data.sorted$data[,1], temp.data.sorted$data[,2], col='blue')
 prms$w.max <- max(prms$w.max, set_w_max_sample(biased.data$data, w.fun))
 
-test.type = 'permutations'
+test.type = "permutations"
+data <- biased.data$data
+grid.points <- data
+p0 <-  TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)
+prms$new.bootstrap = FALSE
+p0.cpp <- TIBS_steps_rcpp(data, w.fun, matrix(1,1,1), grid.points, matrix(1,1,1), prms)
+prms$new.bootstrap = TRUE
+p0.new.cpp <- TIBS_steps_rcpp(data, w.fun, matrix(1,1,1), grid.points, matrix(1,1,1), prms)
+
+
+p0$Statistic
+p0.cpp$Statistic
+p0.new.cpp$Statistic
+
+
+#test.type = 'permutations'
 p.zero <- TIBS(biased.data$data, w.fun, test.type, prms)
 prms$new.bootstrap = FALSE
 p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
@@ -67,8 +82,8 @@ p.zero.cpp$Pvalue
 p.zero.cpp.new$Pvalue
 
 mean(p.zero$statistics.under.null)
-mean(p.zero.cpp$statistics_under_null)
-mean(p.zero.cpp.new$statistics_under_null)
+mean(p.zero.cpp$statistics.under.null)
+mean(p.zero.cpp.new$statistics.under.null)
 
 
 # Next, run permutations test, and verify that it is valud
