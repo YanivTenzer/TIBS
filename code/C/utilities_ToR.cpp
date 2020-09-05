@@ -1159,8 +1159,8 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, double B, st
 {
 	long  n = data.nrow();
 	double Tobs; // = ComputeStatistic_w_rcpp(data, data, w_fun); 
-	double reject = 0.0; //  , sum_p = 0;
 	long i, j;
+	double pw0 = 0.0; // the weight of the true permutation 
 	NumericVector pw(B); 
 	NumericVector Tb(B); 
 	IntegerVector perm(n);
@@ -1176,6 +1176,8 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, double B, st
 	else
     	Tobs = ComputeStatistic_rcpp(data, grid_points, expectations_table); // no weights
 
+	for(j=0; j<n; j++)
+		pw0 += log(w_fun_eval_rcpp(data(j,0), data(j,1), w_fun));  // take log to avoid underflow 		
 	for (i = 0; i < B; i++) 
 	{
 		perm = rand_perm(n);  // get a random permutation from the uniform disitribution
@@ -1188,24 +1190,29 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, double B, st
 			Tb[i] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
 		pw[i] = 0.0;
 		for(j=0; j<n; j++)
-			pw[i] += log(w_fun_eval_rcpp(permuted_data(j,0), permuted_data(j,1), w_fun));  // take log to avoid underflow 
-		
+			pw[i] += log(w_fun_eval_rcpp(permuted_data(j,0), permuted_data(j,1), w_fun));  // take log to avoid underflow 		
 	}
 
-	double pw_max = max(pw);
+	double pw_max = max(pw); 
+	pw_max = max(pw_max, pw0); 
+	pw0 = exp(pw0 - pw_max);
+	double reject = pw0; // include identity permutation !! 
+
+//	Rcout << "pw0=" << reject << endl; 
 	for (i = 0; i < B; i++)
 	{
 		pw[i] = exp(pw[i] - pw_max);
-//		Rcout << "i = " << i << " pw[i]=" << pw[i] << endl; 
 		reject += (Tb[i] >= Tobs) * pw[i];
-//		sum_p += pw[i];
 	}
 
+//	Rcout << "reject=" << reject << " denominator.weights=" <<  (pw0 + sum(pw)) << " pval=" << reject / (pw0 + sum(pw)) << endl; 
 	List ret; 
-	ret["Pvalue"] = reject / sum(pw);
+	ret["Pvalue"] = reject / (pw0 + sum(pw));  // New: Take into account also the idenity permutation in the pvalue!! 
 	ret["TrueT"] = Tobs; 
-	ret["statistics.under.null"] = Tb;
-//	ret["statistics.under.null"] = Tb; // get null statistics. But they're not weighted equally!
+	ret["statistics.under.null"] = Tb;  // get null statistics (they're not weighted equally)
+	ret["perm.weights"] = pw; // New! return also weight for each permutation !! 
+	ret["pw.max"] = pw_max;
+	ret["id.perm.weight"] = pw0;
 	return(ret);
 }
 
@@ -1717,11 +1724,11 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	if (!(output.containsElementNamed("Pvalue"))) //    ("Pvalue" % in % names(output))) // Compute empirical P - value
 	{
 //		output["Pvalue"] = length(which(output["statistics_under_null"] >= output["TrueT"])) / B;
-		double Pvalue = 0.0; 
+		double Pvalue = 1.0; // include id permutation! 
 		NumericVector statistics_under_null = as<NumericVector>(output["statistics.under.null"]);
 		for (i = 0; i < B; i++)
 			Pvalue += (statistics_under_null[i] >= as<double>(output["TrueT"]));
-		output["Pvalue"] = Pvalue / double(B);
+		output["Pvalue"] = Pvalue / double(B+1); // include id permutation
 	}
 
 	for (i = 0; i < n; i++) // long(grid_points_arma.n_rows); i++)

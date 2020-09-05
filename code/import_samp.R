@@ -14,7 +14,8 @@ IS.permute <- function(data, grid.points, B, w.fun=function(x){1}, expectations.
     TrueT <- ComputeStatistic.W(data, grid.points, w.fun)$Statistic # no unique in grid-points 
   else
     TrueT <- ComputeStatistic(data, grid.points, expectations.table)$Statistic # no unique in grid-points !!
-  
+
+  p.w0 <- sum(log(w_fun_eval(data[,1], data[,2], w.fun))) # prod of w[i, j] for the original data (id permutation)
   p.w <- matrix(0, B, 1)
   T.b <- matrix(0, B, 1) # statistics under null 
   for(b in 1:B)
@@ -26,8 +27,11 @@ IS.permute <- function(data, grid.points, B, w.fun=function(x){1}, expectations.
       T.b[b] <- ComputeStatistic(cbind(data[,1], data[perm,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
     p.w[b] <- sum(log(w_fun_eval(data[,1], data[perm,2], w.fun))) # prod of w[i, pi(i)] 
   }
-  p.w <- exp(p.w - max(p.w)) # shift max to prevent overflow 
-  return(list(Pvalue=sum((T.b>=TrueT) * p.w) / sum(p.w), TrueT=TrueT, statistics.under.null=T.b))
+  p.w.max <- max(p.w0, max(p.w))
+  p.w0 <- exp(p.w0 - p.w.max)
+  p.w <- exp(p.w - p.w.max) # shift max to prevent overflow 
+
+  return(list(Pvalue= (p.w0+sum((T.b>=TrueT) * p.w)) / (p.w0+sum(p.w)), TrueT=TrueT, statistics.under.null=T.b))
 }
 
 #############################################################

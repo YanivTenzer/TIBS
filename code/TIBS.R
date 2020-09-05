@@ -143,11 +143,9 @@ TIBS <- function(data, w.fun, test.type, prms)
   
   if(!('perturb.grid' %in% names(prms)))  # default: perturb grid to avoid ties 
     prms$perturb.grid <- TRUE
-  
-  
-  
+
   prms$sample.size <- n <- dim(data)[1]
-  print(paste0("RUN n=", n))
+#  print(paste0("RUN n=", n))
   
 #  if(!('w.max' %in% names(prms)))
 #    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
@@ -336,6 +334,6 @@ TIBS <- function(data, w.fun, test.type, prms)
   else
     output$permuted.data <- NA
   if(!("Pvalue" %in% names(output))) # Compute empirical P-value
-    output$Pvalue <- length(which(output$statistics.under.null>=output$TrueT))/prms$B
+    output$Pvalue <- (length(which(output$statistics.under.null>=output$TrueT))+1) / (prms$B+1) # new! include also id permutation. Pval between 1/(N+1) to N/(N+1)
   return(output)
 }
