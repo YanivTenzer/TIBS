@@ -90,55 +90,77 @@ mean(p.zero.cpp.new$statistics.under.null)
 iters <- 100
 p.val <- matrix(0, iters)
 p.val.cpp <- matrix(0, iters)
-test.type = c("permutations", "bootstrap") # check scaling for both 
 prms$B=200
-for(t in c(1:2))
-{
-  for(iter in c(1:iters))
-  {
-    print(paste0("Run Iter ", iter))
-    biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
-    p.val[iter] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue
-    p.val.cpp[iter] <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)$Pvalue
-  }
-  plot(sort(p.val))
-  points(sort(p.val.cpp), col="red")
 
-  sum(p.val < 0.05)  # power at alpha=0.05
-  sum(p.val.cpp < 0.05)
-}
+#for(t in c(1:2))
+#{
+#  for(iter in c(1:iters))
+#  {
+#    print(paste0("Run Iter ", iter))
+#    biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
+#    p.val[iter] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue
+#    p.val.cpp[iter] <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)$Pvalue
+#  }
+#  plot(sort(p.val))
+#  points(sort(p.val.cpp), col="red")#
+#
+#  sum(p.val < 0.05)  # power at alpha=0.05
+#  sum(p.val.cpp < 0.05)
+#}
   
 
 
-for(n in n_vec)
+
+test.type = c("permutations" , "permutations_inverse_weighting", "bootstrap") # check scaling for both 
+num.tests <- length(test.type)
+B_vec <- round(logspace(2, 4, 5))
+n_vec <- c(100) # , 200, 500, 1000)
+
+iters <- 20 # to get reasonable variance 
+prms$use.cpp=1
+prms$perturb.grid <- 0 # CHECK IF THIS ADDS VARIANCE!!
+pvals <- matrix(0, iters, length(B_vec))
+empirical.std <- matrix(0, num.tests, length(B_vec))
+epsilon <- 0.0000000001 # tolerance 
+for(n in n_vec[1])
 {
   prms$rho <- rho.max * min(n_vec) / n  # change rho to keep power the same 
   prms$sample.size <- n
   biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
-  for(i in c(1:iters))
+  prms$w.max <- max(biased.data$w.max, set_w_max_sample(biased.data$data, w.fun))
+  prms$grid.points <- biased.data$data  # fix the grid for all sample sizes and iterations 
+  prms$grid.points <- prms$grid.points + epsilon * matrix( rnorm(2*n), n, 2) # perturb   
+  for(t in c(1:num.tests))
   {
-    print(paste0("run i=", i, " out of ", iters))
-    for(b in 1:length(B_vec))
+    for(i in c(1:iters))  # iters can be much lower - we just need st.d. !!! 
     {
-      prms$B <- B_vec[b]
-      start.time <- Sys.time()
-      pvals[i,b] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue #  TIBS(biased.data, w.fun, cur.test.type, prms)
-      test.time <- difftime(Sys.time(), start.time, units='secs')
-      print(test.time)
+      print(paste0(test.type[t], " run i=", i, " out of ", iters))
+      for(b in 1:length(B_vec))
+      {
+        prms$B <- B_vec[b]
+        start.time <- Sys.time()
+        pvals[i,b] <- TIBS(biased.data$data, w.fun, test.type[t], prms)$Pvalue #  TIBS(biased.data, w.fun, cur.test.type, prms)
+        test.time <- difftime(Sys.time(), start.time, units='secs')
+        print(test.time)
+      }
     }
+    true.pval <- mean(pvals)
+  
+    theoretical.std <- sqrt(true.pval * (1-true.pval) / B_vec)
+    empirical.std[t,] <- sqrt(colVars(pvals))
   }
-  true.pval <- mean(pvals)
-  
-  theoretical.std <- sqrt(true.pval * (1-true.pval) / B_vec)
-  empirical.std <- sqrt(colVars(pvals))
-  
-  jpeg(paste0("../figs/var_p_hat_", test.type, "_", w.fun, "_n_", n, ".jpg"), width = 400, height = 400)
+#  jpeg(paste0("../figs/var_p_hat_dep_", dependence.type, "_w_", w.fun, "_n_", n, ".jpg"), width = 400, height = 400)
   plot(B_vec, log10(theoretical.std), type="l", col="green", lwd=5, xlab="B", ylab="log_{10}(std)", 
        ylim=log10(range(empirical.std, theoretical.std)),
-       main=paste0(test.type, " std(p.hat) for n=", prms$sample.size, " p.val=", round(true.pval, 3) ))
-  lines(B_vec, log10(empirical.std), col="red")
-  legend(max(B_vec)*0.7, max(log10(empirical.std)), c("theoretical", "empirical"), lwd=c(5,2), col=c("green", "red"))
-  dev.off()
+       main=paste0(" std(p.hat) for n=", prms$sample.size, " p.val=", round(true.pval, 3) ))
+  color.vec <- c("red", "blue")
+  for(t in c(1:num.tests))
+    lines(B_vec, log10(empirical.std[t,]), col=color.vec[t])
+  
+#  legend(max(B_vec)*0.7, max(log10(empirical.std)), c("theoretical", test.type), lwd=c(5,2,2), col=c("green", "red", "blue"))
+  legend(0, min(log10(theoretical.std)+0.3), c("theoretical", test.type), 
+         lwd=c(5,2,2), cex=0.7, col=c("green", "red", "blue"))
+#  dev.off()
 }
 
 

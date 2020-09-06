@@ -73,9 +73,9 @@ if(isempty(intersect(run.dep, c(3,4,5,6,7)))) # %in% )
 
 for(s in run.dep) # Run all on the farm  
 {
-  for(n in c(499))#seq(250, 400, 50))
+  for(n in c(100))#seq(250, 400, 50))
   {
-    prms = list(B=1000, sample.size=n, iterations=20, plot.flag=0, alpha=0.05, sequential.stopping=0, 
+    prms = list(B=100, sample.size=n, iterations=2, plot.flag=0, alpha=0.05, sequential.stopping=0, 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
@@ -100,7 +100,7 @@ legend(0, 200, test.legend, lwd=c(2,2), col=col.vec[1:length(test.type)], y.inte
 # points(T.OUT$test.stat[1,,]- rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
 
 
-#jpeg(paste0("../figs/check_valid_n_", n, "_B_", B, "_dep_", dependence.type[s], "_w_",  w.fun[s], 
+#jpeg(paste0("../figs/check_valid_n_", n, "_B_", prms$B, "_dep_", dependence.type[s], "_w_",  w.fun[s], 
 #"_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
 plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
      main=paste0("Tests pvals and power, n=", n, ", alpha=", prms$alpha, " pert=", prms$perturb.grid))

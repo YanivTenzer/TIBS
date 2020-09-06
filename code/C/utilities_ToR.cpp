@@ -1496,6 +1496,12 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 //	Rcout << " Read Input TIBS_RCPP. TEST-TYPE: " << test_type << endl; 
 	// Create a grid of points, based on the data :
 	NumericMatrix grid_points = new_data;
+	if (prms.containsElementNamed("grid.points"))		
+	{
+		perturb_grid = FALSE;
+		grid_points = as<NumericMatrix>(prms["grid.points"]); // copy input grid ! 
+	}
+
 	if(perturb_grid)
 	{
 		NumericMatrix perturb(n, 2);
@@ -1692,7 +1698,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		output["statistics.under.null"] = statistics_under_null;
 		output["Permutations"] = Permutations;
 	} // end permutations with inverse weighting test
-
 
 
 	/**/

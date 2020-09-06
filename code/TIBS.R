@@ -145,12 +145,26 @@ TIBS <- function(data, w.fun, test.type, prms)
     prms$perturb.grid <- TRUE
 
   prms$sample.size <- n <- dim(data)[1]
+
+  if(('grid.points' %in% names(prms)))  # new! enable input grid !  
+  {
+    grid.points <- prms$grid.points
+    prms$perturb.grid <- FALSE
+  } else
+  {
+    grid.points <- data # no unique !!! unique.matrix(data)  # set unique for ties? for discrete data
+    if(prms$perturb.grid)  # new! add a small perturbation to avoid ties with data 
+      grid.points = grid.points + epsilon * matrix( rnorm(2*n), n, 2)
+  }
+  
+  
+    
 #  print(paste0("RUN n=", n))
   
 #  if(!('w.max' %in% names(prms)))
 #    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
   
-  if(prms$use.cpp & is.character(w.fun) & (!(test.type %in% c('tsai', 'minP2')))) # use cpp code for our hard-coded tests and w 
+  if(prms$use.cpp && is.character(w.fun) && (!(test.type %in% c('tsai', 'minP2')))) # use cpp code for our hard-coded tests and w 
   {
     library(Rcpp)
     library(RcppArmadillo)
@@ -161,16 +175,7 @@ TIBS <- function(data, w.fun, test.type, prms)
     #  prms$use.cpp = 0 # make sure everything runs in R (only for esitmate marginals)
   
   
-  #################################################################
-  # 1.Compute weights matrix W: (not needed here, just for permutations test)
-  #  w.mat=w_fun_to_mat(data, w.fun)
-  # 2.Create a grid of points, based on the data:
-  #  grid.points <- cbind(data[,1], data[,2])  # keep original points 
-  grid.points <- data # no unique !!! unique.matrix(data)  # set unique for ties? for discrete data
-
-  if(prms$perturb.grid)  # new! add a small perturbation to avoid ties with data 
-    grid.points = grid.points + epsilon * matrix( rnorm(2*n), n, 2)
-
+ 
   switch(test.type,
          'bootstrap'={
            TrueT <- TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)  # compute statistic 
