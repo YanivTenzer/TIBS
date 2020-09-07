@@ -103,6 +103,47 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
   # returns also expected and observed tables for diagnostics
 }
 
+##################################################################################################
+#  Same as ComputeStatistic.W, but with test statistic multiplied by n.w
+#  (this is the standard form of (exp-obs)^2/exp, ComputeStatistic.W uses (exp/n.w-obs/n.w)^2/(exp/n.w)
+#   
+##################################################################################################
+ComputeStatistic.W1 <- function(data, grid.points, w.fun=function(x){1})
+{
+  # treat grid.points 
+  if(missing(grid.points) | isempty(grid.points))
+    grid.points <- unique.matrix(data)  # default: set unique for ties? for discrete data
+  
+  w.vec <- w_fun_eval(data[,1], data[,2], w.fun) # w_fun_to_mat(data, w.fun) # calculate w n*n matrix 
+  n.w <- sum(1/w.vec)
+  obs.table <- exp.table <- matrix(0, dim(grid.points)[1], 4)
+  Obs <- Exp <- matrix(0,4,1) # observed & expected
+  Statistic <- 0 
+  for (i in 1:dim(grid.points)[1])  # Slow loop on grid points 
+  {
+    Rx <- data[,1] > grid.points[i,1] # ties are ignored in both observed and expected 
+    Ry <- data[,2] > grid.points[i,2]
+    Lx <- data[,1] < grid.points[i,1] 
+    Ly <- data[,2] < grid.points[i,2]
+    Exp[1] <- sum(Rx/w.vec)*sum(Ry/w.vec)/n.w
+    Exp[2] <- sum(Rx/w.vec)*sum(Ly/w.vec)/n.w
+    Exp[4] <- sum(Lx/w.vec)*sum(Ry/w.vec)/n.w
+    Exp[3] <- sum(Lx/w.vec)*sum(Ly/w.vec)/n.w
+    Obs[1] <- sum(Rx*Ry/w.vec)
+    Obs[2] <- sum(Rx*Ly/w.vec)
+    Obs[4] <- sum(Lx*Ry/w.vec)
+    Obs[3] <- sum(Lx*Ly/w.vec)
+    obs.table[i,] <- Obs
+    exp.table[i,] <- Exp
+    if (min(Exp)>(1/dim(data)[1])) {
+      Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
+    } 
+  } # end loop on grid points 
+  
+  return(list(Statistic=Statistic, obs.table=obs.table, exp.table=exp.table))  
+  # returns also expected and observed tables for diagnostics
+}
+
 
 
 #################################################################
