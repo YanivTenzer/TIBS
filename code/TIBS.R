@@ -109,6 +109,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
 ########################################################################
 TIBS <- function(data, w.fun, test.type, prms)
 {  
+#  print("Start TIBS")
   library(PerMallows) # distance between permutations 
   library(pracma)
   source('utilities.R')
@@ -118,6 +119,7 @@ TIBS <- function(data, w.fun, test.type, prms)
   
   epsilon <- 0.0000000001 # tolerance 
   
+#  print("called libraries TIBS")
   
   # Set defaults
   if(!('use.cpp' %in% names(prms)))  # new: a flag for using c++ code 
@@ -139,10 +141,14 @@ TIBS <- function(data, w.fun, test.type, prms)
   }
   if(!is.numeric(data))   # unlist and keep dimensions for data 
     data <- array(as.numeric(unlist(data)), dim(data))  
-  
+
+#  print("SET GRID")  
   
   if(!('perturb.grid' %in% names(prms)))  # default: perturb grid to avoid ties 
     prms$perturb.grid <- TRUE
+  if(!('counts.flag' %in% names(prms)))  # new: a flag for using c++ code 
+    prms$counts.flag <- 1 # default is counts statistic 
+  
 
   prms$sample.size <- n <- dim(data)[1]
 
@@ -166,10 +172,20 @@ TIBS <- function(data, w.fun, test.type, prms)
   
   if(prms$use.cpp && is.character(w.fun) && (!(test.type %in% c('tsai', 'minP2')))) # use cpp code for our hard-coded tests and w 
   {
-    library(Rcpp)
-    library(RcppArmadillo)
-    Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
-    return(TIBS_rcpp(data, w.fun, test.type, prms)) # run all in cpp 
+#    print("Run TIBS CPP!!")
+#    library(Rcpp) # for some reason calling library causes sometimes crush of code 
+#    library(RcppArmadillo)
+#    Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+    
+#    print("Call TIBS_RCPP")
+    TR <- TIBS_rcpp(data, w.fun, test.type, prms)
+#    print("Finished TIBS_RCPP")
+#    print("PVALUE:")
+#    print(TR$Pvalue)
+#    print("output names")
+#    print(names(TR))
+    return(TR)
+#    return(TIBS_rcpp(data, w.fun, test.type, prms)) # run all in cpp 
   } # else
     # if(test.type == 'bootstrap')
     #  prms$use.cpp = 0 # make sure everything runs in R (only for esitmate marginals)
@@ -225,7 +241,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
          },
          'bootstrap_inverse_weighting'={
-           TrueT <- ComputeStatistic.W(data, grid.points, w.fun)
+           TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)
            if(prms$use.cpp)
              marginals <- EstimateMarginals_rcpp(data, w.fun)
            else 
@@ -239,7 +255,7 @@ TIBS <- function(data, w.fun, test.type, prms)
              if(mod(ctr,100)==0)
                print(paste0("Run Boots=", ctr))
              bootstrap <- Bootstrap(marginals$xy, marginals$PDFs, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
-             statistics.under.null[ctr] <- ComputeStatistic.W(bootstrap$sample, grid.points, w.fun)$Statistic
+             statistics.under.null[ctr] <- ComputeStatistic.W(bootstrap$sample, grid.points, w.fun, prms$counts.flag)$Statistic
            }
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
          },
@@ -277,7 +293,7 @@ TIBS <- function(data, w.fun, test.type, prms)
          },  # end permutations test 
          'permutations_inverse_weighting'={ # weighted Hoeffding statistic with Our MCMC permutations 
            #             w.mat = w_fun_to_mat(data, w.fun)
-           TrueT <- ComputeStatistic.W(data, grid.points, w.fun)$Statistic
+           TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)$Statistic
            w.mat <- w_fun_to_mat(data, w.fun)
            Permutations <- PermutationsMCMC(w.mat, prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
            Permutations <- Permutations$Permutations
@@ -285,7 +301,7 @@ TIBS <- function(data, w.fun, test.type, prms)
            statistics.under.null = matrix(0, prms$B, 1)
            for(ctr in 1:prms$B) 
            {
-             statistics.under.null[ctr] <- ComputeStatistic.W(cbind(data[,1], data[Permutations[,ctr],2]), grid.points, w.fun)$Statistic # grid.points calculated inside function
+             statistics.under.null[ctr] <- ComputeStatistic.W(cbind(data[,1], data[Permutations[,ctr],2]), grid.points, w.fun, prms$counts.flag)$Statistic # grid.points calculated inside function
              #             statistics.under.null.cpp <- ComputeStatistic_w_rcpp(cbind(data[,1], data[Permutations[,ctr],2]), grid.points, w.fun) # grid.points calculated inside function
              #             print(paste0("should be zero ComputeStatisticW: ", max(abs(statistics.under.null.cpp - statistics.under.null[ctr] ))))
            }

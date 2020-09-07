@@ -4,14 +4,17 @@
 #  multiply the weight function by a constant so the weights
 #  are in some sense centered at 1)
 #############################################################
-IS.permute <- function(data, grid.points, B, w.fun=function(x){1}, expectations.table=c())
+IS.permute <- function(data, grid.points, B, w.fun=function(x){1}, expectations.table=c(), counts.flag)
 {
   n <- dim(data)[1]
   if(missing(grid.points) || isempty(grid.points))
     grid.points = data #  grid.points <- matrix(rnorm(2*n, 0, 1), n, 2) # TEMP DEBUG!!
+  if(missing(counts.flag) || isempty(counts.flag))
+    counts.flag <- 1  # default: use counts in the statistic (not probabilities)
+  
   inverse.weight = missing(expectations.table) || isempty(expectations.table) # default is using inverse weighting 
   if(inverse.weight)
-    TrueT <- ComputeStatistic.W(data, grid.points, w.fun)$Statistic # no unique in grid-points 
+    TrueT <- ComputeStatistic.W(data, grid.points, w.fun, counts.flag)$Statistic # no unique in grid-points 
   else
     TrueT <- ComputeStatistic(data, grid.points, expectations.table)$Statistic # no unique in grid-points !!
 
@@ -22,7 +25,7 @@ IS.permute <- function(data, grid.points, B, w.fun=function(x){1}, expectations.
   {
     perm <- sample(n)  # uniformly sampled permutation 
     if(inverse.weight)
-      T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), grid.points, w.fun)$Statistic # grid depends on permuted data
+      T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), grid.points, w.fun, counts.flag)$Statistic # grid depends on permuted data
     else
       T.b[b] <- ComputeStatistic(cbind(data[,1], data[perm,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
     p.w[b] <- sum(log(w_fun_eval(data[,1], data[perm,2], w.fun))) # prod of w[i, pi(i)] 

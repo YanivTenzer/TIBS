@@ -67,11 +67,14 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
 #   ------
 #   3 | 2
 ##################################################################################################
-ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
+ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1}, counts.flag)
 {
   # treat grid.points 
-  if(missing(grid.points) | isempty(grid.points))
+  if(missing(grid.points) || isempty(grid.points))
     grid.points <- unique.matrix(data)  # default: set unique for ties? for discrete data
+
+  if(missing(counts.flag) || isempty(counts.flag))
+    counts.flag <- 1  # default: use counts in the statistic (not probabilities)
   
   w.vec <- w_fun_eval(data[,1], data[,2], w.fun) # w_fun_to_mat(data, w.fun) # calculate w n*n matrix 
   n.w <- sum(1/w.vec)
@@ -84,16 +87,16 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1})
     Ry <- data[,2] > grid.points[i,2]
     Lx <- data[,1] < grid.points[i,1] 
     Ly <- data[,2] < grid.points[i,2]
-    Exp[1] <- sum(Rx/w.vec)*sum(Ry/w.vec)/n.w^2
-    Exp[2] <- sum(Rx/w.vec)*sum(Ly/w.vec)/n.w^2
-    Exp[4] <- sum(Lx/w.vec)*sum(Ry/w.vec)/n.w^2
-    Exp[3] <- sum(Lx/w.vec)*sum(Ly/w.vec)/n.w^2
-    Obs[1] <- sum(Rx*Ry/w.vec)/n.w
-    Obs[2] <- sum(Rx*Ly/w.vec)/n.w
-    Obs[4] <- sum(Lx*Ry/w.vec)/n.w
-    Obs[3] <- sum(Lx*Ly/w.vec)/n.w
-    obs.table[i,] <- Obs
-    exp.table[i,] <- Exp
+    Exp[1] <- sum(Rx/w.vec)*sum(Ry/w.vec)/n.w # ^2
+    Exp[2] <- sum(Rx/w.vec)*sum(Ly/w.vec)/n.w # ^2
+    Exp[4] <- sum(Lx/w.vec)*sum(Ry/w.vec)/n.w # ^2
+    Exp[3] <- sum(Lx/w.vec)*sum(Ly/w.vec)/n.w # ^2
+    Obs[1] <- sum(Rx*Ry/w.vec) # /n.w
+    Obs[2] <- sum(Rx*Ly/w.vec) # /n.w
+    Obs[4] <- sum(Lx*Ry/w.vec) # /n.w
+    Obs[3] <- sum(Lx*Ly/w.vec) # /n.w
+    obs.table[i,] <- Obs / (n.w^(1-counts.flag))
+    exp.table[i,] <- Exp / (n.w^(1-counts.flag))
     if (min(Exp)>(1/dim(data)[1])) {
       Statistic <-  Statistic + sum((Obs-Exp)^2 / Exp) # set valid statistic when expected is 0 or very small 
     } 
