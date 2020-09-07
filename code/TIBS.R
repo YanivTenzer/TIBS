@@ -332,10 +332,10 @@ TIBS <- function(data, w.fun, test.type, prms)
            output <- IS.permute(data, grid.points, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          }, 
          'tsai' = {
-           if(!('delta' %in% names(prms)))  # new: Tsai with censoring
-             result <- Tsai.test(data[,1],data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
+           if(!('delta' %in% names(prms)) || is.na(prms$delta))  # new: Tsai with censoring
+             result <- Tsai.test(data[,1], data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
            else
-             result <- Tsai.test(data[,1],data[,2], prms$delta) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
+             result <- Tsai.test(data[,1], data[,2], prms$delta) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
            output <- list(Pvalue=result[4])
          },
          'minP2' = { library(permDep) #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}

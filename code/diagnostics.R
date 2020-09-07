@@ -114,12 +114,12 @@ prms$B=200
 
 
 
-test.type = c("bootstrap" , "permutations" , "permutations_inverse_weighting") # check scaling for both 
+test.type = c("permutations" , "permutations_inverse_weighting") # check scaling for both 
 num.tests <- length(test.type)
 B_vec <- round(logspace(2, 4, 10)) # round(logspace(2, 4, 10))
-n_vec <- c(100) # , 200, 500, 1000) # small n to find memory leak fast 
+n_vec <- c(200) # , 200, 500, 1000) # small n to find memory leak fast 
 
-iters <- 5 # to get reasonable variance 
+iters <- 25 # to get reasonable variance 
 prms$use.cpp=1
 prms$perturb.grid <- 0 # CHECK IF THIS ADDS VARIANCE!!
 prms$counts.flag <- 1 # New statistic for inverse weighting (use counts and not probabilities)

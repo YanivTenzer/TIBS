@@ -7,7 +7,7 @@
 # Y_j is in risk set of Y_i if L_j=Y_i
 # For strict truncation L<Y add 'epsilon' to all Y's
 
-Tsai.test <- function(L,Y,del=rep(1,length(Y))){
+Tsai.test <- function(L, Y, del=rep(1,length(Y))){
   n <- length(Y)
   Risk <- vector(mode = "list", length = n)
   for (i in 1:n) {

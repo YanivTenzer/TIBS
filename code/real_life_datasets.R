@@ -7,6 +7,7 @@ rm(list=ls())
 gc()
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 path = getwd()
+Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
 source('TIBS.R')
 source('simulate_biased_sample.R')
@@ -19,6 +20,9 @@ library(tictoc)
 library(xtable)
 library(ggplot2)
 library(Matrix)
+library(Rcpp)
+library(RcppArmadillo)
+
 
 datasets <- c('huji', 'AIDS', 'ICU', 'Infection',  'ChanningHouse')  # Run Channing and skipping Dementia. 
 w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'Hyperplane_Truncation_censoring') # last one is dementia (sum?)
@@ -109,7 +113,7 @@ ReadDataset <- function(data_str)
 #           input.data <- data.frame(x=ch.data$x[ch.data$delta==1], y=ch.data$y[ch.data$delta==1])  # keep all values (including censored!)
            
            # estimating censoring distribution and calculating W function
-           KM <- survfit(Surv(y-x,!delta) ~ 1, data=ch.data)
+           KM <- survfit(Surv(y-x,!delta) ~ 1, data=input.data)
            Srv.C <- stepfun(KM$time, c(1,KM$surv))
            w.fun <- function(x,y){(x<y)*Srv.C(y-x)}
 #           return(list(input.data=input.data, w.fun=w.fun, delta=ch.data$delta)) # return also delta for censoring
@@ -131,8 +135,8 @@ cppFunction('NumericVector timesTwo(NumericVector x) {
 }')
 
 
-B = 10000 # number of permutations/bootstrap samples 
-minP2.B = 1000 # for minP take a smaller value due to running time 
+B = 1000 # number of permutations/bootstrap samples 
+minP2.B = 100 # for minP take a smaller value due to running time 
 plot.flag <- 1
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
@@ -224,7 +228,7 @@ save(test.pvalue, test.time, test.type,
 #      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # save also in latex format 
 
 
-print(paste0("Overall real-life-datasets time: ", sum(test.time)))
+print(paste0("Overall real-life-datasets time (sec.)  : ", sum(test.time)))
 
 
 #####################################################
