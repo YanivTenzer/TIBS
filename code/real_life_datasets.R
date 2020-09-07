@@ -182,7 +182,7 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     if((test.type[t] == 'bootstrap') & (min(w_fun_eval(dat$input.data[,1], dat$input.data[,2], dat$w.fun))==0))  # check for icu that we can run it
       next # can't run bootstrap because w can be zero 
 
-    
+
     set.seed(100)
     
     print(paste0("Running ", datasets[d], ", ", test.type[t], ":"))
@@ -195,7 +195,10 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')
     if(plot.flag & (t==2)) # permutations
     {
-      xy <- cbind(data.frame(dat$input.data), as.data.frame(results.test$permuted.data))
+      if(("delta" %in% names(prms)) && (length(prms$delta) == dim(dat$input.data)[1]))
+        xy <- cbind(data.frame(dat$input.data[which(prms$delta==1),]), as.data.frame(results.test$permuted.data))
+      else
+        xy <- cbind(data.frame(dat$input.data), as.data.frame(results.test$permuted.data))
       ggplot(xy, aes(x=xy[,1], y=xy[,2])) + 
         geom_point(aes(x=xy[,1], y=xy[,2], col="original")) + 
         geom_point(shape=3, aes(x=xy[,3], y=xy[,4], col="permuted")) + 
