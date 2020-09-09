@@ -25,12 +25,10 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   {
     # Compute expectations.table from permutations   
     expectations.table <- QuarterProbFromPermutations(data, Permutations$P, grid.points) #Permutations
-#    expectations.MCMC <- QuarterProbFromPermutations(data, P.MCMC$P, grid.points) #Permutations
+  #  expectations.MCMC <- QuarterProbFromPermutations(data, P.MCMC$P, grid.points) #Permutations
     TrueT <- ComputeStatistic(data, grid.points, expectations.table)$Statistic # no unique in grid-points !!
   }
   
-#  p.w0 <- sum(log(w_fun_eval(data[,1], data[,2], w.fun))) # prod of w[i, j] for the original data (id permutation)
-#  p.w <- matrix(0, B, 1)
   T.b <- matrix(0, prms$B, 1) # statistics under null 
   for(b in 1:prms$B)
   {
@@ -39,13 +37,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
       T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), grid.points, w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
     else
       T.b[b] <- ComputeStatistic(cbind(data[,1], data[perm,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-#    p.w[b] <- sum(log(w_fun_eval(data[,1], data[perm,2], w.fun))) # prod of w[i, pi(i)] 
-    # new! here also compute the expectations.table from the importance weights and permutations (no need for MCMC)
   }
-#  p.w.max <- max(p.w0, max(p.w))
-#  p.w0 <- exp(p.w0 - p.w.max)
-#  p.w <- exp(p.w - p.w.max) # shift max to prevent overflow 
-
   Pvalue = (Permutations$P.W.IS0 + sum((T.b>=TrueT) * Permutations$P.W.IS)) / 
     (Permutations$P.W.IS0 + sum(Permutations$P.W.IS))
   return(list(Pvalue= Pvalue, TrueT=TrueT, statistics.under.null=T.b))
@@ -94,9 +86,9 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
     # Next, compute importance weights, from P_I and P_W, and then use them to estimate P_ij 
     log.w.mat <- log(w.mat)
     # Comptue also the id permutation weight 
-    P.W.IS0 <- log(P_IS0) + sum(diag(log.w.mat))
+    P.W.IS0 <- -log(P_IS0) + sum(diag(log.w.mat))
 
-    P.W.IS <- - log(P_IS) # Computing P_W / P_IS 
+    P.W.IS <- -log(P_IS) # Computing P_W / P_IS 
     for(b in 1:prms$B)
       P.W.IS[b] <- P.W.IS[b] + sum(log.w.mat[cbind(1:n, Permutations[,b])])
     max.log <- max(max(P.W.IS), P.W.IS0)

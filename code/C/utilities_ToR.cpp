@@ -172,27 +172,37 @@ arma::mat unique_rows(const arma::mat& x) {
  * It is the classic example of a "divide and conquer" algorithm.
  */
  // [[Rcpp::export]]
-int binary_search_rcpp(NumericVector array, double pattern, long exact_match=0) {
-	int array_length = array.size();
-	int i = 0, j = array_length - 1;
-	int k;
-	while (i < j) {
-		k = (i + j) / 2;
-		if (array[k] == pattern) {
-			return k; // return index 
-		}
-		else if (array[k] < pattern) {
-			i = k+1;
+long binary_search_rcpp(NumericVector array, double pattern, long exact_match=0) 
+{
+	long array_length = array.size();
+	long a = 0, b = array_length - 1;
+	long mid;
+	while (a < b) {
+		mid = (a + b) / 2;
+		if (array[mid] < pattern) {
+			a = mid+1;
 		}
 		else {
-			j = k;
+			b = mid;
 		}
 	}
-	if(exact_match)
+	if(exact_match && (array[a] != pattern))
 		return -1; // didn't find value 
 	else
-		return i; // return closest
+		return a; // return closest index 
 }
+
+// Sample from weighted distribution
+ // [[Rcpp::export]]
+NumericVector weighted_rand_rcpp(long n_samples, NumericVector cdf)
+{
+	long n = cdf.size();
+	NumericVector ret(n);
+	for(long i=0; i<n; i++)
+		ret[i] = binary_search_rcpp(cdf, double(rand()) / RAND_MAX, 0);
+	return(ret);
+}
+
 
 
 // Compute empirical cdf 
@@ -273,6 +283,27 @@ NumericVector ecdf2_rcpp(NumericVector x, NumericVector y)
 	return(ecdf2);
 }
 **/
+
+
+// Sample a random permutation from the uniform distribution over S_n 
+// [[Rcpp::export]]
+NumericVector rand_perm(long n)
+{
+	NumericVector perm(n); 
+	long i, temp, r;
+
+	for (i = 0; i < n; i++)
+		perm[i] = i; // start with the identity 
+	for (i = 0; i < n; i++)
+	{
+		r = rand() % (n - i) + i;
+		temp = perm[i]; // swap 
+		perm[i] = perm[r];
+		perm[r] = temp; 
+	}
+	return(perm);
+}
+
 
 
 // should have a similar function for a vector !! 
@@ -1061,9 +1092,8 @@ List EstimateMarginals_rcpp(NumericMatrix data, string w_fun)
 # sample permutations, using MCMC, over the set of valid permutations,
 # with respect to the distribution appears in Eq 8
 # Parameters:
-# W - matrix with weights
-# B - number of permutations to draw
-# N - sample size(can be read from data or W ? )
+# w_mat - matrix with weights
+# prms: B - number of permutations to draw
 # 
 # Output:
 # PermutationsTable - A matrix representing the sampled permutations
@@ -1089,12 +1119,10 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 	long Cycle = n; 
 	if (prms.containsElementNamed("Cycle")) // (!('Cycle' % in % names(prms)))
 		Cycle = prms["Cycle"];
-
 	long Idx = 0, ctr = 1;
 
 //	Rcout << "burn.in=" << burn_in << " Cycle=" << Cycle << endl; 
 
-//	Rcout << "Perms dimensions: n=" << n << " B = " << B << endl;
 	NumericMatrix Permutations(n, long(B));
 	IntegerVector Perm = seq(0, n);  // 1 to N-1 
 	NumericVector switchIdx(2);
@@ -1110,9 +1138,6 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 		i = switchIdx[0];
 		j = switchIdx[1];
 		ratio = w_mat(i, Perm[j]) * w_mat(j, Perm[i]) / (w_mat(i, Perm[i]) * w_mat(j, Perm[j]));
-
-//		ratio = w.mat[i, Perm[j]] * w.mat[j, Perm[i]] / (w.mat[i, Perm[i]] * w.mat[j, Perm[j]]) // R code !! 
-
 
 		if(	double(rand()) / RAND_MAX < fmin(1.0, ratio) ) // we accept the transition with probability min(1, ratio)
 		{
@@ -1143,25 +1168,107 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 }
 
 
+/**
+#################################################################
+# sample permutations, using Importance Sampling, over the set of valid permutations,
+# Parameters:
+# w_mat - matrix with weights
+# prms, with: B - number of permutations to draw
+# 
+# Output:
+# PermutationsTable - A matrix representing the sampled permutations
+# P - An n * n matrix with P(i, j) = Pr(pi(i) = j) over the sampled permutations
+#########################################################################################
+**/
 
-// Sample a random permutation from the uniform distribution over S_n 
 // [[Rcpp::export]]
-NumericVector rand_perm(long n)
+List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle = NA)  # New: allow non - default burn - in
 {
-	NumericVector perm(n); 
-	long i, temp, r;
+	long n = w_mat.nrow();
+	long i, j, k, b;
 
-	for (i = 0; i < n; i++)
-		perm[i] = i; // start with the identity 
-	for (i = 0; i < n; i++)
+	// Set IS default sampling parameters
+	long B = 1000;
+	if (prms.containsElementNamed("B")) //   ('B' % in % names(prms)))
+		B = prms["B"];
+	string importance_sampling_dist = "uniform";
+    if(prms.containsElementNamed("importance.sampling.dist"))  // set default uniform distribution 
+      importance_sampling_dist = as<string>(prms["importance.sampling.dist"]);
+
+
+	NumericMatrix P(n, n);  // New!matrix with P[i] = j estimate
+	NumericMatrix Permutations(n, long(B));
+
+//	Rcout << "burn.in=" << burn_in << " Cycle=" << Cycle << endl; 
+
+//	IntegerVector Perm = seq(0, n);  // 1 to N-1 
+	NumericVector P_IS(n); // probabilities for importance sampling (up to a constant)
+	double P_IS0 = 0.0;
+
+	// choose IS distribution: 
+	if(importance_sampling_dist == "uniform")
 	{
-		r = rand() % (n - i) + i;
-		temp = perm[i]; // swap 
-		perm[i] = perm[r];
-		perm[r] = temp; 
+		for(b=0; b<B; b++)
+			Permutations(_,b) = rand_perm(n);
+		for(i=0; i<n; i++)
+			P_IS[i] = 1.0;
+		P_IS0 = 1.0;
 	}
-	return(perm);
+	if(importance_sampling_dist == "monotone.w") // sort values by average of w
+	{
+		NumericVector w_mat_row_sums = rowSums(w_mat); 
+		IntegerVector w_order = sort_indexes_rcpp(-w_mat_row_sums);	
+		NumericVector weights(n), weights_cdf(n);
+
+		for(b=0; b<B; b++)
+		{
+			for(j=0; j<n; j++)
+			{
+				weights = w_mat(w_order[j],_);
+				for(k=0; k<j; k++)
+                   weights(Permutations(w_order[k], b)) = 0.0;     
+				weights_cdf[0] = weights[0]; // compute cumsum
+				for(k=1; k<n; k++)
+					weights_cdf[k] = weights_cdf[k-1] + weights[k]; 	
+				weights_cdf = weights_cdf * (1.0/sum(weights_cdf));
+				Permutations(w_order[j],b) = weighted_rand_rcpp(1, weights_cdf)[0];
+			}
+		}
+
+	}
+
+	// Compute P matrix 
+	NumericMatrix log_w_mat(n,n); // = log(w_mat); // (n, n);
+	for(i=0; i<n; i++)
+		for(j=0; j<n; j++)
+			log_w_mat(i,j) = log(w_mat(i,j));
+
+	double P_W_IS0 = -log(P_IS0); 
+	for(i=0; i<n; i++)
+		P_W_IS0 += log_w_mat(i,i);
+	NumericVector P_W_IS = -log(P_IS); 
+	for(b=0; b<B; b++)
+		for(i=0; i<n; i++)
+			P_W_IS[b] += log_w_mat(i, Permutations(i,b));
+	double max_log = max(P_W_IS);
+	max_log = max(max_log, P_W_IS0);
+	P_W_IS0 = exp(P_W_IS0 - max_log);
+	for(b=0; b<B; b++)
+		P_W_IS[b] = exp(P_W_IS[b]-max_log); // compute P_W/P_I (up to a constant)
+
+    for(b=0; b<B; b++)  // next, compute expectations P[i,j]
+		for(i=0; i<n; i++)
+			P(i, Permutations(i,b)) += P_W_IS[b];		
+    P <- P / (P_W_IS0 + sum(P_W_IS)); // normalize        
+
+	List ret; 
+	ret["Permutations"] = Permutations;
+	ret["P"] = P;
+	ret["P.W.IS"] = P_W_IS;
+	ret["P.W.IS0"] = P_W_IS0;
+	return(ret); // return list with also P
 }
+
 
 /**
 #############################################################
@@ -1172,12 +1279,23 @@ NumericVector rand_perm(long n)
 #############################################################
 **/
 // [[Rcpp::export]]
-List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, double B, string w_fun, NumericMatrix expectations_table, long counts_flag) 
+List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun, List prms, string test_type) // NumericMatrix expectations_table, long counts_flag) 
 {
 	long  n = data.nrow();
-	double Tobs; // = ComputeStatistic_w_rcpp(data, data, w_fun); 
-	long i, j;
-	double pw0 = 0.0; // the weight of the true permutation 
+	long B = prms["B"];
+	long counts_flag = TRUE; 
+	if (prms.containsElementNamed("counts.flag"))
+		counts_flag = prms["counts.flag"];
+
+	List PermutationsList = PermutationsIS_rcpp(w_fun_to_mat_rcpp(data, w_fun), prms); //  sample permutations 	
+	NumericMatrix Permutations = as<NumericMatrix>(PermutationsList["Permutations"]);	
+	NumericMatrix P = as<NumericMatrix>(PermutationsList["P"]);	
+	NumericVector P_W_IS = as<NumericVector>(PermutationsList["P.W.IS"]); // importance weights of permutations
+	double P_W_IS0 = as<double>(PermutationsList["P.W.IS0"]); // importance weight of ID permutation
+	NumericMatrix expectations_table(grid_points.nrow(), 4);
+
+	double TrueT; // = ComputeStatistic_w_rcpp(data, data, w_fun); 
+	long j, b;
 	NumericVector pw(B); 
 	NumericVector Tb(B); 
 	IntegerVector perm(n);
@@ -1186,50 +1304,46 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, double B, st
 	if(grid_points.ncol() == 1) // no input grid
 		grid_points = data;
 
-  	long inverse_weight = (expectations_table.ncol() == 1);   // | isempty(expectations.table) # default is using inverse weighting 
+	long inverse_weight = test_type.find("inverse_weight");
+	Rcout << "invere_weight string found: " << inverse_weight << endl;
 //	Rcout << "Start IS Permute Inverse Weight: " << inverse_weight << " Dim(Exp-Table)=" << expectations_table.nrow() << ", " << expectations_table.ncol() << endl; 
   	if(inverse_weight)
-    	Tobs = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); // weights. no unique in grid-points 
+    	TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); // weights. no unique in grid-points 
 	else
-    	Tobs = ComputeStatistic_rcpp(data, grid_points, expectations_table); // no weights
-
-	for(j=0; j<n; j++)
-		pw0 += log(w_fun_eval_rcpp(data(j,0), data(j,1), w_fun));  // take log to avoid underflow 		
-	for (i = 0; i < B; i++) 
 	{
-		perm = rand_perm(n);  // get a random permutation from the uniform disitribution
+		NumericMatrix expectations_table =  QuarterProbFromPermutations_rcpp(data, P, grid_points); 
+    	TrueT = ComputeStatistic_rcpp(data, grid_points, expectations_table); // no weights
+	}
+
+	for (b = 0; b < B; b++) 
+	{
+		perm = Permutations(_,b); //		perm = rand_perm(n);  // get a random permutation from the uniform disitribution
 		permuted_data(_, 0) = data(_, 0);
 		for (j = 0; j < n; j++)
 			permuted_data(j, 1) = data(perm[j], 1); // permute data 
 		if(inverse_weight)
-			Tb[i] = ComputeStatistic_w_rcpp(permuted_data, grid_points, w_fun, counts_flag); // grid depends on permuted data. Compute weighted statistic! 
+			Tb[b] = ComputeStatistic_w_rcpp(permuted_data, grid_points, w_fun, counts_flag); // grid depends on permuted data. Compute weighted statistic! 
 		else 
-			Tb[i] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
-		pw[i] = 0.0;
-		for(j=0; j<n; j++)
-			pw[i] += log(w_fun_eval_rcpp(permuted_data(j,0), permuted_data(j,1), w_fun));  // take log to avoid underflow 		
+			Tb[b] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
 	}
 
-	double pw_max = max(pw); 
-	pw_max = max(pw_max, pw0); 
-	pw0 = exp(pw0 - pw_max);
-	double reject = pw0; // include identity permutation !! 
-
-//	Rcout << "pw0=" << reject << endl; 
-	for (i = 0; i < B; i++)
+	double Pvalue = P_W_IS0;
+	double NormalizingFactor = P_W_IS0;
+	for(b=0; b<B; b++)
 	{
-		pw[i] = exp(pw[i] - pw_max);
-		reject += (Tb[i] >= Tobs) * pw[i];
+		Pvalue += (Tb[b]>=TrueT) * P_W_IS[b];	
+		NormalizingFactor += P_W_IS[b];
 	}
+	Pvalue /= NormalizingFactor;
 
 //	Rcout << "reject=" << reject << " denominator.weights=" <<  (pw0 + sum(pw)) << " pval=" << reject / (pw0 + sum(pw)) << endl; 
 	List ret; 
-	ret["Pvalue"] = reject / (pw0 + sum(pw));  // New: Take into account also the idenity permutation in the pvalue!! 
-	ret["TrueT"] = Tobs; 
+	ret["Pvalue"] = Pvalue;  // New: Take into account also the idenity permutation in the pvalue!! 
+	ret["TrueT"] = TrueT; 
 	ret["statistics.under.null"] = Tb;  // get null statistics (they're not weighted equally)
-	ret["perm.weights"] = pw; // New! return also weight for each permutation !! 
-	ret["pw.max"] = pw_max;
-	ret["id.perm.weight"] = pw0;
+	ret["perm.weights"] = P_W_IS; // New! return also weight for each permutation !! 
+//	ret["pw.max"] = pw_max;
+	ret["id.perm.weight"] = P_W_IS0;
 	return(ret);
 }
 
@@ -1733,7 +1847,8 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 
 	/**/
 	if (test_type == "uniform_importance_sampling") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
-		NumericMatrix permuted_data(n, 2);
+/** Old MCMC - not needed
+ * 		NumericMatrix permuted_data(n, 2);
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun); 
 		List PermutationsList = PermutationsMCMC_rcpp(w_mat, prms); //
 		NumericMatrix Permutations = PermutationsList["Permutations"];
@@ -1743,14 +1858,12 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 			expectations_table = QuarterProbFromPermutations_rcpp(data, P, grid_points);
 		permuted_data(_, 0) = data(_, 0);
 		for (i = 0; i < n; i++)
-			permuted_data(i, 1) = data(Permutations(i, 0)-1, 1); // save one example
-		output = IS_permute_rcpp(data, grid_points, B, w_fun, expectations_table, counts_flag);} // instead of w_fun we should give expectation table 
-
-
+			permuted_data(i, 1) = data(Permutations(i, 0)-1, 1); // save one example **/
+		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type);} // instead of w_fun we should give expectation table 
 
 	if (test_type == "uniform_importance_sampling_inverse_weighting") { // inverse-weighting Hoeffding's statistic with importance sampling uniform permutations  
 		NumericMatrix expectations_table(1, 1); // set empty (0) table 
-		output = IS_permute_rcpp(data, grid_points, B, w_fun, expectations_table, counts_flag); // need to change!
+		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type); // need to change!
 	} // w = function(x) { 1 }) {
 	if(test_type == "tsai") { cout << "Can't run Tsai's test from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}		
 	if(test_type == "minP2") { cout << "Can't run minP2 from cpp" << endl;} // minP2 test, relevant only for truncation W(x,y)=1_{x<=y}
