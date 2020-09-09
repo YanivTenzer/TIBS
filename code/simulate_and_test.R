@@ -28,6 +28,11 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   if(!('simulate.once' %in% names(prms)))  # default: simulate a new dataset for each iteration. 
     prms$simulate.once = 0
   
+  if(!('B' %in% names(prms)))  # default: simulate using 
+    prms$B = 1000
+  
+  
+  
   run.flag = 1
   num.tests <- length(test.type)
   #browser()

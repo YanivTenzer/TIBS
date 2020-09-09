@@ -308,31 +308,31 @@ TIBS <- function(data, w.fun, test.type, prms)
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations with inverse weighting test 
          'uniform_importance_sampling' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W 
-          # TEMP DEBUG: RANDOM GRID POINTs           
-           grid.points <- matrix(rnorm(2*n, 0, 1), n, 2)
-           w.mat = w_fun_to_mat(data, w.fun)
-           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
-             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
-           else
-             Permutations <- PermutationsMCMC(w.mat, prms)
-           P = Permutations$P
-           Permutations = Permutations$Permutations
-           if((!prms$naive.expectation) & (!prms$PL.expectation))
-           {
-             if(prms$use.cpp)
-               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
-             else
-               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
-           } else
-             expectations.table <- c()
 
-           output <- IS.permute(data, grid.points, prms$B, w.fun, expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+#           New: we don't need PermutationsMCMC to get expectations            
+#           w.mat = w_fun_to_mat(data, w.fun)
+#           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
+#             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
+#           else
+#             Permutations <- PermutationsMCMC(w.mat, prms)
+#           P = Permutations$P
+#           Permutations = Permutations$Permutations
+#           if((!prms$naive.expectation) & (!prms$PL.expectation))
+#           {
+#             if(prms$use.cpp)
+#               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
+#             else
+#               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
+#           } else
+#             expectations.table <- c()
+
+           output <- IS.permute(data, grid.points, w.fun, prms, test.type) # expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          },
          'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with weighted Hoeffding statistic - only for positive W
-           output <- IS.permute(data, grid.points, prms$B, w.fun) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+           output <- IS.permute(data, grid.points, w.fun, prms, test.type) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          }, 
          'tsai' = {
-           if(!('delta' %in% names(prms)) || is.na(prms$delta))  # new: Tsai with censoring
+           if(!('delta' %in% names(prms)) || any(is.na(prms$delta)))  # new: Tsai with censoring
              result <- Tsai.test(data[,1], data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
            else
              result <- Tsai.test(data[,1], data[,2], prms$delta) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
@@ -341,7 +341,7 @@ TIBS <- function(data, w.fun, test.type, prms)
          'minP2' = { library(permDep) #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
            require(survival)  
             # use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
-           if(!is.na(prms$delta)) # when running minP we must have a delta parameter 
+           if(!any(is.na(prms$delta))) # when running minP we must have a delta parameter 
              dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = prms$delta))
            else
              dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))

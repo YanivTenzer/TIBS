@@ -135,8 +135,8 @@ cppFunction('NumericVector timesTwo(NumericVector x) {
 }')
 
 
-B = 1000 # number of permutations/bootstrap samples 
-minP2.B = 100 # for minP take a smaller value due to running time 
+B = 100000 # number of permutations/bootstrap samples 
+minP2.B = 10000 # for minP take a smaller value due to running time 
 plot.flag <- 1
 
 test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 

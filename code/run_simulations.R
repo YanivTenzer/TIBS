@@ -11,6 +11,7 @@ source('TIBS.R')
 source('marginal_estimation.R')
 source('utilities.R')
 source('import_samp.R')
+library('stringr')
 library(foreach)
 library(doSNOW)
 #library(parallel)
@@ -27,24 +28,44 @@ registerDoParallel(cl)
 run.flag <- 1 # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 const.seed <- 1 # set constant seed 
 
-# Vectors with different dependency settings 
-dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 
-                     'LD', 'nonmonotone_nonexchangeable', 'CLmix', 'Gaussian',
-                     'LogNormal', 'Gaussian') # The last one is log-normal 
-w.fun <- c('truncation', 'truncation', 'truncation', 'truncation', 
-           'truncation', 'truncation', 'truncation', 
-           'exponent_minus_sum_abs', 'sum', 'gaussian') # not good that we have only one simulation with positive W. Should add X+Y?
-monotone.type <- c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) # is monotone
-exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE) # is exchangeable
+# Vectors with different dependency settings : dependence-type, w, monotone, exchangable, rho
+run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3), 
+                             'Gaussian', 'truncation', TRUE, TRUE, list(seq(0.1,0.9,0.1)),
+                             'Clayton','truncation', TRUE, TRUE, list(0.5),
+                             'Gumbel', 'truncation', TRUE, TRUE, list(1.6),
+                             'LD', 'truncation', TRUE, FALSE, list(c(0, 0.4)),
+                             'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(seq(-0.9, 0.9, 0.1)),
+                             'CLmix','truncation', FALSE, TRUE, list(0.5), 
+                             #  'Gaussian','exponent_minus_sum_abs', TRUE, TRUE, # not needed 
+                             'LogNormal', 'sum', TRUE, TRUE,  list(c(0)),
+                             'CLmix', 'gaussian', TRUE, TRUE, list(c(0))), 5, 9)) # replace by CLmix / non-monotone and centered at zero 
+run.params.mat
+
+dependence.type <- run.params.mat[,1]
+w.fun <- run.params.mat[,2]
+monotone.type <- run.params.mat[,3]
+exchange.type <- run.params.mat[,4]
+prms.rho <- run.params.mat[,5]
+  
+#dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 
+#                     'LD', 'nonmonotone_nonexchangeable', 'CLmix', 'Gaussian',
+#                     'LogNormal', 'Gaussian') # The last one is log-normal 
+#w.fun <- c('truncation', 'truncation', 'truncation', 'truncation', 
+#           'truncation', 'truncation', 'truncation', 
+#           'exponent_minus_sum_abs', 'sum', 'gaussian') # not good that we have only one simulation with positive W. Should add X+Y?
+#monotone.type <- c(TRUE, TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE) # is monotone
+#exchange.type <- c(TRUE, TRUE, TRUE, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE) # is exchangeable
 # sample.size <- c(500, 100, 100, 100, 100, 100, 100, 100) # set all sample.sizes to 100 
-prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
-                 seq(-0.9, 0.9, 0.1), 0.5, c(0), c(0), c(0))#seq(-0.9, 0.9, 0.1), 
+#prms.rho <- list(0.3, seq(-0.9, 0.9, 0.1), 0.5, 1.6, c(0, 0.4),
+#                 seq(-0.9, 0.9, 0.1), 0.5, c(0), c(0), c(0))#seq(-0.9, 0.9, 0.1), 
 #c(0)) # Parameters for each sampling type 
 
-# test.type<- c('uniform_importance_sampling') # ,'bootstrap')#c( 'permutations','permutations_inverse_weighting',
+### test.type<- c('permutations','bootstrap') #c( 'permutations','permutations_inverse_weighting',
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
+
+
     test.type <- c('permutations', 'uniform_importance_sampling', 'permutations_inverse_weighting', 'uniform_importance_sampling_inverse_weighting', 
-                'bootstrap', 'bootstrap_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
+                'bootstrap', 'bootstrap_inverse_weighting', 'tsai') #c( 'permutations','permutations_inverse_weighting', # everything except minP2
 #  #'uniform_importance_sampling',
 #  'uniform_importance_sampling_inverse_weighting',
 #  'bootstrap', 
@@ -55,7 +76,7 @@ num.tests <- length(test.type)
 
 if(run.flag == 1)
 {
-  run.dep <- c(9)#(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  run.dep <- c(8) # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
 } else  # run from command line 
 {
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
@@ -71,12 +92,14 @@ if(run.flag == 1)
 if(isempty(intersect(run.dep, c(3,4,5,6,7)))) # %in% )
   library(copula) # needed for most simulations 
 
+overall.start.time <- Sys.time()
+
 for(s in run.dep) # Run all on the farm  
 {
   for(n in c(100)) #seq(250, 400, 50))
   {
-    prms = list(B=100, sample.size=n, iterations=200, plot.flag=0, alpha=0.05, sequential.stopping=0, 
-                use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+    prms = list(B=100, sample.size=n, iterations=20, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
+                use.cpp=0, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
@@ -84,10 +107,15 @@ for(s in run.dep) # Run all on the farm
     # Call function. # run simulations function 
     print(paste("n=", prms$sample.size))
     if(const.seed)
-      prms$seed <- 9129484 # 4524553
-    T.OUT <- simulate_and_test(dependence.type[s], prms.rho[[s]], w.fun[s], test.type, prms) # run all tests 
+      prms$seed <- 19129484 # 4524553
+    T.OUT <- simulate_and_test(dependence.type[[s]], prms.rho[[s]], w.fun[[s]], test.type, prms) # run all tests 
   }
 } # end loop on dependency types
+
+
+overall.time <-  difftime(Sys.time() , overall.start.time, units="secs") 
+print(paste0("Overall simulations time (no min.p), B= ", prms$B, ", iters=", prms$iterations, ":"))
+print(overall.time)
 
 
 test.legend <- paste(test.type, as.character(T.OUT$test.power))
@@ -113,7 +141,7 @@ for(i in 1:num.tests)
     valid.tests[i] <- 1
   }
 }
-legend(prms$iterations*0.5, 0.15, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], y.intersp=0.8, cex=0.6)
+legend(prms$iterations*0.45, 0.25, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], y.intersp=0.8, cex=0.6)
 #dev.off()
 
 
