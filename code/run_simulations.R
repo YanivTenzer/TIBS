@@ -20,6 +20,7 @@ library(gdata)
 library(mvtnorm)
 library(ggplot2)  
 library(pracma)
+library(matrixStats)
 
 cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
@@ -63,9 +64,10 @@ prms.rho <- run.params.mat[,5]
 ### test.type<- c('permutations','bootstrap') #c( 'permutations','permutations_inverse_weighting',
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
-
-    test.type <- c('permutations', 'uniform_importance_sampling', 'permutations_inverse_weighting', 'uniform_importance_sampling_inverse_weighting', 
-                'bootstrap', 'bootstrap_inverse_weighting', 'tsai') #c( 'permutations','permutations_inverse_weighting', # everything except minP2
+test.type <- c('monotone_importance_sampling', 'uniform_importance_sampling') 
+               
+#    test.type <- c('permutations', 'monotone_importance_sampling', 'uniform_importance_sampling', 'permutations_inverse_weighting', 'uniform_importance_sampling_inverse_weighting', 
+#                'bootstrap', 'bootstrap_inverse_weighting',  'tsai') #c( 'permutations','permutations_inverse_weighting', # everything except minP2
 #  #'uniform_importance_sampling',
 #  'uniform_importance_sampling_inverse_weighting',
 #  'bootstrap', 
@@ -96,9 +98,9 @@ overall.start.time <- Sys.time()
 
 for(s in run.dep) # Run all on the farm  
 {
-  for(n in c(400)) #seq(250, 400, 50))
+  for(n in c(333)) #seq(250, 400, 50))
   {
-    prms = list(B=100, sample.size=n, iterations=100, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
+    prms = list(B=100, sample.size=n, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 

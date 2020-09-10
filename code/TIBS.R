@@ -308,29 +308,15 @@ TIBS <- function(data, w.fun, test.type, prms)
            output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations with inverse weighting test 
          'uniform_importance_sampling' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W 
-
-#           New: we don't need PermutationsMCMC to get expectations            
-#           w.mat = w_fun_to_mat(data, w.fun)
-#           if(prms$use.cpp)  # permutations used here only to determine expected counts for the test statistic 
-#             Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
-#           else
-#             Permutations <- PermutationsMCMC(w.mat, prms)
-#           P = Permutations$P
-#           Permutations = Permutations$Permutations
-#           if((!prms$naive.expectation) & (!prms$PL.expectation))
-#           {
-#             if(prms$use.cpp)
-#               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
-#             else
-#               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
-#           } else
-#             expectations.table <- c()
-
            output <- IS.permute(data, grid.points, w.fun, prms, test.type) # expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          },
          'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with weighted Hoeffding statistic - only for positive W
            output <- IS.permute(data, grid.points, w.fun, prms, test.type) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
          }, 
+         'monotone_importance_sampling' = { # new!! use also monotone importance sampling 
+           prms$importance.sampling.dist = "monotone.w"
+           output <- IS.permute(data, grid.points, w.fun, prms, test.type)
+         },  
          'tsai' = {
            if(!('delta' %in% names(prms)) || any(is.na(prms$delta)))  # new: Tsai with censoring
              result <- Tsai.test(data[,1], data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
