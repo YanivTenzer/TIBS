@@ -165,7 +165,13 @@ PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow 
   }  # end while
   P <- P / (ctr-1) # normalize 
   
-  return(list(Permutations=Permutations, P=P)) # New: return also P, a matrix with Pr(pi(i)=j)
+  # new: return for each permutation also its log probability
+  log.P.W <- zeros(prms$B, 1)
+  log.w.mat <- log(w.mat)
+  for(b in c(1:prms$B))
+    log.P.W[b] <- sum(log.w.mat[cbind(1:n, Permutations[,b])])
+  
+  return(list(Permutations=Permutations, P=P, log.P.W=log.P.W)) # New: return also P, a matrix with Pr(pi(i)=j)
 }
 
 ###################################################################################

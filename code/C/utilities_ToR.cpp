@@ -198,8 +198,13 @@ NumericVector weighted_rand_rcpp(long n_samples, NumericVector cdf)
 {
 	long n = cdf.size();
 	NumericVector ret(n);
+	double r = double(rand()+1.0) / (RAND_MAX+2.0);
 	for(long i=0; i<n; i++)
-		ret[i] = binary_search_rcpp(cdf, double(rand()) / RAND_MAX, 0);
+	{
+		ret[i] = binary_search_rcpp(cdf, r, 0);
+		if((cdf[ret[i]] < r) || (r == 0))
+			Rcout << "!!!! Error sampling: r=" << r << " i=" << ret[i] << " cdf=" << cdf[ret[i]] << " RAND MAX: " << RAND_MAX << endl; 
+	}
 	return(ret);
 }
 
@@ -1195,13 +1200,13 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
     if(prms.containsElementNamed("importance.sampling.dist"))  // set default uniform distribution 
       importance_sampling_dist = as<string>(prms["importance.sampling.dist"]);
 
-	NumericMatrix P(n, n);  // New!matrix with P[i] = j estimate
+	
 	NumericMatrix Permutations(n, long(B));
 
 //	Rcout << "burn.in=" << burn_in << " Cycle=" << Cycle << endl; 
 
 //	IntegerVector Perm = seq(0, n);  // 1 to N-1 
-	NumericVector P_IS(n); // probabilities for importance sampling (up to a constant)
+	NumericVector P_IS(B); // probabilities for importance sampling (up to a constant)
 	double P_IS0 = 0.0;
 
 	// choose IS distribution: 
@@ -1209,7 +1214,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	{
 		for(b=0; b<B; b++)
 			Permutations(_,b) = rand_perm(n);
-		for(i=0; i<n; i++)
+		for(i=0; i<B; i++)
 			P_IS[i] = 0.0; // save probabilities on a log-scale
 		P_IS0 = 0.0;
 	}
@@ -1223,22 +1228,34 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 
 		NumericVector weights(n), weights_cdf(n);
 
+		for(j=0; j<n; j++)
+		{				
+			weights = w_mat(w_order[j],_);
+			for(k=0; k<j; k++)
+                weights[w_order[k]] = 0.0;     
+//			weights = weights * (1.0/sum(weights)); // normalize
+			P_IS0 += log(weights[w_order[j]] / sum(weights) );
+		}
 		for(b=0; b<B; b++)
 		{
 			for(j=0; j<n; j++)
 			{
 				weights = w_mat(w_order[j],_);
 				for(k=0; k<j; k++)
-                   weights(Permutations(w_order[k], b)) = 0.0;     
-				weights = weights * (1.0/sum(weights));
+                   weights[Permutations(w_order[k], b)] = 0.0;     
+				weights = weights * (1.0/sum(weights)); // normalize
 				weights_cdf[0] = weights[0]; // compute cumsum
 				for(k=1; k<n; k++)
 					weights_cdf[k] = weights_cdf[k-1] + weights[k]; 	
-				Permutations(w_order[j],b) = weighted_rand_rcpp(1, weights_cdf)[0];
+				Permutations(w_order[j],b) = weighted_rand_rcpp(1, weights_cdf)[0]; // IS this fucked up? 
+				if(weights[Permutations(w_order[j],b)] == 0)
+					Rcout << "Error! Chose Perm with PRob=0 !!! " << "Weights: " << weights_cdf << " ind: " << Permutations(w_order[j],b) << endl; 
 				P_IS[b] += log(weights[Permutations(w_order[j],b)]); // Need to update also P_IS here
 			}
 		}
 	}
+
+//	Rcout << "P_IS, P_IS0: " << P_IS << endl << P_IS0 << endl; 
 
 	// Compute P matrix 
 	NumericMatrix log_w_mat(n,n); // = log(w_mat); // (n, n);
@@ -1246,24 +1263,49 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 		for(j=0; j<n; j++)
 			log_w_mat(i,j) = log(w_mat(i,j));
 
-	double P_W_IS0 = P_IS0; // P_IS0 on a log-scale 
+	double P_W_IS0 = -P_IS0; // P_IS0 on a log-scale 
 	for(i=0; i<n; i++)
 		P_W_IS0 += log_w_mat(i,i);
 	NumericVector P_W_IS = -P_IS;  // P_IS on a log scale 
 	for(b=0; b<B; b++)
 		for(i=0; i<n; i++)
 			P_W_IS[b] += log_w_mat(i, Permutations(i,b));
+//	Rcout << "P_W_IS_LOG: " << P_W_IS << endl; 
+
 	double max_log = max(P_W_IS);
 	max_log = max(max_log, P_W_IS0);
+
+//	Rcout << "max log is: " << max_log << endl; 
+
 	P_W_IS0 = exp(P_W_IS0 - max_log);
 	for(b=0; b<B; b++)
 		P_W_IS[b] = exp(P_W_IS[b]-max_log); // compute P_W/P_I (up to a constant)
+//	Rcout << "P_W_IS: " << P_W_IS << endl; 
 
+	NumericMatrix P(n, n);  // New!matrix with P[i] = j estimate
     for(b=0; b<B; b++)  // next, compute expectations P[i,j]
 		for(i=0; i<n; i++)
 			P(i, Permutations(i,b)) += P_W_IS[b];		
-    P <- P / (0*P_W_IS0 + sum(P_W_IS)); // normalize   (ignore contribution from the identity permuation)
+    P = P * (0*P_W_IS0 + 1.0/sum(P_W_IS)); // normalize   (ignore contribution from the identity permuation)
 
+	NumericVector P_sum = rowSums(P);
+
+/**
+	Rcout << "P[i,j] matrix:" << endl;
+	for(i=0; i<5; i++)
+	{
+		for(j=0; j<5; j++)
+			Rcout << P(i,j) << " ";
+		Rcout << endl;
+	}
+	Rcout << "Sum rows: ";
+	for(i=0; i<5; i++)
+		Rcout << P_sum[i] << endl;
+	P_sum = colSums(P);
+	Rcout << "Sum cols: ";
+		for(i=0; i<5; i++)
+			Rcout << P_sum[i] << endl;
+**/
 	List ret; 
 	ret["Permutations"] = Permutations;
 	ret["P"] = P;
@@ -1308,7 +1350,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 		grid_points = data;
 
 	long inverse_weight = test_type.find("inverse_weight");
-	Rcout << "invere_weight string found: " << inverse_weight << endl;
+//	Rcout << "invere_weight string found: " << inverse_weight << endl;
 //	Rcout << "Start IS Permute Inverse Weight: " << inverse_weight << " Dim(Exp-Table)=" << expectations_table.nrow() << ", " << expectations_table.ncol() << endl; 
   	if(inverse_weight)
     	TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); // weights. no unique in grid-points 
@@ -1330,8 +1372,8 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 			Tb[b] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
 	}
 
-	double Pvalue = 1; // P_W_IS0;  weight identity permutation by 1 
-	double NormalizingFactor = 1; // P_W_IS0;
+	double Pvalue = 0; //1; // P_W_IS0;  weight identity permutation by 1 
+	double NormalizingFactor = 0; // 1; // P_W_IS0;
 	for(b=0; b<B; b++)
 	{
 		Pvalue += (Tb[b]>=TrueT) * P_W_IS[b];	

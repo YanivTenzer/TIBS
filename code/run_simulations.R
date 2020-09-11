@@ -100,8 +100,8 @@ for(s in run.dep) # Run all on the farm
 {
   for(n in c(333)) #seq(250, 400, 50))
   {
-    prms = list(B=100, sample.size=n, iterations=5, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
-                use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+    prms = list(B=100, sample.size=n, iterations=20, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
+                use.cpp=0, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
@@ -109,7 +109,7 @@ for(s in run.dep) # Run all on the farm
     # Call function. # run simulations function 
     print(paste("n=", prms$sample.size))
     if(const.seed)
-      prms$seed <- 19129484 # 4524553
+      prms$seed <- 119129484 # 4524553
     T.OUT <- simulate_and_test(dependence.type[[s]], prms.rho[[s]], w.fun[[s]], test.type, prms) # run all tests 
   }
 } # end loop on dependency types
