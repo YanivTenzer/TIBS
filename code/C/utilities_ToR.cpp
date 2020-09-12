@@ -173,9 +173,9 @@ double var_rcpp(NumericVector x, bool bias = true)
 	return sum/(n-bias); // Return variance
 }
 
-NumericVector rowVars_rcpp(NumericMatrix w)
+NumericVector rowVars_rcpp(NumericMatrix W)
 {
-	long n = w.nrow();
+	long n = W.nrow();
 	NumericVector V(n);
 	for(long i=0; i<n; i++)
 		V[i] = var_rcpp(W(i,_));
