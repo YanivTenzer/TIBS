@@ -24,7 +24,11 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   
   prms$importance.sampling.dist <- "uniform"
   Permutations.U <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations   
-#  inverse.weight = missing(expectations.table) || isempty(expectations.table) # default is using inverse weighting 
+
+  prms$importance.sampling.dist <- "match.w"
+  Permutations.MATCH <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations   
+  
+  #  inverse.weight = missing(expectations.table) || isempty(expectations.table) # default is using inverse weighting 
   inverse.weight = str_detect(test.type, "inverse_weight")
   if(inverse.weight)
     TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)$Statistic # no unique in grid-points 
@@ -32,9 +36,15 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   {
     # Compute expectations.table from permutations   
     expectations.table <- QuarterProbFromPermutations(data, Permutations$P, grid.points) #Permutations
+    expectations.U <- QuarterProbFromPermutations(data, Permutations.U$P, grid.points) #Permutations
+    expectations.D <- QuarterProbFromPermutations(data, Permutations.D$P, grid.points) #Permutations
     expectations.MCMC <- QuarterProbFromPermutations(data, P.MCMC$P, grid.points) #Permutations
+    expectations.MATCH <- QuarterProbFromPermutations(data, Permutations.MATCH$P, grid.points) #Permutations
     plot(expectations.MCMC, expectations.table, main=orig.IS.dist)
-    expectations.table <- expectations.MCMC # TEMP FOR DEBUG! DOES MCMC GIVE GOOD EXPECTATIONS AND CHANGES PVALUE?
+    lines(sort(expectations.MCMC), sort(expectations.MCMC), col="red", lwd=2)
+    
+    expect.str <- "Expectations by Monotone.MATCH" # This choice affects pvalue greatly 
+    expectations.table <- expectations.MATCH # MCMC # TEMP FOR DEBUG! DOES MCMC GIVE GOOD EXPECTATIONS AND CHANGES PVALUE?
     print(sum((expectations.table-expectations.MCMC)^2))
     TrueT <- ComputeStatistic(data, grid.points, expectations.table)$Statistic # no unique in grid-points !!
   }
@@ -43,34 +53,56 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   T.b.U <- matrix(0, prms$B, 1)
   T.b.D <- matrix(0, prms$B, 1)
   T.b.MC <- matrix(0, prms$B, 1)
+  T.b.MATCH <- matrix(0, prms$B, 1)
   for(b in 1:prms$B)
   {
     perm <- Permutations$Permutations[,b] # take sampled permutation sample(n)  # uniformly sampled permutation 
     if(inverse.weight)
+    {
+      expect.str <- "inverse_weight" # This choice affects pvalue greatly 
       T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), grid.points, w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
+      perm.U <- Permutations.U$Permutations[,b]
+      T.b.U[b] <- ComputeStatistic.W(cbind(data[,1], data[perm.U,2]), grid.points,  w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
+      perm.D <- Permutations.D$Permutations[,b]
+      T.b.D[b] <- ComputeStatistic.W(cbind(data[,1], data[perm.D,2]), grid.points,  w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
+      perm.MC <- P.MCMC$Permutations[,b]
+      T.b.MC[b] <- ComputeStatistic.W(cbind(data[,1], data[perm.MC,2]), grid.points,  w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
+      perm.MATCH <- Permutations.MATCH$Permutations[,b]
+      T.b.MATCH[b] <- ComputeStatistic.W(cbind(data[,1], data[perm.MATCH,2]), grid.points,  w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
+      
+    }
     else
+    {
       T.b[b] <- ComputeStatistic(cbind(data[,1], data[perm,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-    perm.U <- Permutations.U$Permutations[,b]
-    T.b.U[b] <- ComputeStatistic(cbind(data[,1], data[perm.U,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-    perm.D <- Permutations.D$Permutations[,b]
-    T.b.D[b] <- ComputeStatistic(cbind(data[,1], data[perm.D,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-    perm.MC <- P.MCMC$Permutations[,b]
-    T.b.MC[b] <- ComputeStatistic(cbind(data[,1], data[perm.MC,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-    
+      perm.U <- Permutations.U$Permutations[,b]
+      T.b.U[b] <- ComputeStatistic(cbind(data[,1], data[perm.U,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
+      perm.D <- Permutations.D$Permutations[,b]
+      T.b.D[b] <- ComputeStatistic(cbind(data[,1], data[perm.D,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
+      perm.MC <- P.MCMC$Permutations[,b]
+      T.b.MC[b] <- ComputeStatistic(cbind(data[,1], data[perm.MC,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
+      perm.MATCH <- Permutations.MATCH$Permutations[,b]
+      T.b.MATCH[b] <- ComputeStatistic(cbind(data[,1], data[perm.MATCH,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
+    }
   }
   Pvalue = (0+0*Permutations$P.W.IS0 + sum((T.b>=TrueT) * Permutations$P.W.IS)) / 
     (0+0*Permutations$P.W.IS0 + sum(Permutations$P.W.IS))  # New: give weight 1 to the identity permutation 
+  
+  y.lim <- c(0, max(T.b, T.b.U, T.b.D, T.b.MC, T.b.MATCH, TrueT))
+  x.lim <- c(min(Permutations$log.P.W-Permutations$log.P.W0, Permutations.D$log.P.W-Permutations$log.P.W0, 
+                 Permutations.MATCH$log.P.W-Permutations$log.P.W0), 
+             max(Permutations$log.P.W-Permutations$log.P.W0, Permutations.U$log.P.W-Permutations$log.P.W0, 
+                 P.MCMC$log.P.W-Permutations$log.P.W0, Permutations.MATCH$log.P.W-Permutations$log.P.W0))
+    
   plot(Permutations$log.P.W-Permutations.U$log.P.W0, T.b, 
-       xlim = c(min(Permutations$log.P.W-Permutations$log.P.W0, Permutations.D$log.P.W-Permutations$log.P.W0), 
-                max(Permutations$log.P.W-Permutations$log.P.W0, Permutations.U$log.P.W-Permutations$log.P.W0, P.MCMC$log.P.W-Permutations$log.P.W0)), 
-       ylim = c(0, max(T.b, T.b.U, T.b.D, TrueT)), main=orig.IS.dist, ylab="Statistic")
+       xlim = x.lim, ylim = y.lim, main=expect.str, ylab="Statistic") # with/without inverse weighting stat 
   points(Permutations.D$log.P.W-Permutations.D$log.P.W0, T.b.D, col="green") 
   points(Permutations.U$log.P.W-Permutations.U$log.P.W0, T.b.U, col="blue") 
   points(P.MCMC$log.P.W-Permutations$log.P.W0, T.b.MC, col="orange") 
-  points(0, TrueT, col="red", pch=10)
-  legend(1, 1200, legend=c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'True'), col=c('black', 'green', 'blue', 'orange', 'red'), lwd=c(2,2,2,2,2), cex=0.6)
+  points(Permutations.MATCH$log.P.W-Permutations$log.P.W0, T.b.MATCH, col="pink") 
+  points(0, TrueT, col="red", pch=19, cex=2)
+  legend(1, y.lim[2], legend=c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'Match', 'True'), col=c('black', 'green', 'blue', 'orange', 'pink', 'red'), lwd=c(2,2,2,2,2), cex=0.6)
   return(list(Pvalue= Pvalue, TrueT=TrueT, statistics.under.null=T.b))
-  # WTF?
+  # WTF? avfsdf
 }
 
 
@@ -87,6 +119,7 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
     if(!('importance.sampling.dist' %in% names(prms))) # set default uniform distribution 
       prms$importance.sampling.dist <- "uniform"
     Permutations = matrix(0, n, prms$B)
+    log.w.mat <- log(w.mat)
     
     switch(prms$importance.sampling.dist,
            'uniform'={
@@ -123,11 +156,40 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
                  P.IS[b] <- P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
                }
              }
-           }
+           }, 
+          'match.w'={  # here the goal is to sample a permutation with P_W similar to the ID permutation
+            w.order <- order(  rowVars(log(w.mat)), decreasing=TRUE  )  # order by variance: first set as high the ones with high variance!! 
+            log.w.sum.id.vec <- cumsum(diag(log.w.mat)[w.order]) # we want to get this sum 
+            P.IS <- zeros(prms$B, 1)
+            P.IS0 <- -sum(log(1:n)) # temp, use uniform distribution 
+            sigma <- 2 # choose width of Gaussian for importance sampling. Can change to be preplexity
+            preplex <- 8 #  effective number of possible choices at each step (not implemented yet)
+            for(b in 1:prms$B)  # sample permutations 
+            {
+              log.w.sum.rand <- 0
+              for(j in 1:n) # sample permutation according to w
+              {
+                weights <- exp(-(log.w.mat[w.order[j],] + log.w.sum.rand - log.w.sum.id.vec[j] )^2/(2*sigma^2)) # penalize deviations from probability
+                if(j>1) # remove the ones we already occupied
+                  weights[Permutations[w.order[1:(j-1)] , b]] <- 0                   
+                weights <- weights / sum(weights)
+#                print(weights)
+#                print(paste0("j=", j))
+                Permutations[w.order[j],b] = sample(n, 1, prob = weights)
+                P.IS[b] <- P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
+                log.w.sum.rand <- log.w.sum.rand + log.w.mat[w.order[j],Permutations[w.order[j],b]]
+#                print(paste0("sum.rand=", log.w.sum.rand, " sum.id=",  log.w.sum.id.vec[j], " diff=", log.w.sum.rand-log.w.sum.id.vec[j]))
+              }
+              print(paste0("log.w.sum.rand=", log.w.sum.rand))
+              print(paste0("P_W=", sum(log.w.mat[cbind(1:n, Permutations[,b])])))
+              
+            }     
+                
+                        
+          }
     ) # end switch on importance sampling distribution 
 
     # Next, compute importance weights, from P_I and P_W, and then use them to estimate P_ij 
-    log.w.mat <- log(w.mat)
     # Comptue also the id permutation weight 
     P.W.IS0 <- -P.IS0 + sum(diag(log.w.mat))
 
@@ -137,7 +199,7 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
 #    print("P.W.IS.LOG:")
 #    print(t(P.W.IS))
     
-        max.log <- max(max(P.W.IS), P.W.IS0)
+    max.log <- max(max(P.W.IS), P.W.IS0)
     P.W.IS <- exp(P.W.IS - max.log)  # compute P_W/P_I (up to a constant)
     P.W.IS0 <- exp(P.W.IS0 - max.log) # forgot exponent here 
 

@@ -158,6 +158,31 @@ arma::mat unique_rows(const arma::mat& x) {
 }
 /**/
 
+
+
+// [[Rcpp::export]]
+double var_rcpp(NumericVector x, bool bias = true)
+{
+	// Calculate the mean using C++ function
+	long n = x.size();
+	double mean = sum(x)/n;
+	double sum = 0.0;
+	for(int i = 0; i < n; i++)
+		sum += pow(x[i] - mean, 2.0); // Square
+
+	return sum/(n-bias); // Return variance
+}
+
+NumericVector rowVars_rcpp(NumericMatrix w)
+{
+	long n = w.nrow();
+	NumericVector V(n);
+	for(long i=0; i<n; i++)
+		V[i] = var_rcpp(W(i,_));
+	return V;
+}
+
+
 // [[ Rcpp :: export ()]]
 //NumericMatrix a4(arma::mat x) {
 //	NumericMatrix y = wrap(x);
@@ -1208,6 +1233,11 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 //	IntegerVector Perm = seq(0, n);  // 1 to N-1 
 	NumericVector P_IS(B); // probabilities for importance sampling (up to a constant)
 	double P_IS0 = 0.0;
+	
+	NumericMatrix log_w_mat(n,n); // = log(w_mat); // (n, n);
+	for(i=0; i<n; i++)
+		for(j=0; j<n; j++)
+			log_w_mat(i,j) = log(w_mat(i,j));
 
 	// choose IS distribution: 
 	if(importance_sampling_dist == "uniform")
@@ -1223,11 +1253,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 		NumericVector w_mat_row_sums = rowSums(w_mat); 
 		IntegerVector w_order = sort_indexes_rcpp(w_mat_row_sums);	// sort in increasing order! (i.e. start with the small ones)
 
-//		NumericVector w_mat_row_vars = rowSums(log(w_mat)); 
-//		IntegerVector w_order = sort_indexes_rcpp(-w_mat_row_vars);	// sort variance in dereasing order!
-
 		NumericVector weights(n), weights_cdf(n);
-
 		for(j=0; j<n; j++)
 		{				
 			weights = w_mat(w_order[j],_);
@@ -1255,13 +1281,46 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 		}
 	}
 
+	if(importance_sampling_dist == "match.w") // new: try to match P_W of the original permutation 
+	{
+		NumericVector w_mat_row_vars = rowVars_rcpp(log_w_mat); // Should be rowVars!!! order variables by variance of rho 
+		IntegerVector w_order = sort_indexes_rcpp(-w_mat_row_vars);  // sort in DECREASING order!
+
+		NumericVector log_w_sum_id_vec(n); 
+		log_w_sum_id_vec[0] = log_w_mat(w_order[0],w_order[0]); P_IS0 = -log(1);
+		for(j=1; j<n; j++)
+		{
+			log_w_sum_id_vec[j] = log_w_sum_id_vec[j-1] + log_w_mat(w_order[j],w_order[j]); 	//	  cumsum(diag(log.w.mat)[w.order]) # we want to get this sum 
+			P_IS0 += (-log(j+1)); // TEMP! set as uniform distirbution 
+		}
+
+		// T.B.D. 	
+		double log_w_sum_rand = 0.0;
+		double sigma = 2.0; // set variance of importance sampling around true permutation 
+		NumericVector weights(n), weights_cdf(n);
+		for(b=0; b<B; b++)
+		{
+			log_w_sum_rand = 0.0;
+			for(j=0; j<n; j++)
+			{
+				for(k=0; k<n; k++)
+	                weights[k] = exp(-pow(log_w_mat(w_order[j],k) + log_w_sum_rand - log_w_sum_id_vec[j], 2 ) / (2*sigma*sigma)); //  penalize deviations from probability
+				for(k=0; k<j; k++) // remove the ones we already occupied
+	                weights[w_order[k]] = 0.0;     	
+                weights = weights * (1.0/ sum(weights)); 
+
+                Permutations(w_order[j],b) = weighted_rand_rcpp(1, weights_cdf)[0];
+                P_IS[b] += log(weights[Permutations(w_order[j],b)]); // Need to update also P_IS here
+                log_w_sum_rand += log_w_mat(w_order[j],Permutations(w_order[j],b));
+			}
+		}
+
+	}
+
+
 //	Rcout << "P_IS, P_IS0: " << P_IS << endl << P_IS0 << endl; 
 
 	// Compute P matrix 
-	NumericMatrix log_w_mat(n,n); // = log(w_mat); // (n, n);
-	for(i=0; i<n; i++)
-		for(j=0; j<n; j++)
-			log_w_mat(i,j) = log(w_mat(i,j));
 
 	double P_W_IS0 = -P_IS0; // P_IS0 on a log-scale 
 	for(i=0; i<n; i++)
@@ -1897,6 +1956,14 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	if (test_type == "monotone_importance_sampling") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
 		prms["importance.sampling.dist"] = "monotone.w";
 		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type);} // instead of w_fun we should give expectation table 
+	if (test_type == "monotone_importance_sampling_inverse_weighting") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
+		prms["importance.sampling.dist"] = "monotone.w";
+		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type);} // instead of w_fun we should give expectation table 
+
+	if (test_type == "match_importance_sampling") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
+		prms["importance.sampling.dist"] = "match.w";
+		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type);} // instead of w_fun we should give expectation table 
+
 
 	if (test_type == "uniform_importance_sampling_inverse_weighting") { // inverse-weighting Hoeffding's statistic with importance sampling uniform permutations  
 		NumericMatrix expectations_table(1, 1); // set empty (0) table 
