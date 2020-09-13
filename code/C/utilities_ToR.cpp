@@ -1308,7 +1308,9 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 				for(k=0; k<j; k++) // remove the ones we already occupied
 	                weights[w_order[k]] = 0.0;     	
                 weights = weights * (1.0/ sum(weights)); 
-
+				weights_cdf[0] = weights[0]; // compute cumsum
+				for(k=1; k<n; k++)
+					weights_cdf[k] = weights_cdf[k-1] + weights[k]; 
                 Permutations(w_order[j],b) = weighted_rand_rcpp(1, weights_cdf)[0];
                 P_IS[b] += log(weights[Permutations(w_order[j],b)]); // Need to update also P_IS here
                 log_w_sum_rand += log_w_mat(w_order[j],Permutations(w_order[j],b));
@@ -1409,7 +1411,6 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 		grid_points = data;
 
 	long inverse_weight = test_type.find("inverse_weight");
-//	Rcout << "invere_weight string found: " << inverse_weight << endl;
 //	Rcout << "Start IS Permute Inverse Weight: " << inverse_weight << " Dim(Exp-Table)=" << expectations_table.nrow() << ", " << expectations_table.ncol() << endl; 
   	if(inverse_weight)
     	TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); // weights. no unique in grid-points 
@@ -1948,7 +1949,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		output["Permutations"] = Permutations;
 	} // end permutations with inverse weighting test
 
-
 	/**/
 	if (test_type == "uniform_importance_sampling") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
 		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type);} // instead of w_fun we should give expectation table 
@@ -1966,7 +1966,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 
 
 	if (test_type == "uniform_importance_sampling_inverse_weighting") { // inverse-weighting Hoeffding's statistic with importance sampling uniform permutations  
-		NumericMatrix expectations_table(1, 1); // set empty (0) table 
+//		NumericMatrix expectations_table(1, 1); // set empty (0) table 
 		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type); // need to change!
 	} // w = function(x) { 1 }) {
 	if(test_type == "tsai") { cout << "Can't run Tsai's test from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}		
