@@ -1528,7 +1528,7 @@ NumericMatrix iterative_marginal_estimation_rcpp(NumericMatrix data, string w_fu
 # an n*2 matrix of bootstrap sample 
 ############################################################################################**/
 // [[Rcpp::export]]
-List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,  List prms, long n=-1)  // n is optional . Currently very slow!
+List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,  List prms, long n=-1)  // n is optional .
 {
 	if (n == -1) // is.null(n))
 		n = data.nrow();
@@ -1575,8 +1575,8 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 			boot_indices(k, 0) = i; boot_indices(k, 1) = j;
 			boot_sample(k, 0) = data(i, 0); boot_sample(k++, 1) = data(j, 1);
 		}
-		if((i < 0) || (i >=n) || (j < 0) || (j>=n))
-			Rcout << "ERROR! i,j: " << i << ", " << j << " k=" << k << " n=" << n << " cdf.n=" << cdfs.nrow() << " w.mat.n=" << w_mat.nrow() << endl; 
+		if((i < 0) || (i >=cdfs.nrow()) || (j < 0) || (j>=cdfs.nrow()))
+			Rcout << "ERROR! i,j: " << i << ", " << j << " k=" << k << " n=" << n << " data.n=" << data.nrow() << " cdf.n=" << cdfs.nrow() << " w.mat.n=" << w_mat.nrow() << endl; 
 		ctr++;
 	}
 //	Rcout << "Generated " << ctr << " pairs to get eventually " << n << " samples" << endl; 

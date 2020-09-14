@@ -69,7 +69,7 @@ prms.rho <- run.params.mat[,5]
 ##test.type <- c( 'permutations',  'uniform_importance_sampling', 'match_importance_sampling', 
 ##                'monotone_importance_sampling', 'monotone_importance_sampling_inverse_weighting') #  'uniform_importance_sampling') 
 # test.type <- c('match_importance_sampling', 'monotone_importance_sampling', 'monotone_importance_sampling_inverse_weighting') #  'uniform_importance_sampling') 
-
+# test.type <- c("bootstrap")
     test.type <- c('permutations',  'permutations_inverse_weighting', 'bootstrap', 'bootstrap_inverse_weighting',  'tsai', 
                    'monotone_importance_sampling', 'uniform_importance_sampling', 'match_importance_sampling', 'uniform_importance_sampling_inverse_weighting')
                  #c( 'permutations','permutations_inverse_weighting', # everything except minP2
@@ -83,7 +83,7 @@ num.tests <- length(test.type)
 
 if(run.flag == 1)
 {
-  run.dep <- c(7:9) # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  run.dep <- c(1:9) # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
 } else  # run from command line 
 {
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
@@ -106,7 +106,7 @@ for(s in run.dep) # Run all on the farm
   for(n in c(30)) #seq(250, 400, 50))
   {
     prms = list(B=10, sample.size=n, iterations=3, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
-                use.cpp=0, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+                use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
