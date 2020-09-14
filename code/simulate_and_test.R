@@ -48,14 +48,14 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     test.null.stat <- array(-1, c(num.prms, num.tests, prms$iterations, prms$B)) 
   }
   
-  if(!('w.max' %in% names(prms)))
-    prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun, prms)
   print(paste0("w.max=", prms$w.max))
   for(i.prm in 1:num.prms) # loop on different simulation parameters - should plot for each of them? 
   {
     prms$rho = prms.rho[i.prm] # [[s]]
     prms$minp.eps <- "in"
-
+    if(!('w.max' %in% names(prms))) # set for each parameter separately 
+      prms$w.max <- set_w_max(2*prms$sample.size, dependence.type, w.fun, prms)
+    
     ## Parallel on multiple cores 
     ##    results.table<- foreach(i=seq(prms$iterations), .combine=rbind) %dopar%{ 
     ##      iteration_result <- matrix(0, 4, B+1)
@@ -85,6 +85,10 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
            (test.type[t] %in% c('tsai', 'minP2')))
           next  # these tests run only for truncation 
         
+        if(((w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & 
+           str_detect(test.type[t], "importance"))  # no importance sampling for truncation
+          next
+
         if( !(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const', 'naive')) && 
             (test.type[t] %in% c("permutations_inverse_weighting", "bootstrap_inverse_weighting", "uniform_importance_sampling", "uniform_importance_sampling_inverse_weighting")) )  # run only for positive distributions 
           next
@@ -124,10 +128,10 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
           stop.flag <- 0
           for(b in 1:(prms$B/block.size))  # run block.size permutations each time 
           {
-            if(prms$use.cpp)  # try running rcpp code 
-              cur.test.results<-TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet
-            else
-              cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms)
+#            if(prms$use.cpp)  # try running rcpp code 
+#              cur.test.results<-TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet
+#            else
+            cur.test.results<-TIBS(biased.data, w.fun, cur.test.type, prms) # we get to rcpp version inside TIBS if needed
             cur.pvalue <- cur.test.results$Pvalue + cur.pvalue
             
             cur.conf.int <- binom.confint(cur.pvalue*block.size, b*block.size, conf.level = 1-prms$gamma, method = "wilson")
@@ -147,16 +151,17 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         } else   # run full test: just simulate all B permutations 
         {
           #browser()
-          if(prms$use.cpp)
-            test.results <- TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet 
-          else
+#          if(prms$use.cpp)
+#            test.results <- TIBS_rcpp(biased.data, w.fun, cur.test.type, prms) # TIBS_rcpp not working yet 
+#          else
             #browser()
-            test.results <- TIBS(biased.data, w.fun, cur.test.type, prms)
+            test.results <- TIBS(biased.data, w.fun, cur.test.type, prms)  # get into rcpp inside TIBS if needed
         }
         test.time[i.prm, t, i] <- difftime(Sys.time(), start.time, units='secs')
         test.pvalue[i.prm, t, i] <- test.results$Pvalue
         test.stat[i.prm, t, i] <- test.results$TrueT
-        test.null.stat[i.prm, t, i, ] <- test.results$statistics.under.null
+        if('statistics.under.null' %in% names(test.results)) # not all tests have null statistics 
+          test.null.stat[i.prm, t, i, ] <- test.results$statistics.under.null
         print(paste0(dependence.type, ', rho=', prms$rho, '. Test: ', test.type[t], 
                      ' i=', i, ' of ', prms$iterations, '. Pval=', round(test.pvalue[i.prm, t, i], 3), '. Time (sec.)=', round(test.time[i.prm, t, i], 2)))
       } # end loop on tests 

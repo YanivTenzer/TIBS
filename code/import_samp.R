@@ -5,7 +5,7 @@
 #  are in some sense centered at 1)
 #############################################################
 IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
-#                       expectations.table=c(), counts.flag, test.type)
+  #                       expectations.table=c(), counts.flag, test.type)
 {
   n <- dim(data)[1]
   if(missing(grid.points) || isempty(grid.points))
@@ -24,10 +24,10 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   
   prms$importance.sampling.dist <- "uniform"
   Permutations.U <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations   
-
+  
   prms$importance.sampling.dist <- "match.w"
   Permutations.MATCH <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations   
-  
+  plot.flag=0   
   #  inverse.weight = missing(expectations.table) || isempty(expectations.table) # default is using inverse weighting 
   inverse.weight = str_detect(test.type, "inverse_weight")
   if(inverse.weight)
@@ -40,12 +40,14 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
     expectations.D <- QuarterProbFromPermutations(data, Permutations.D$P, grid.points) #Permutations
     expectations.MCMC <- QuarterProbFromPermutations(data, P.MCMC$P, grid.points) #Permutations
     expectations.MATCH <- QuarterProbFromPermutations(data, Permutations.MATCH$P, grid.points) #Permutations
+    if(plot.flag)
+    {
     plot(expectations.MCMC, expectations.table, main=orig.IS.dist)
     lines(sort(expectations.MCMC), sort(expectations.MCMC), col="red", lwd=2)
-    
+    }    
     expect.str <- "Expectations by Monotone.MATCH" # This choice affects pvalue greatly 
     expectations.table <- expectations.MATCH # MCMC # TEMP FOR DEBUG! DOES MCMC GIVE GOOD EXPECTATIONS AND CHANGES PVALUE?
-    print(sum((expectations.table-expectations.MCMC)^2))
+    ###    print(sum((expectations.table-expectations.MCMC)^2))
     TrueT <- ComputeStatistic(data, grid.points, expectations.table)$Statistic # no unique in grid-points !!
   }
   
@@ -87,22 +89,25 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   Pvalue = (0+0*Permutations$P.W.IS0 + sum((T.b>=TrueT) * Permutations$P.W.IS)) / 
     (0+0*Permutations$P.W.IS0 + sum(Permutations$P.W.IS))  # New: give weight 1 to the identity permutation 
   
-  y.lim <- c(0, max(T.b, T.b.U, T.b.D, T.b.MC, T.b.MATCH, TrueT))
-  x.lim <- c(min(Permutations$log.P.W-Permutations$log.P.W0, Permutations.D$log.P.W-Permutations$log.P.W0, 
-                 Permutations.MATCH$log.P.W-Permutations$log.P.W0), 
-             max(Permutations$log.P.W-Permutations$log.P.W0, Permutations.U$log.P.W-Permutations$log.P.W0, 
-                 P.MCMC$log.P.W-Permutations$log.P.W0, Permutations.MATCH$log.P.W-Permutations$log.P.W0))
+ 
+  if(plot.flag)
+  {
+    y.lim <- c(0, max(T.b, T.b.U, T.b.D, T.b.MC, T.b.MATCH, TrueT))
+    x.lim <- c(min(Permutations$log.P.W-Permutations$log.P.W0, Permutations.D$log.P.W-Permutations$log.P.W0, 
+                   Permutations.MATCH$log.P.W-Permutations$log.P.W0), 
+               max(Permutations$log.P.W-Permutations$log.P.W0, Permutations.U$log.P.W-Permutations$log.P.W0, 
+                   P.MCMC$log.P.W-Permutations$log.P.W0, Permutations.MATCH$log.P.W-Permutations$log.P.W0))
     
-  plot(Permutations$log.P.W-Permutations.U$log.P.W0, T.b, 
-       xlim = x.lim, ylim = y.lim, main=expect.str, ylab="Statistic") # with/without inverse weighting stat 
-  points(Permutations.D$log.P.W-Permutations.D$log.P.W0, T.b.D, col="green") 
-  points(Permutations.U$log.P.W-Permutations.U$log.P.W0, T.b.U, col="blue") 
-  points(P.MCMC$log.P.W-Permutations$log.P.W0, T.b.MC, col="orange") 
-  points(Permutations.MATCH$log.P.W-Permutations$log.P.W0, T.b.MATCH, col="pink") 
-  points(0, TrueT, col="red", pch=19, cex=2)
-  legend(1, y.lim[2], legend=c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'Match', 'True'), col=c('black', 'green', 'blue', 'orange', 'pink', 'red'), lwd=c(2,2,2,2,2), cex=0.6)
-  return(list(Pvalue= Pvalue, TrueT=TrueT, statistics.under.null=T.b))
-  # WTF? avfsdf
+    plot(Permutations$log.P.W-Permutations.U$log.P.W0, T.b, 
+         xlim = x.lim, ylim = y.lim, main=expect.str, ylab="Statistic") # with/without inverse weighting stat 
+    points(Permutations.D$log.P.W-Permutations.D$log.P.W0, T.b.D, col="green") 
+    points(Permutations.U$log.P.W-Permutations.U$log.P.W0, T.b.U, col="blue") 
+    points(P.MCMC$log.P.W-Permutations$log.P.W0, T.b.MC, col="orange") 
+    points(Permutations.MATCH$log.P.W-Permutations$log.P.W0, T.b.MATCH, col="pink") 
+    points(0, TrueT, col="red", pch=19, cex=2)
+    legend(1, y.lim[2], legend=c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'Match', 'True'), col=c('black', 'green', 'blue', 'orange', 'pink', 'red'), lwd=c(2,2,2,2,2), cex=0.6)
+  }
+  return(list(Pvalue= Pvalue, TrueT=TrueT, statistics.under.null=T.b, permuted.data = cbind(data[,1], data[Permutations$Permutations[,1],2])))
 }
 
 
@@ -110,127 +115,133 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
 # orms$importance.sampling.dist - determines the distribution 
 PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
 { 
-    n <- dim(w.mat)[1];
-    P <- matrix(0, n, n) # New! matrix with P[i]=j estimate
-
-    # Set mcmc default sampling parameters 
-    if(!('B' %in% names(prms))) # set default
-      prms$B <- 1000
-    if(!('importance.sampling.dist' %in% names(prms))) # set default uniform distribution 
-      prms$importance.sampling.dist <- "uniform"
-    Permutations = matrix(0, n, prms$B)
-    log.w.mat <- log(w.mat)
-    
-    switch(prms$importance.sampling.dist,
-           'uniform'={
-             for(b in 1:prms$B)  # sample permutations 
-               Permutations[,b]=sample(n);
-             P.IS <- zeros(prms$B,1)  # get importance probabilities (up to a constant)
-             P.IS0 <- 0 # these are on log-scale 
-           },    
-           'monotone.w'={
-             if(!('importance.sampling.decreasing' %in% names(prms)))
-               prms$importance.sampling.decreasing = FALSE  # default is increasing! 
-#             w.order <- order(  rowVars(log(w.mat)), decreasing=TRUE  )  # order by variance: first set as high the ones with high variance!! 
-             w.order <- order(rowSums(w.mat), decreasing=prms$importance.sampling.decreasing)  # order x values based on sum of w. We wnat Small with Large! (at least for w(x,y)=x+y)
-             P.IS <- zeros(prms$B, 1)
-             P.IS0 <- 0
-             for(j in 1:n) # Caculate prob. of identity under importance sampling 
+  n <- dim(w.mat)[1];
+  P <- matrix(0, n, n) # New! matrix with P[i]=j estimate
+  
+  # Set mcmc default sampling parameters 
+  if(!('B' %in% names(prms))) # set default
+    prms$B <- 1000
+  if(!('importance.sampling.dist' %in% names(prms))) # set default uniform distribution 
+    prms$importance.sampling.dist <- "uniform"
+  Permutations = matrix(0, n, prms$B)
+  log.w.mat <- log(w.mat)
+  
+  switch(prms$importance.sampling.dist,
+         'uniform'={
+           for(b in 1:prms$B)  # sample permutations 
+             Permutations[,b]=sample(n);
+           P.IS <- zeros(prms$B,1)  # get importance probabilities (up to a constant)
+           P.IS0 <- 0 # these are on log-scale 
+         },    
+         'monotone.w'={
+           if(!('importance.sampling.decreasing' %in% names(prms)))
+             prms$importance.sampling.decreasing = FALSE  # default is increasing! 
+           #             w.order <- order(  rowVars(log(w.mat)), decreasing=TRUE  )  # order by variance: first set as high the ones with high variance!! 
+           w.order <- order(rowSums(w.mat), decreasing=prms$importance.sampling.decreasing)  # order x values based on sum of w. We wnat Small with Large! (at least for w(x,y)=x+y)
+           P.IS <- zeros(prms$B, 1)
+           P.IS0 <- 0
+           for(j in 1:n) # Caculate prob. of identity under importance sampling 
+           {
+             weights <- w.mat[w.order[j],]
+             if(j>1)
+               weights[w.order[1:(j-1)]] <- 0    
+             #               weights <- weights / sum(weights)
+             P.IS0 <- P.IS0 + log(weights[w.order[j]] / sum(weights))
+           }
+           
+           for(b in 1:prms$B)  # sample permutations 
+           {
+             for(j in 1:n) # sample permutation according to w
              {
                weights <- w.mat[w.order[j],]
-               if(j>1)
-                 weights[w.order[1:(j-1)]] <- 0    
-#               weights <- weights / sum(weights)
-               P.IS0 <- P.IS0 + log(weights[w.order[j]] / sum(weights))
+               if(j>1) # remove the ones we already occupied
+                 weights[Permutations[w.order[1:(j-1)]  , b]] <- 0                   
+               #                print("weights not-normalized")
+               #                                  print(weights)
+               
+               weights <- weights / sum(weights)
+               #                 print("weights normalized")
+               #                 print(weights)
+               #                 print(c(j, n))
+               Permutations[w.order[j],b] = sample(n, 1, prob = weights)
+               P.IS[b] <- P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
              }
-                 
-             for(b in 1:prms$B)  # sample permutations 
+           }
+         }, 
+         'match.w'={  # here the goal is to sample a permutation with P_W similar to the ID permutation
+           w.order <- order(  rowVars(log(w.mat)), decreasing=TRUE  )  # order by variance: first set as high the ones with high variance!! 
+           log.w.sum.id.vec <- cumsum(diag(log.w.mat)[w.order]) # we want to get this sum 
+           P.IS <- zeros(prms$B, 1)
+           P.IS0 <- -sum(log(1:n)) # temp, use uniform distribution 
+           sigma <- 2 # choose width of Gaussian for importance sampling. Can change to be preplexity
+           preplex <- 8 #  effective number of possible choices at each step (not implemented yet)
+           for(b in 1:prms$B)  # sample permutations 
+           {
+             log.w.sum.rand <- 0
+             for(j in 1:n) # sample permutation according to w
              {
-               for(j in 1:n) # sample permutation according to w
-               {
-                 weights <- w.mat[w.order[j],]
-                 if(j>1) # remove the ones we already occupied
-                   weights[Permutations[w.order[1:(j-1)]  , b]] <- 0                   
-                 weights <- weights / sum(weights)
-                 Permutations[w.order[j],b] = sample(n, 1, prob = weights)
-                 P.IS[b] <- P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
-               }
+               weights <- exp(-(log.w.mat[w.order[j],] + log.w.sum.rand - log.w.sum.id.vec[j] )^2/(2*sigma^2)) # penalize deviations from probability
+               if(j>1) # remove the ones we already occupied
+                 weights[Permutations[w.order[1:(j-1)] , b]] <- 0                   
+               weights <- weights / sum(weights)
+               #                print(weights)
+               #                print(paste0("j=", j))
+               Permutations[w.order[j],b] = sample(n, 1, prob = weights)
+               P.IS[b] <- P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
+               log.w.sum.rand <- log.w.sum.rand + log.w.mat[w.order[j],Permutations[w.order[j],b]]
+               #                print(paste0("sum.rand=", log.w.sum.rand, " sum.id=",  log.w.sum.id.vec[j], " diff=", log.w.sum.rand-log.w.sum.id.vec[j]))
              }
-           }, 
-          'match.w'={  # here the goal is to sample a permutation with P_W similar to the ID permutation
-            w.order <- order(  rowVars(log(w.mat)), decreasing=TRUE  )  # order by variance: first set as high the ones with high variance!! 
-            log.w.sum.id.vec <- cumsum(diag(log.w.mat)[w.order]) # we want to get this sum 
-            P.IS <- zeros(prms$B, 1)
-            P.IS0 <- -sum(log(1:n)) # temp, use uniform distribution 
-            sigma <- 2 # choose width of Gaussian for importance sampling. Can change to be preplexity
-            preplex <- 8 #  effective number of possible choices at each step (not implemented yet)
-            for(b in 1:prms$B)  # sample permutations 
-            {
-              log.w.sum.rand <- 0
-              for(j in 1:n) # sample permutation according to w
-              {
-                weights <- exp(-(log.w.mat[w.order[j],] + log.w.sum.rand - log.w.sum.id.vec[j] )^2/(2*sigma^2)) # penalize deviations from probability
-                if(j>1) # remove the ones we already occupied
-                  weights[Permutations[w.order[1:(j-1)] , b]] <- 0                   
-                weights <- weights / sum(weights)
-#                print(weights)
-#                print(paste0("j=", j))
-                Permutations[w.order[j],b] = sample(n, 1, prob = weights)
-                P.IS[b] <- P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
-                log.w.sum.rand <- log.w.sum.rand + log.w.mat[w.order[j],Permutations[w.order[j],b]]
-#                print(paste0("sum.rand=", log.w.sum.rand, " sum.id=",  log.w.sum.id.vec[j], " diff=", log.w.sum.rand-log.w.sum.id.vec[j]))
-              }
-              print(paste0("log.w.sum.rand=", log.w.sum.rand))
-              print(paste0("P_W=", sum(log.w.mat[cbind(1:n, Permutations[,b])])))
-              
-            }     
-                
-                        
-          }
-    ) # end switch on importance sampling distribution 
-
-    # Next, compute importance weights, from P_I and P_W, and then use them to estimate P_ij 
-    # Comptue also the id permutation weight 
-    P.W.IS0 <- -P.IS0 + sum(diag(log.w.mat))
-
-    P.W.IS <- -P.IS # Computing P_W / P_IS 
-    for(b in 1:prms$B)
-      P.W.IS[b] <- P.W.IS[b] + sum(log.w.mat[cbind(1:n, Permutations[,b])])
-#    print("P.W.IS.LOG:")
-#    print(t(P.W.IS))
-    
-    max.log <- max(max(P.W.IS), P.W.IS0)
-    P.W.IS <- exp(P.W.IS - max.log)  # compute P_W/P_I (up to a constant)
-    P.W.IS0 <- exp(P.W.IS0 - max.log) # forgot exponent here 
-
-#    print("P.IS:")
-#    print(P.IS)
-    
-#    print("P.W.IS:")
-#    print(t(P.W.IS))
-#    print("P.W.IS0:")
-#    print(P.W.IS0)
-    log.P.W0 <- sum(diag(log.w.mat))
-    log.P.W <- zeros(prms$B, 1)
-    for(b in 1:prms$B)
-      log.P.W[b] <- sum(log.w.mat[cbind(1:n, Permutations[,b])])
-    max.w <- max(max(log.P.W), log.P.W0)
-#    P.W <- exp(P.W - max.w)  # compute P_W/P_I (up to a constant)
-#    P.W0 <- exp(P.W0 - max.w) # forgot exponent here         
-    print(paste0(prms$importance.sampling.dist, " rand-perms: P_W=", sum(exp(log.P.W)), ", P_W/P_IS=", sum(P.W.IS), " id: P_W=", log.P.W0, ", P_W/P_IS=", P.W.IS0))      
-
-    for(b in 1:prms$B)  # next, compute expectations P[i,j]
-      P[cbind(1:n, Permutations[,b])] =  P[cbind(1:n, Permutations[,b])] + P.W.IS[b] 
-    P[cbind(1:n, 1:n)] <- P[cbind(1:n, 1:n)] + 0*P.W.IS0 # temp: ignore contribution from identity
-    P <- P / (0*P.W.IS0 + sum(P.W.IS)) # normalize P    
-      
-#    print(P[1:5,1:5])
-    
-#    print(t(rowSums(P)))
-#    print(t(colSums(P)))
-    return(list(Permutations=Permutations, P=P, P.W.IS=P.W.IS, P.W.IS0=P.W.IS0, log.P.W=log.P.W, log.P.W0=log.P.W0, max.w=max.w)) # New: return also P, a matrix with Pr(pi(i)=j)
-}
+             ###              print(paste0("log.w.sum.rand=", log.w.sum.rand))
+             ###              print(paste0("P_W=", sum(log.w.mat[cbind(1:n, Permutations[,b])])))
+             
+           }     
+           
+           
+         }
+  ) # end switch on importance sampling distribution 
   
+  # Next, compute importance weights, from P_I and P_W, and then use them to estimate P_ij 
+  # Comptue also the id permutation weight 
+  P.W.IS0 <- -P.IS0 + sum(diag(log.w.mat))
+  
+  P.W.IS <- -P.IS # Computing P_W / P_IS 
+  for(b in 1:prms$B)
+    P.W.IS[b] <- P.W.IS[b] + sum(log.w.mat[cbind(1:n, Permutations[,b])])
+  #    print("P.W.IS.LOG:")
+  #    print(t(P.W.IS))
+  
+  max.log <- max(max(P.W.IS), P.W.IS0)
+  P.W.IS <- exp(P.W.IS - max.log)  # compute P_W/P_I (up to a constant)
+  P.W.IS0 <- exp(P.W.IS0 - max.log) # forgot exponent here 
+  
+  #    print("P.IS:")
+  #    print(P.IS)
+  
+  #    print("P.W.IS:")
+  #    print(t(P.W.IS))
+  #    print("P.W.IS0:")
+  #    print(P.W.IS0)
+  log.P.W0 <- sum(diag(log.w.mat))
+  log.P.W <- zeros(prms$B, 1)
+  for(b in 1:prms$B)
+    log.P.W[b] <- sum(log.w.mat[cbind(1:n, Permutations[,b])])
+  max.w <- max(max(log.P.W), log.P.W0)
+  #    P.W <- exp(P.W - max.w)  # compute P_W/P_I (up to a constant)
+  #    P.W0 <- exp(P.W0 - max.w) # forgot exponent here         
+  ###    print(paste0(prms$importance.sampling.dist, " rand-perms: P_W=", sum(exp(log.P.W)), ", P_W/P_IS=", sum(P.W.IS), " id: P_W=", log.P.W0, ", P_W/P_IS=", P.W.IS0))      
+  
+  for(b in 1:prms$B)  # next, compute expectations P[i,j]
+    P[cbind(1:n, Permutations[,b])] =  P[cbind(1:n, Permutations[,b])] + P.W.IS[b] 
+  P[cbind(1:n, 1:n)] <- P[cbind(1:n, 1:n)] + 0*P.W.IS0 # temp: ignore contribution from identity
+  P <- P / (0*P.W.IS0 + sum(P.W.IS)) # normalize P    
+  
+  #    print(P[1:5,1:5])
+  
+  #    print(t(rowSums(P)))
+  #    print(t(colSums(P)))
+  return(list(Permutations=Permutations, P=P, P.W.IS=P.W.IS, P.W.IS0=P.W.IS0, log.P.W=log.P.W, log.P.W0=log.P.W0, max.w=max.w)) # New: return also P, a matrix with Pr(pi(i)=j)
+}
+
 
 
 #############################################################

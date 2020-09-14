@@ -321,12 +321,17 @@ TIBS <- function(data, w.fun, test.type, prms)
             prms$importance.sampling.dist = "monotone.w"
             output <- IS.permute(data, grid.points, w.fun, prms, test.type)
           },  
+          'match_importance_sampling' = { # new!! use also monotone importance sampling 
+            prms$importance.sampling.dist = "match.w"
+          output <- IS.permute(data, grid.points, w.fun, prms, test.type)
+            },  
+
           'tsai' = {
            if(!('delta' %in% names(prms)) || any(is.na(prms$delta)))  # new: Tsai with censoring
              result <- Tsai.test(data[,1], data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
            else
              result <- Tsai.test(data[,1], data[,2], prms$delta) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
-           output <- list(Pvalue=result[4])
+           output <- list(Pvalue=result[4], TrueT=result[3])
          },
          'minP2' = { library(permDep) #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
            require(survival)  

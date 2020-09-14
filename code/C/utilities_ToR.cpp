@@ -1576,7 +1576,7 @@ List Bootstrap_rcpp(NumericMatrix data, NumericMatrix cdfs, NumericMatrix w_mat,
 			boot_sample(k, 0) = data(i, 0); boot_sample(k++, 1) = data(j, 1);
 		}
 		if((i < 0) || (i >=n) || (j < 0) || (j>=n))
-			Rcout << "ERROR! i,j: " << i << ", " << j << " k=" << k << endl; 
+			Rcout << "ERROR! i,j: " << i << ", " << j << " k=" << k << " n=" << n << " cdf.n=" << cdfs.nrow() << " w.mat.n=" << w_mat.nrow() << endl; 
 		ctr++;
 	}
 //	Rcout << "Generated " << ctr << " pairs to get eventually " << n << " samples" << endl; 

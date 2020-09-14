@@ -119,23 +119,28 @@ SimulateSample <- function(n, dependence.type, prms)
                            0.5 * (ranks[,2] * sample(c(-1,1), 1)+ 1))
          },
          'Clayton'={ library('copula')
-           xy <- qnorm(rCopula(n, claytonCopula(prms$rho)))
+           xy.mat <- qnorm(rCopula(n, claytonCopula(prms$rho)))
          }, 
+         'CLmix'={ library('copula') # choose from mixture for each point independently 
+          xy.mat <- rCopula(n, claytonCopula(0.5-rbinom(1, 1, 0.5)))
+         }, 
+
          'Gumbel'= { # here rho must be > 1 
            xy.mat <- qnorm(rCopula(n, gumbelCopula(prms$rho)))
-         }, 
-  )
-  if(!exists('xy.mat')) # for these distributions we simulate one by one
+         }, xy.mat <- c() # set default value 
+  )  # end switch 
+#  print("Passed switch, xy.mat=")
+#  print(xy.mat)
+  if(is.null(xy.mat)) # for these distributions we simulate one by one
   {
     xy.mat <- matrix(0, n, 2)
     for(i in c(1:n))    
     {
       switch(dependence.type, # First sample from Fxy
-             'CLmix'={ library('copula') # choose from mixture for each point independently 
-               xy <- rCopula(n, claytonCopula(0.5-rbinom(1, 1, 0.5)))
-             }, 
              
              'UniformStrip'={ # use rejection sampling 
+#               print("Sim uniform strip")
+#               print(i)
                xy.abs.diff <- 2
                while(xy.abs.diff>prms$rho)
                {
@@ -159,12 +164,18 @@ SimulateSample <- function(n, dependence.type, prms)
 # Output: 
 # The values of w evaluated at the (x,y) array 
 ########################################################################
-w_fun_eval <- function(x, y, w.fun) {
+w_fun_eval <- function(x, y, w.fun, prms) {  # no parameters optional? 
   if(typeof(w.fun)=="character") {
     r <- switch(w.fun, 
                 'truncation'={as.numeric(x<y)},
                 'Hyperplane_Truncation'={as.numeric(x<y)},
-                'gaussian'= {exp((-x**2-y**2)/2)},
+                'gaussian'= {  # allow params
+                  if(missing(prms))
+                    rho <- 0
+                  else
+                    rho <- prms$rho
+                    exp((-x**2-y**2 +2*rho*x*y)/2)  # w is correlated Gaussian 
+                  },
                 'exp'= {exp((-abs(x)-abs(y))/4)},
                 'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
                 'huji'={pmax(pmin(65-x-y,18),0)},  # changed length bias to 65 (from back to 66)
