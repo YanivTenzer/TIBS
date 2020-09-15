@@ -159,6 +159,11 @@ arma::mat unique_rows(const arma::mat& x) {
 /**/
 
 
+// [[Rcpp::export]]
+double mean_rcpp(NumericVector x)
+{
+	return sum(x)/x.size();
+}
 
 // [[Rcpp::export]]
 double var_rcpp(NumericVector x, bool bias = true)
@@ -1432,14 +1437,16 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 			Tb[b] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
 	}
 
-	double Pvalue = 0; //1; // P_W_IS0;  weight identity permutation by 1 
-	double NormalizingFactor = 0; // 1; // P_W_IS0;
+	double Pvalue = P_W_IS0; //1; // P_W_IS0;  weight identity permutation by 1 
+	double NormalizingFactor = P_W_IS0; // 1; // P_W_IS0;
 	for(b=0; b<B; b++)
 	{
 		Pvalue += (Tb[b]>=TrueT) * P_W_IS[b];	
 		NormalizingFactor += P_W_IS[b];
 	}
 	Pvalue /= NormalizingFactor;
+
+	double CV2 = var_rcpp(P_W_IS) / pow(mean_rcpp(P_W_IS), 2); // new: add coefficient of variation for importance sampling diagnostics. 
 
 //	Rcout << "reject=" << reject << " denominator.weights=" <<  (pw0 + sum(pw)) << " pval=" << reject / (pw0 + sum(pw)) << endl; 
 	List ret; 
@@ -1449,6 +1456,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	ret["perm.weights"] = P_W_IS; // New! return also weight for each permutation !! 
 //	ret["pw.max"] = pw_max;
 	ret["id.perm.weight"] = P_W_IS0;
+	ret["CV2"] = CV2;
 	return(ret);
 }
 

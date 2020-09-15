@@ -1,17 +1,4 @@
-rm(list=ls())
-gc()
-setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
-path = getwd()
-args=commandArgs(trailingOnly = TRUE)
-Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
-
-source('simulate_and_test.R')
-source('simulate_biased_sample.R')
-source('TIBS.R')
-source('marginal_estimation.R')
-source('utilities.R')
-source('import_samp.R')
-library('stringr')
+library(stringr)
 library(foreach)
 library(doSNOW)
 #library(parallel)
@@ -21,6 +8,26 @@ library(mvtnorm)
 library(ggplot2)  
 library(pracma)
 library(matrixStats)
+
+rm(list=ls())
+gc()
+
+isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+if(isRStudio)
+{
+  setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
+  path = getwd()
+}
+args=commandArgs(trailingOnly = TRUE)
+Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+
+source('simulate_and_test.R')
+source('simulate_biased_sample.R')
+source('TIBS.R')
+source('marginal_estimation.R')
+source('utilities.R')
+source('import_samp.R')
+
 
 cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
