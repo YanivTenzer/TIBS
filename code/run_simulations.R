@@ -30,7 +30,7 @@ source('TIBS.R')
 source('marginal_estimation.R')
 source('utilities.R')
 source('import_samp.R')
-
+source('Tsai_test.R')
 
 cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
