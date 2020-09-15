@@ -121,7 +121,7 @@ for(s in run.dep) # Run all on the farm
 {
   for(n in c(sample.size)) #seq(250, 400, 50))
   {
-    prms = list(B=1000, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
+    prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
 #    if(run.flag != 1)
 #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
