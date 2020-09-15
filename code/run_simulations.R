@@ -91,12 +91,17 @@ num.tests <- length(test.type)
 
 if(run.flag == 1)
 {
+  iterations = 10
+  B = 1000
+  sample.size = 100
   run.dep <- c(1:9) # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
-} else  # run from command line 
+
+  } else  # run from command line 
 {
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   iterations = as.integer(args[2])
-  
+  B = as.integer(args[3])
+  sample.size = as.integer(args[4])
   print(paste0("run.dep:", run.dep, " iters:", iterations))
   
 } # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
@@ -114,12 +119,12 @@ overall.start.time <- Sys.time()
 
 for(s in run.dep) # Run all on the farm  
 {
-  for(n in c(100)) #seq(250, 400, 50))
+  for(n in c(sample.size)) #seq(250, 400, 50))
   {
-    prms = list(B=1000, sample.size=n, iterations=10, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
+    prms = list(B=1000, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
-    if(run.flag != 1)
-      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
+#    if(run.flag != 1)
+#      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
     print(paste0("rho=", prms.rho[[s]]))
     # Call function. # run simulations function 
