@@ -31,14 +31,14 @@ const.seed <- 1 # set constant seed
 
 # Vectors with different dependency settings : dependence-type, w, monotone, exchangable, rho
 run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3), 
-                             'Gaussian', 'truncation', TRUE, TRUE, list(seq(0.1,0.9,0.1)),
+                             'Gaussian', 'truncation', TRUE, TRUE, list(seq(-0.9,0.9,0.1)),
                              'Clayton','truncation', TRUE, TRUE, list(0.5),
                              'Gumbel', 'truncation', TRUE, TRUE, list(1.6),
                              'LD', 'truncation', TRUE, FALSE, list(c(0, 0.4)),
                              'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(seq(-0.9, 0.9, 0.1)),
                              'CLmix','truncation', FALSE, TRUE, list(0.5), 
                              'LogNormal', 'sum', TRUE, TRUE,  list(c(0)),
-                             'Gaussian', 'gaussian', TRUE, TRUE, list(seq(-0.5, 0.5, 0.5)) ), 5, 9)) # replace by CLmix / non-monotone and centered at zero 
+                             'Gaussian', 'gaussian', TRUE, TRUE, list(seq(-0.9, 0.9, 0.1)) ), 5, 9)) # replace by CLmix / non-monotone and centered at zero 
 #  'Gaussian','exponent_minus_sum_abs', TRUE, TRUE, # not needed (w(x,y)=w(x)*w(y), not interesting)
 
 run.params.mat
@@ -103,9 +103,9 @@ overall.start.time <- Sys.time()
 
 for(s in run.dep) # Run all on the farm  
 {
-  for(n in c(30)) #seq(250, 400, 50))
+  for(n in c(100)) #seq(250, 400, 50))
   {
-    prms = list(B=10, sample.size=n, iterations=3, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
+    prms = list(B=1000, sample.size=n, iterations=10, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     if(run.flag != 1)
       prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
@@ -120,9 +120,6 @@ for(s in run.dep) # Run all on the farm
 } # end loop on dependency types
 
 
-overall.time <-  difftime(Sys.time() , overall.start.time, units="secs") 
-print(paste0("Overall simulations time (no min.p), B= ", prms$B, ", iters=", prms$iterations, ":"))
-print(overall.time)
 
 
 test.legend <- paste(test.type, as.character(T.OUT$test.power))
@@ -186,3 +183,6 @@ if(run.mcmc)
 
   
 
+overall.time <-  difftime(Sys.time() , overall.start.time, units="secs") 
+print(paste0("Overall simulations time (no min.p), B= ", prms$B, ", iters=", prms$iterations, ":"))
+print(overall.time)

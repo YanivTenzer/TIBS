@@ -86,8 +86,11 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
       T.b.MATCH[b] <- ComputeStatistic(cbind(data[,1], data[perm.MATCH,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
     }
   }
-  Pvalue = (0+0*Permutations$P.W.IS0 + sum((T.b>=TrueT) * Permutations$P.W.IS)) / 
-    (0+0*Permutations$P.W.IS0 + sum(Permutations$P.W.IS))  # New: give weight 1 to the identity permutation 
+  
+  CV2 = var(Permutations$P.W.IS) / mean(Permutations$P.W.IS)^2 # new: add Coefficient of variation for the importance weights for diagnostics
+  
+  Pvalue = (Permutations$P.W.IS0 + sum((T.b>=TrueT) * Permutations$P.W.IS)) / 
+    (Permutations$P.W.IS0 + sum(Permutations$P.W.IS))  # New: give weight 1 to the identity permutation 
   
  
   if(plot.flag)
@@ -107,7 +110,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
     points(0, TrueT, col="red", pch=19, cex=2)
     legend(1, y.lim[2], legend=c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'Match', 'True'), col=c('black', 'green', 'blue', 'orange', 'pink', 'red'), lwd=c(2,2,2,2,2), cex=0.6)
   }
-  return(list(Pvalue= Pvalue, TrueT=TrueT, statistics.under.null=T.b, permuted.data = cbind(data[,1], data[Permutations$Permutations[,1],2])))
+  return(list(Pvalue= Pvalue, TrueT=TrueT, CV2=CV2, statistics.under.null=T.b, permuted.data = cbind(data[,1], data[Permutations$Permutations[,1],2])))
 }
 
 
