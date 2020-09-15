@@ -40,7 +40,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   run.flag = 1
   num.tests <- length(test.type)
   #browser()
-  output.file <- paste0('results/', dependence.type, '_all_tests_results_B_', 
+  output.file <- paste0('results/', dependence.type, '_w_', w.fun.str, '_all_tests_results_B_', 
                         prms$B, '_iters_', prms$iterations, '_n_', prms$sample.size, '_rho_', paste(prms.rho, collapse = '_')) # set output file name
   num.prms <- length(prms.rho)
   #browser()

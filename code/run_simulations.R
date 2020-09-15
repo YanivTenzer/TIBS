@@ -34,7 +34,7 @@ cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
 registerDoParallel(cl) 
 
-run.flag <- 1 # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
+run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 const.seed <- 1 # set constant seed 
 
 # Vectors with different dependency settings : dependence-type, w, monotone, exchangable, rho
@@ -96,6 +96,9 @@ if(run.flag == 1)
 {
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   iterations = as.integer(args[2])
+  
+  print(paste0("run.dep:", run.dep, " iters:", iterations))
+  
 } # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
 
 #test.type<-c( 'permutations','permutations_inverse_weighting',
