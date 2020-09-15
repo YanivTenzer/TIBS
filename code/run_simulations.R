@@ -1,3 +1,6 @@
+rm(list=ls())
+gc()
+
 library(stringr)
 library(foreach)
 library(doSNOW)
@@ -9,8 +12,6 @@ library(ggplot2)
 library(pracma)
 library(matrixStats)
 
-rm(list=ls())
-gc()
 
 isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
 if(isRStudio)
@@ -128,33 +129,34 @@ for(s in run.dep) # Run all on the farm
 
 
 
-
-test.legend <- paste(test.type, as.character(T.OUT$test.power))
-col.vec <- c("blue", "black", "green", "orange", "gray", "pink", "yellow", "purple")
-i=1
-plot(T.OUT$test.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20, main='differences')
-for(i in 2:length(test.type))
-  points(T.OUT$test.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20)
-legend(0, 200, test.legend, lwd=c(2,2), col=col.vec[1:length(test.type)], y.intersp=0.8, cex=0.6)
-# points(T.OUT$test.stat[1,,]- rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
-
-
-jpeg(paste0("../figs/check_valid_n_", n, "_B_", prms$B, "_dep_", dependence.type[s], "_w_",  w.fun[s], 
-"_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
-plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
-     main=paste0("Tests pvals and power, n=", n, ", alpha=", prms$alpha, " pert=", prms$perturb.grid))
-valid.tests <- rep(0, num.tests)
-for(i in 1:num.tests)
+if(isRStudio)  # plot results in interactive mode
 {
-  if(max(T.OUT$test.pvalue[1,i,])> -1)
+  test.legend <- paste(test.type, as.character(T.OUT$test.power))
+  col.vec <- c("blue", "black", "green", "orange", "gray", "pink", "yellow", "purple")
+  i=1
+  plot(T.OUT$test.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20, main='differences')
+  for(i in 2:length(test.type))
+    points(T.OUT$test.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20)
+  legend(0, 200, test.legend, lwd=c(2,2), col=col.vec[1:length(test.type)], y.intersp=0.8, cex=0.6)
+  # points(T.OUT$test.stat[1,,]- rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
+  
+  
+  jpeg(paste0("../figs/check_valid_n_", n, "_B_", prms$B, "_dep_", dependence.type[s], "_w_",  w.fun[s], 
+              "_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
+  plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
+       main=paste0("Tests pvals and power, n=", n, ", alpha=", prms$alpha, " pert=", prms$perturb.grid))
+  valid.tests <- rep(0, num.tests)
+  for(i in 1:num.tests)
   {
-    points(sort(T.OUT$test.pvalue[1,i,]), col=col.vec[i], pch=20)
-    valid.tests[i] <- 1
+    if(max(T.OUT$test.pvalue[1,i,])> -1)
+    {
+      points(sort(T.OUT$test.pvalue[1,i,]), col=col.vec[i], pch=20)
+      valid.tests[i] <- 1
+    }
   }
+  legend(prms$iterations*0.45, 0.25, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], y.intersp=0.8, cex=0.6)
+  dev.off()
 }
-legend(prms$iterations*0.45, 0.25, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], y.intersp=0.8, cex=0.6)
-dev.off()
-
 
 #library(matrixStats)
 #plot(T.OUT$test.stat[1,,], rowMeans(T.OUT$test.null.stat[1,1,,]))
