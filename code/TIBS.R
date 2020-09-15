@@ -110,12 +110,13 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
 TIBS <- function(data, w.fun, test.type, prms)
 {  
 #  print("Start TIBS")
-  library(PerMallows) # distance between permutations 
-  library(pracma)
-  source('utilities.R')
-  source('Tsai_test.R')
-  source('simulate_biased_sample.R')
-  source('marginal_estimation.R')
+
+##  library(PerMallows) # distance between permutations 
+##  library(pracma)
+##  source('utilities.R')
+##  source('Tsai_test.R')
+##  source('simulate_biased_sample.R')
+##  source('marginal_estimation.R')
   
   epsilon <- 0.0000000001 # tolerance 
   

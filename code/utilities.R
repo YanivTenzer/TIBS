@@ -1,4 +1,3 @@
-library(Matrix)
 
 ##################################################################################################
 # Compute the modified Hoeffding's test statistic, for the permutation test

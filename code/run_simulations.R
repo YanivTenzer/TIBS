@@ -11,6 +11,8 @@ library(mvtnorm)
 library(ggplot2)  
 library(pracma)
 library(matrixStats)
+library(PerMallows) # distance between permutations 
+library(Matrix)
 
 
 isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
