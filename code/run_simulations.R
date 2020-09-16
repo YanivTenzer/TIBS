@@ -16,6 +16,7 @@ library(Matrix)
 
 
 isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 if(isRStudio)
 {
   setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
@@ -36,7 +37,6 @@ cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
 registerDoParallel(cl) 
 
-run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 const.seed <- 1 # set constant seed 
 
 # Vectors with different dependency settings : dependence-type, w, monotone, exchangable, rho
@@ -93,10 +93,10 @@ num.tests <- length(test.type)
 
 if(run.flag == 1)
 {
-  iterations = 10
-  B = 1000
-  sample.size = 100
-  run.dep <- c(1:9) # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  iterations = 10 # official: 500
+  B = 100 # official:  1000
+  sample.size = 301 #  official:  100
+  run.dep <- c(8) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
 
   } else  # run from command line 
 {
@@ -124,7 +124,7 @@ for(s in run.dep) # Run all on the farm
   for(n in c(sample.size)) #seq(250, 400, 50))
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
-                use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+                use.cpp=0, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
 #    if(run.flag != 1)
 #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))

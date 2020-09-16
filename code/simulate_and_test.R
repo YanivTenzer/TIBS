@@ -167,8 +167,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         if('statistics.under.null' %in% names(test.results)) # not all tests have null statistics 
           test.null.stat[i.prm, t, i, ] <- test.results$statistics.under.null
         # optional printing:
-##        print(paste0("Dep: ", dependence.type, ', rho=', prms$rho, ', w: ', w.fun.str, '. Test: ', test.type[t], 
-##                     ' i=', i, ' of ', prms$iterations, '. Pval=', round(test.pvalue[i.prm, t, i], 3), '. Time(sec.)=', round(test.time[i.prm, t, i], 2)))
+        print(paste0("Dep: ", dependence.type, ', rho=', prms$rho, ', w: ', w.fun.str, '. Test: ', test.type[t], 
+                     ' i=', i, ' of ', prms$iterations, '. Pval=', round(test.pvalue[i.prm, t, i], 3), '. Time(sec.)=', round(test.time[i.prm, t, i], 2)))
       } # end loop on tests 
     }  # end loop on iterations (parallel collection). Simulation and testing for one parameter (i.prm)
     prms$title <- as.integer(dependence.type != 'UniformStrip') # s>1) 
