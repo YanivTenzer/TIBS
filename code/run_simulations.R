@@ -58,7 +58,7 @@ w.fun <- run.params.mat[,2]
 monotone.type <- run.params.mat[,3]
 exchange.type <- run.params.mat[,4]
 prms.rho <- run.params.mat[,5]
-  
+
 #dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 
 #                     'LD', 'nonmonotone_nonexchangeable', 'CLmix', 'Gaussian',
 #                     'LogNormal', 'Gaussian') # The last one is log-normal 
@@ -75,14 +75,14 @@ prms.rho <- run.params.mat[,5]
 ### test.type<- c('permutations','bootstrap') #c( 'permutations','permutations_inverse_weighting',
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
-#test.type <- c("uniform_importance_sampling_inverse_weighting")
+test.type <- c("uniform_importance_sampling_inverse_weighting")
 ##test.type <- c( 'permutations',  'uniform_importance_sampling', 'match_importance_sampling', 
 ##                'monotone_importance_sampling', 'monotone_importance_sampling_inverse_weighting') #  'uniform_importance_sampling') 
 # test.type <- c('match_importance_sampling', 'monotone_importance_sampling', 'monotone_importance_sampling_inverse_weighting') #  'uniform_importance_sampling') 
 # test.type <- c("bootstrap")
-    test.type <- c('permutations',  'permutations_inverse_weighting', 'bootstrap', 'bootstrap_inverse_weighting',  'tsai', 
-                   'monotone_importance_sampling', 'uniform_importance_sampling', 'match_importance_sampling', 'uniform_importance_sampling_inverse_weighting')
-                 #c( 'permutations','permutations_inverse_weighting', # everything except minP2
+#    test.type <- c('permutations',  'permutations_inverse_weighting', 'bootstrap', 'bootstrap_inverse_weighting',  'tsai', 
+#                   'monotone_importance_sampling', 'uniform_importance_sampling', 'match_importance_sampling', 'uniform_importance_sampling_inverse_weighting')
+#c( 'permutations','permutations_inverse_weighting', # everything except minP2
 #  #'uniform_importance_sampling',
 #  'uniform_importance_sampling_inverse_weighting',
 #  'bootstrap', 
@@ -97,8 +97,8 @@ if(run.flag == 1)
   B = 100 # official:  1000
   sample.size = 301 #  official:  100
   run.dep <- c(8) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
-
-  } else  # run from command line 
+  
+} else  # run from command line 
 {
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   iterations = as.integer(args[2])
@@ -125,8 +125,8 @@ for(s in run.dep) # Run all on the farm
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=0, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
-#    if(run.flag != 1)
-#      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
+    #    if(run.flag != 1)
+    #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
     print(paste0("rho=", prms.rho[[s]]))
     # Call function. # run simulations function 
@@ -134,6 +134,13 @@ for(s in run.dep) # Run all on the farm
     if(const.seed)
       prms$seed <- 1141248 # 4524553
     T.OUT <- simulate_and_test(dependence.type[[s]], prms.rho[[s]], w.fun[[s]], test.type, prms) # run all tests 
+    
+    # New: just create jobs strings 
+    for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
+      run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", prms)
+
+
+
   }
 } # end loop on dependency types
 
@@ -200,7 +207,7 @@ if(run.mcmc)
 
 
 
-  
+
 
 overall.time <-  difftime(Sys.time() , overall.start.time, units="secs") 
 print(paste0("Overall simulations time (no min.p), B= ", prms$B, ", iters=", prms$iterations, ":"))

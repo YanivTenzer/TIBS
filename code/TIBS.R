@@ -253,8 +253,8 @@ TIBS <- function(data, w.fun, test.type, prms)
            statistics.under.null=matrix(0, prms$B, 1)
            for(ctr in 1:prms$B) 
            {
-             if(mod(ctr,100)==0)
-               print(paste0("Run Boots=", ctr))
+#             if(mod(ctr,100)==0)
+#               print(paste0("Run Boots=", ctr))
              bootstrap <- Bootstrap(marginals$xy, marginals$PDFs, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
              statistics.under.null[ctr] <- ComputeStatistic.W(bootstrap$sample, grid.points, w.fun, prms$counts.flag)$Statistic
            }

@@ -110,15 +110,25 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   Pval.MC = (1 + sum((T.b.MC>=TrueT) )) / (B+1)  # New: give weight 1 to the identity permutation 
   Pval.MATCH = (Permutations.MATCH$P.W.IS0 + sum((T.b.MATCH>=TrueT) * Permutations.MATCH$P.W.IS)) / 
     (Permutations.MATCH$P.W.IS0 + sum(Permutations.MATCH$P.W.IS))  # New: give weight 1 to the identity permutation 
+  Pval.MATCH0 = (0*Permutations.MATCH$P.W.IS0 + sum((T.b.MATCH>=TrueT) * Permutations.MATCH$P.W.IS)) / 
+    (0*Permutations.MATCH$P.W.IS0 + sum(Permutations.MATCH$P.W.IS))  # New: give weight 1 to the identity permutation 
+  Pval.MATCH.no.weights = mean(T.b.MATCH>=TrueT)
   
+  legend.vec <- apply(rbind(c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'Match', 'True'), rep(" CV=", 6),
+                      round(c(CV2, CV.D2, CV.U2, CV.MC2, CV.MATCH2, 0), 3), rep(" Pval=", 6),
+                            round(c(Pval.W, Pval.D, Pval.U, Pval.MC, Pval.MATCH, 0), 3)), 2, paste0, collapse="")
+#  for(j in c(1:length(legend.vec)))
+#    legend.vec[j] <- c(legend.vec[j], ", pval=", pval.method[j], ", CV=", cv.method[j])
   
-  legend.vec <- cbind(c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'Match', 'True'),
-                      c(CV2, CV.D2, CV.U2, CV.MC2, CV.MATCH2, ""),
-                      c(Pval.W, Pval.D, Pval.U, Pval.MC, Pval.MATCH, ""))
-  for(j in c(1:length(legend.vec)))
-    legend.vec[j] <- c(legend.vec[j], ", pval=", pval.method[j], ", CV=", cv.method[j])
+  plot(Permutations.MATCH$log.P.W, Permutations.MATCH$log.P.IS)
+  points(Permutations.MATCH$log.P.W[T.b.MATCH>=TrueT], Permutations.MATCH$log.P.IS[T.b.MATCH>=TrueT], col="green")
+  points(Permutations.MATCH$log.P.W0, Permutations.MATCH$log.P.IS0, col="red", pch=19, cex=2 )
+  points(Permutations.MATCH$log.P.W[89], Permutations.MATCH$log.P.IS[89], col="blue")
   
- 
+  plot(Permutations.MATCH$log.P.W - Permutations.MATCH$log.P.IS)
+  points(which(T.b.MATCH>=TrueT), Permutations.MATCH$log.P.W[T.b.MATCH>=TrueT] - Permutations.MATCH$log.P.IS[T.b.MATCH>=TrueT], col="green")
+  points(Permutations.MATCH$log.P.W0 - Permutations.MATCH$log.P.IS0, col="red", pch=19, cex=2 )
+  
   if(plot.flag)
   {
     y.lim <- c(0, max(T.b, T.b.U, T.b.D, T.b.MC, T.b.MATCH, TrueT))
@@ -136,8 +146,10 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
     points(0, TrueT, col="red", pch=19, cex=2)
       
     
-    legend(1, y.lim[2], legend=legend.vec, col=c('black', 'green', 'blue', 'orange', 'pink', 'red'), lwd=c(2,2,2,2,2), cex=0.6)
+    legend(-10, y.lim[2], legend=legend.vec, col=c('black', 'green', 'blue', 'orange', 'pink', 'red'), lwd=c(2,2,2,2,2), cex=0.6)
   }
+  xxx = 132
+  
   return(list(Pvalue= Pvalue, TrueT=TrueT, CV2=CV2, statistics.under.null=T.b, permuted.data = cbind(data[,1], data[Permutations$Permutations[,1],2])))
 }
 
@@ -161,23 +173,23 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
          'uniform'={
            for(b in 1:prms$B)  # sample permutations 
              Permutations[,b]=sample(n);
-           P.IS <- zeros(prms$B,1)  # get importance probabilities (up to a constant)
-           P.IS0 <- 0 # these are on log-scale 
+           log.P.IS <- zeros(prms$B,1)  # get importance probabilities (up to a constant)
+           log.P.IS0 <- 0 # these are on log-scale 
          },    
          'monotone.w'={
            if(!('importance.sampling.decreasing' %in% names(prms)))
              prms$importance.sampling.decreasing = FALSE  # default is increasing! 
            #             w.order <- order(  rowVars(log(w.mat)), decreasing=TRUE  )  # order by variance: first set as high the ones with high variance!! 
            w.order <- order(rowSums(w.mat), decreasing=prms$importance.sampling.decreasing)  # order x values based on sum of w. We wnat Small with Large! (at least for w(x,y)=x+y)
-           P.IS <- zeros(prms$B, 1)
-           P.IS0 <- 0
+           log.P.IS <- zeros(prms$B, 1)
+           log.P.IS0 <- 0
            for(j in 1:n) # Caculate prob. of identity under importance sampling 
            {
              weights <- w.mat[w.order[j],]
              if(j>1)
                weights[w.order[1:(j-1)]] <- 0    
              #               weights <- weights / sum(weights)
-             P.IS0 <- P.IS0 + log(weights[w.order[j]] / sum(weights))
+             log.P.IS0 <- log.P.IS0 + log(weights[w.order[j]] / sum(weights))
            }
            
            for(b in 1:prms$B)  # sample permutations 
@@ -195,17 +207,29 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
                #                 print(weights)
                #                 print(c(j, n))
                Permutations[w.order[j],b] = sample(n, 1, prob = weights)
-               P.IS[b] <- P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
+               log.P.IS[b] <- log.P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
              }
            }
          }, 
          'match.w'={  # here the goal is to sample a permutation with P_W similar to the ID permutation
            w.order <- order(  rowVars(log(w.mat)), decreasing=TRUE  )  # order by variance: first set as high the ones with high variance!! 
            log.w.sum.id.vec <- cumsum(diag(log.w.mat)[w.order]) # we want to get this sum 
-           P.IS <- zeros(prms$B, 1)
-           P.IS0 <- -sum(log(1:n)) # temp, use uniform distribution 
+           log.P.IS <- zeros(prms$B, 1)
+#           P.IS0 <- -sum(log(1:n)) # temp, use uniform distribution 
            sigma <- 2 # choose width of Gaussian for importance sampling. Can change to be preplexity
            preplex <- 8 #  effective number of possible choices at each step (not implemented yet)
+           log.P.IS0 <- 0
+           log.w.sum.rand <- 0
+           for(j in 1:n) # Caculate prob. of identity under importance sampling 
+           {
+             weights <- exp(-(log.w.mat[w.order[j],] + log.w.sum.rand - log.w.sum.id.vec[j] )^2/(2*sigma^2))
+             if(j>1)
+               weights[w.order[1:(j-1)]] <- 0    
+             weights <- weights / sum(weights)
+             log.P.IS0 <- log.P.IS0 + log(weights[w.order[j]])
+             log.w.sum.rand <- log.w.sum.rand + log.w.mat[w.order[j], w.order[j]]
+           }
+           
            for(b in 1:prms$B)  # sample permutations 
            {
              log.w.sum.rand <- 0
@@ -218,7 +242,7 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
                #                print(weights)
                #                print(paste0("j=", j))
                Permutations[w.order[j],b] = sample(n, 1, prob = weights)
-               P.IS[b] <- P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
+               log.P.IS[b] <- log.P.IS[b] + log(weights[Permutations[w.order[j],b]]) # Need to update also P_IS here
                log.w.sum.rand <- log.w.sum.rand + log.w.mat[w.order[j],Permutations[w.order[j],b]]
                #                print(paste0("sum.rand=", log.w.sum.rand, " sum.id=",  log.w.sum.id.vec[j], " diff=", log.w.sum.rand-log.w.sum.id.vec[j]))
              }
@@ -233,9 +257,9 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
   
   # Next, compute importance weights, from P_I and P_W, and then use them to estimate P_ij 
   # Comptue also the id permutation weight 
-  P.W.IS0 <- -P.IS0 + sum(diag(log.w.mat))
+  P.W.IS0 <- -log.P.IS0 + sum(diag(log.w.mat))
   
-  P.W.IS <- -P.IS # Computing P_W / P_IS 
+  P.W.IS <- -log.P.IS # Computing P_W / P_IS 
   for(b in 1:prms$B)
     P.W.IS[b] <- P.W.IS[b] + sum(log.w.mat[cbind(1:n, Permutations[,b])])
   #    print("P.W.IS.LOG:")
@@ -270,7 +294,8 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
   
   #    print(t(rowSums(P)))
   #    print(t(colSums(P)))
-  return(list(Permutations=Permutations, P=P, P.W.IS=P.W.IS, P.W.IS0=P.W.IS0, log.P.W=log.P.W, log.P.W0=log.P.W0, max.w=max.w)) # New: return also P, a matrix with Pr(pi(i)=j)
+  return(list(Permutations=Permutations, P=P, P.W.IS=P.W.IS, P.W.IS0=P.W.IS0, log.P.W=log.P.W, log.P.W0=log.P.W0, max.w=max.w, 
+              log.P.IS=log.P.IS, log.P.IS0=log.P.IS0)) # New: return also P, a matrix with Pr(pi(i)=j)
 }
 
 
