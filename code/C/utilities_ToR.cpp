@@ -1230,14 +1230,13 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
     if(prms.containsElementNamed("importance.sampling.dist"))  // set default uniform distribution 
       importance_sampling_dist = as<string>(prms["importance.sampling.dist"]);
 
-	
 	NumericMatrix Permutations(n, long(B));
 
 //	Rcout << "burn.in=" << burn_in << " Cycle=" << Cycle << endl; 
 
 //	IntegerVector Perm = seq(0, n);  // 1 to N-1 
-	NumericVector P_IS(B); // probabilities for importance sampling (up to a constant)
-	double P_IS0 = 0.0;
+	NumericVector log_P_IS(B); // probabilities for importance sampling (up to a constant)
+	double log_P_IS0 = 0.0;
 	
 	NumericMatrix log_w_mat(n,n); // = log(w_mat); // (n, n);
 	for(i=0; i<n; i++)
@@ -1250,8 +1249,8 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 		for(b=0; b<B; b++)
 			Permutations(_,b) = rand_perm(n);
 		for(i=0; i<B; i++)
-			P_IS[i] = 0.0; // save probabilities on a log-scale
-		P_IS0 = 0.0;
+			log_P_IS[i] = 0.0; // save probabilities on a log-scale
+		log_P_IS0 = 0.0;
 	}
 	if(importance_sampling_dist == "monotone.w") // sort values by average of w
 	{
@@ -1265,7 +1264,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 			for(k=0; k<j; k++)
                 weights[w_order[k]] = 0.0;     
 //			weights = weights * (1.0/sum(weights)); // normalize
-			P_IS0 += log(weights[w_order[j]] / sum(weights) );
+			log_P_IS0 += log(weights[w_order[j]] / sum(weights) );
 		}
 		for(b=0; b<B; b++)
 		{
@@ -1281,7 +1280,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 				Permutations(w_order[j],b) = weighted_rand_rcpp(1, weights_cdf)[0]; // IS this fucked up? 
 				if(weights[Permutations(w_order[j],b)] == 0)
 					Rcout << "Error! Chose Perm with PRob=0 !!! " << "Weights: " << weights_cdf << " ind: " << Permutations(w_order[j],b) << endl; 
-				P_IS[b] += log(weights[Permutations(w_order[j],b)]); // Need to update also P_IS here
+				log_P_IS[b] += log(weights[Permutations(w_order[j],b)]); // Need to update also log_P_IS here
 			}
 		}
 	}
@@ -1292,17 +1291,26 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 		IntegerVector w_order = sort_indexes_rcpp(-w_mat_row_vars);  // sort in DECREASING order!
 
 		NumericVector log_w_sum_id_vec(n); 
-		log_w_sum_id_vec[0] = log_w_mat(w_order[0],w_order[0]); P_IS0 = -log(1);
+		log_w_sum_id_vec[0] = log_w_mat(w_order[0],w_order[0]); log_P_IS0 = -log(1);
 		for(j=1; j<n; j++)
 		{
 			log_w_sum_id_vec[j] = log_w_sum_id_vec[j-1] + log_w_mat(w_order[j],w_order[j]); 	//	  cumsum(diag(log.w.mat)[w.order]) # we want to get this sum 
-			P_IS0 += (-log(j+1)); // TEMP! set as uniform distirbution 
+		//	log_P_IS0 += (-log(j+1)); // TEMP! set as uniform distirbution 
 		}
 
-		// T.B.D. 	
 		double log_w_sum_rand = 0.0;
 		double sigma = 2.0; // set variance of importance sampling around true permutation 
 		NumericVector weights(n), weights_cdf(n);
+		for(j=0; j<n; j++) // update also the log-prob for the identity permutation 
+		{
+			for(k=0; k<n; k++)
+	            weights[k] = exp(-pow(log_w_mat(w_order[j],k) + log_w_sum_rand - log_w_sum_id_vec[j], 2 ) / (2*sigma*sigma)); //  penalize deviations from probability
+			for(k=0; k<j; k++) // remove the ones we already occupied
+	            weights[w_order[k]] = 0.0;     	
+            weights = weights * (1.0/ sum(weights)); 
+			log_P_IS0 += log(weights[w_order[j]]); // Need to update also log_P_IS here
+            log_w_sum_rand += log_w_mat(w_order[j],w_order[j]);
+		}
 		for(b=0; b<B; b++)
 		{
 			log_w_sum_rand = 0.0;
@@ -1317,7 +1325,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 				for(k=1; k<n; k++)
 					weights_cdf[k] = weights_cdf[k-1] + weights[k]; 
                 Permutations(w_order[j],b) = weighted_rand_rcpp(1, weights_cdf)[0];
-                P_IS[b] += log(weights[Permutations(w_order[j],b)]); // Need to update also P_IS here
+                log_P_IS[b] += log(weights[Permutations(w_order[j],b)]); // Need to update also log_P_IS here
                 log_w_sum_rand += log_w_mat(w_order[j],Permutations(w_order[j],b));
 			}
 		}
@@ -1325,14 +1333,14 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	}
 
 
-//	Rcout << "P_IS, P_IS0: " << P_IS << endl << P_IS0 << endl; 
+//	Rcout << "log_P_IS, log_P_IS0: " << log_P_IS << endl << log_P_IS0 << endl; 
 
 	// Compute P matrix 
 
-	double P_W_IS0 = -P_IS0; // P_IS0 on a log-scale 
+	double P_W_IS0 = -log_P_IS0; // log_P_IS0 on a log-scale 
 	for(i=0; i<n; i++)
 		P_W_IS0 += log_w_mat(i,i);
-	NumericVector P_W_IS = -P_IS;  // P_IS on a log scale 
+	NumericVector P_W_IS = -log_P_IS;  // log_P_IS on a log scale 
 	for(b=0; b<B; b++)
 		for(i=0; i<n; i++)
 			P_W_IS[b] += log_w_mat(i, Permutations(i,b));
@@ -1347,6 +1355,20 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	for(b=0; b<B; b++)
 		P_W_IS[b] = exp(P_W_IS[b]-max_log); // compute P_W/P_I (up to a constant)
 //	Rcout << "P_W_IS: " << P_W_IS << endl; 
+
+	// Compute also P_W on log-scale 
+ 	double log_P_W0 = 0;
+	 for(i=0; i<n; i++)
+	 	log_P_W0 += log_w_mat(i, i);
+    NumericVector log_P_W(B); 
+    for(b=0; b<B; b++)
+	 	for(i=0; i<n; i++)
+    		log_P_W[b] += log_w_mat(i, Permutations(i,b));
+//  	double max_w = max(max(log_P_W), log_P_W0);
+
+
+	// New: compute coefficient of variation: 
+	double CV2 = var_rcpp(P_W_IS) / pow(mean_rcpp(P_W_IS), 2); 
 
 	NumericMatrix P(n, n);  // New!matrix with P[i] = j estimate
     for(b=0; b<B; b++)  // next, compute expectations P[i,j]
@@ -1377,6 +1399,14 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	ret["P"] = P;
 	ret["P.W.IS"] = P_W_IS;
 	ret["P.W.IS0"] = P_W_IS0;
+	ret["log.P.W"] = log_P_W;
+	ret["log.P.W0"] = log_P_W0;
+	ret["log.P.IS"] = log_P_IS;
+	ret["log.P.IS0"] = log_P_IS0;
+	ret["CV2"] = CV2;
+
+//	log.P.W=log.P.W, log.P.W0=log.P.W0, max.w=max.w, 
+//              log.P.IS=log.P.IS, log.P.IS0=log.P.IS0)
 	return(ret); // return list with also P
 }
 
