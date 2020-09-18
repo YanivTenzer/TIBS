@@ -169,8 +169,9 @@ PermutationsMCMC <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow 
   log.w.mat <- log(w.mat)
   for(b in c(1:prms$B))
     log.P.W[b] <- sum(log.w.mat[cbind(1:n, Permutations[,b])])
+  log.P.W0 <- sum(diag(log.w.mat)) # for the ID perm
   
-  return(list(Permutations=Permutations, P=P, log.P.W=log.P.W)) # New: return also P, a matrix with Pr(pi(i)=j)
+  return(list(Permutations=Permutations, P=P, log.P.W=log.P.W, log.P.W0=log.P.W0)) # New: return also P, a matrix with Pr(pi(i)=j)
 }
 
 ###################################################################################

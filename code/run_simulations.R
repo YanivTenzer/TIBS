@@ -75,13 +75,10 @@ prms.rho <- run.params.mat[,5]
 ### test.type<- c('permutations','bootstrap') #c( 'permutations','permutations_inverse_weighting',
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
-test.type <- c("uniform_importance_sampling_inverse_weighting")
-##test.type <- c( 'permutations',  'uniform_importance_sampling', 'match_importance_sampling', 
-##                'monotone_importance_sampling', 'monotone_importance_sampling_inverse_weighting') #  'uniform_importance_sampling') 
-# test.type <- c('match_importance_sampling', 'monotone_importance_sampling', 'monotone_importance_sampling_inverse_weighting') #  'uniform_importance_sampling') 
-# test.type <- c("bootstrap")
+test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling")
+# Official tests:
 #    test.type <- c('permutations',  'permutations_inverse_weighting', 'bootstrap', 'bootstrap_inverse_weighting',  'tsai', 
-#                   'monotone_importance_sampling', 'uniform_importance_sampling', 'match_importance_sampling', 'uniform_importance_sampling_inverse_weighting')
+#                   'monotone_importance_sampling', 'uniform_importance_sampling', 'match_importance_sampling', 'uniform_importance_sampling_inverse_weighting')  # official testing
 #c( 'permutations','permutations_inverse_weighting', # everything except minP2
 #  #'uniform_importance_sampling',
 #  'uniform_importance_sampling_inverse_weighting',
@@ -93,7 +90,7 @@ num.tests <- length(test.type)
 
 if(run.flag == 1)
 {
-  iterations = 10 # official: 500
+  iterations = 20 # official: 500
   B = 100 # official:  1000
   sample.size = 301 #  official:  100
   run.dep <- c(8) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
@@ -138,9 +135,6 @@ for(s in run.dep) # Run all on the farm
     # New: just create jobs strings 
     for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
       run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", prms)
-
-
-
   }
 } # end loop on dependency types
 
@@ -149,7 +143,7 @@ for(s in run.dep) # Run all on the farm
 if(isRStudio)  # plot results in interactive mode
 {
   test.legend <- paste(test.type, as.character(T.OUT$test.power))
-  col.vec <- c("blue", "black", "green", "orange", "gray", "pink", "yellow", "purple")
+  col.vec <- c("blue", "black", "green", "orange", "gray", "pink", "yellow", "purple", "cyan")
   i=1
   plot(T.OUT$test.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20, main='differences')
   for(i in 2:length(test.type))

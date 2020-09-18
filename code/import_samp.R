@@ -4,9 +4,10 @@
 #  multiply the weight function by a constant so the weights
 #  are in some sense centered at 1)
 #############################################################
-IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
-  #                       expectations.table=c(), counts.flag, test.type)
+IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)  #                       expectations.table=c(), counts.flag, test.type)
 {
+  col.vec <- c("blue", "black", "green", "orange", "red",  "gray", "pink", "yellow", "purple", "cyan")
+  
   n <- dim(data)[1]
   if(missing(grid.points) || isempty(grid.points))
     grid.points = data #  grid.points <- matrix(rnorm(2*n, 0, 1), n, 2) # TEMP DEBUG!!
@@ -15,20 +16,36 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   if(!('importance.sampling.dist' %in% names(prms))) # set default uniform distribution 
     prms$importance.sampling.dist <- "uniform"
   
-  Permutations <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations 
-  Permutations.MC <- PermutationsMCMC(w_fun_to_mat(data, w.fun), prms)   # debug for comparison 
   orig.IS.dist <- prms$importance.sampling.dist
+  Permutations <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations 
+  diagnostic.plot=1   # try all types of importance sampling
+  if(diagnostic.plot)
+  {
+    IS.methods <- c("match.w", "MCMC", "monotone.w")
+    num.IS <- length(IS.methods)
+    perm.IS <- c()
+    
+    for(i in c(1:num.IS))
+    {
+      if(IS.methods[i] == "MCMC")
+      {
+        perm.IS[[i]] <- PermutationsMCMC(w_fun_to_mat(data, w.fun), prms)   # debug for comparison 
+        
+      } else
+      {
+        prms$importance.sampling.dist <- IS.methods[i]
+        if(IS.methods[i] == "monotone.w")
+          prms$importance.sampling.decreasing <- TRUE
+        else
+          prms$importance.sampling.decreasing <- FALSE
+        perm.IS[[i]] <- PermutationsIS(w_fun_to_mat(data, w.fun), prms) 
+      }
+    }
+    
+  }
   
-  prms$importance.sampling.decreasing <- TRUE
-  Permutations.D <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations 
+  print("Finished permutations")
   
-  prms$importance.sampling.dist <- "uniform"
-  Permutations.U <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations   
-  
-  prms$importance.sampling.dist <- "match.w"
-  Permutations.MATCH <- PermutationsIS(w_fun_to_mat(data, w.fun), prms)  # sample permutations   
-  plot.flag=1   
-  #  inverse.weight = missing(expectations.table) || isempty(expectations.table) # default is using inverse weighting 
   inverse.weight = str_detect(test.type, "inverse_weight")
   if(inverse.weight)
     TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)$Statistic # no unique in grid-points 
@@ -36,122 +53,143 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   {
     # Compute expectations.table from permutations   
     expectations.table <- QuarterProbFromPermutations(data, Permutations$P, grid.points) #Permutations
-    expectations.U <- QuarterProbFromPermutations(data, Permutations.U$P, grid.points) #Permutations
-    expectations.D <- QuarterProbFromPermutations(data, Permutations.D$P, grid.points) #Permutations
-    expectations.MCMC <- QuarterProbFromPermutations(data, Permutations.MC$P, grid.points) #Permutations
-    expectations.MATCH <- QuarterProbFromPermutations(data, Permutations.MATCH$P, grid.points) #Permutations
-    if(plot.flag)
+    print("Finished expectations")
+    
+    if(diagnostic.plot)
     {
-    plot(expectations.MCMC, expectations.table, main=orig.IS.dist)
-    lines(sort(expectations.MCMC), sort(expectations.MCMC), col="red", lwd=2)
-    }    
-    expect.str <- "Expectations by Monotone.MATCH" # This choice affects pvalue greatly 
-    expectations.table <- expectations.MATCH # MCMC # TEMP FOR DEBUG! DOES MCMC GIVE GOOD EXPECTATIONS AND CHANGES PVALUE?
-    ###    print(sum((expectations.table-expectations.MCMC)^2))
+      expectations.IS <- c()
+      for(i in c(1:num.IS))
+        expectations.IS[[i]] <- QuarterProbFromPermutations(data, perm.IS[[i]]$P, grid.points) #Permutations
+      i.MCMC <- which(IS.methods=="MCMC")
+      plot(expectations.IS[[i.MCMC]], expectations.table, main=orig.IS.dist)
+      lines(sort(expectations.IS[[i.MCMC]]), sort(expectations.IS[[i.MCMC]]), col="red", lwd=2)
+    }
     TrueT <- ComputeStatistic(data, grid.points, expectations.table)$Statistic # no unique in grid-points !!
-  }
-  
+    
+  }    
+  #    expect.str <- "Expectations by Monotone.MATCH" # This choice affects pvalue greatly 
+  #    expectations.table <- expectations.MATCH # MCMC # TEMP FOR DEBUG! DOES MCMC GIVE GOOD EXPECTATIONS AND CHANGES PVALUE?
+  ###    print(sum((expectations.table-expectations.MCMC)^2))
+
+  print("Compute null stats now ")
   T.b <- matrix(0, prms$B, 1) # statistics under null 
-  T.b.U <- matrix(0, prms$B, 1)
-  T.b.D <- matrix(0, prms$B, 1)
-  T.b.MC <- matrix(0, prms$B, 1)
-  T.b.MATCH <- matrix(0, prms$B, 1)
+  # T.b.U <- matrix(0, prms$B, 1)
+  # T.b.D <- matrix(0, prms$B, 1)
+  # T.b.MC <- matrix(0, prms$B, 1)
+  # T.b.MATCH <- matrix(0, prms$B, 1)
   
   
+  T.b.IS <- zeros(num.IS, prms$B)
   for(b in 1:prms$B)
   {
+
     perm <- Permutations$Permutations[,b] # take sampled permutation sample(n)  # uniformly sampled permutation 
     if(inverse.weight)
     {
       expect.str <- "inverse_weight" # This choice affects pvalue greatly 
       T.b[b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), grid.points, w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
-      perm.U <- Permutations.U$Permutations[,b]
-      T.b.U[b] <- ComputeStatistic.W(cbind(data[,1], data[perm.U,2]), grid.points,  w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
-      perm.D <- Permutations.D$Permutations[,b]
-      T.b.D[b] <- ComputeStatistic.W(cbind(data[,1], data[perm.D,2]), grid.points,  w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
-      perm.MC <- Permutations.MC$Permutations[,b]
-      T.b.MC[b] <- ComputeStatistic.W(cbind(data[,1], data[perm.MC,2]), grid.points,  w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
-      perm.MATCH <- Permutations.MATCH$Permutations[,b]
-      T.b.MATCH[b] <- ComputeStatistic.W(cbind(data[,1], data[perm.MATCH,2]), grid.points,  w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
-      
-    }
-    else
+      if(diagnostic.plot)
+      {
+       
+        for(i in c(1:num.IS))
+        {
+          perm <- perm.IS[[i]]$Permutations[,b]
+          T.b.IS[i,b] <- ComputeStatistic.W(cbind(data[,1], data[perm,2]), grid.points, w.fun, prms$counts.flag)$Statistic # grid depends on permuted data
+        }
+        
+      }
+    } else
     {
+      expect.str <- paste0("Expectations by ", orig.IS.dist)
       T.b[b] <- ComputeStatistic(cbind(data[,1], data[perm,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-      perm.U <- Permutations.U$Permutations[,b]
-      T.b.U[b] <- ComputeStatistic(cbind(data[,1], data[perm.U,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-      perm.D <- Permutations.D$Permutations[,b]
-      T.b.D[b] <- ComputeStatistic(cbind(data[,1], data[perm.D,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-      perm.MC <- Permutations.MC$Permutations[,b]
-      T.b.MC[b] <- ComputeStatistic(cbind(data[,1], data[perm.MC,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
-      perm.MATCH <- Permutations.MATCH$Permutations[,b]
-      T.b.MATCH[b] <- ComputeStatistic(cbind(data[,1], data[perm.MATCH,2]), grid.points, expectations.table)$Statistic # grid depends on permuted data
+      if(diagnostic.plot)
+      {
+        for(i in c(1:num.IS))
+        {
+          perm <- perm.IS[[i]]$Permutations[,b]
+          T.b.IS[i,b] <- ComputeStatistic(cbind(data[,1], data[perm,2]), grid.points, expectations.table)$Statistic # here use the expectation table of original ! 
+        }
+      }
     }
-  }
-  
+  }  # end for on permutations
   CV2 = var(Permutations$P.W.IS) / mean(Permutations$P.W.IS)^2 # new: add Coefficient of variation for the importance weights for diagnostics
-  CV.D2 = var(Permutations.D$P.W.IS) / mean(Permutations.D$P.W.IS)^2 # new: add Coefficient of variation for the importance weights for diagnostics
-  CV.U2 = var(Permutations.U$P.W.IS) / mean(Permutations.U$P.W.IS)^2 # new: add Coefficient of variation for the importance weights for diagnostics
-  CV.W2 = var(Permutations$P.W.IS) / mean(Permutations$P.W.IS)^2 # new: add Coefficient of variation for the importance weights for diagnostics
-  CV.MC2 = 1 # var(Permutations.MC$P.W.IS) / mean(Permutations.MC$P.W.IS)^2 # new: add Coefficient of variation for the importance weights for diagnostics
-  CV.MATCH2 = var(Permutations.MATCH$P.W.IS) / mean(Permutations.MATCH$P.W.IS)^2 # new: add Coefficient of variation for the importance weights for diagnostics
-  
-
-  
-      
   Pvalue = (Permutations$P.W.IS0 + sum((T.b>=TrueT) * Permutations$P.W.IS)) / 
     (Permutations$P.W.IS0 + sum(Permutations$P.W.IS))  # New: give weight 1 to the identity permutation 
-  Pval.W = (Permutations$P.W.IS0 + sum((T.b>=TrueT) * Permutations$P.W.IS)) / 
-    (Permutations$P.W.IS0 + sum(Permutations$P.W.IS))  # New: give weight 1 to the identity permutation 
-  Pval.D = (Permutations.D$P.W.IS0 + sum((T.b.D>=TrueT) * Permutations.D$P.W.IS)) / 
-    (Permutations.D$P.W.IS0 + sum(Permutations.D$P.W.IS))  # New: give weight 1 to the identity permutation 
-  Pval.U = (Permutations.U$P.W.IS0 + sum((T.b.U>=TrueT) * Permutations.U$P.W.IS)) / 
-    (Permutations.U$P.W.IS0 + sum(Permutations.U$P.W.IS))  # New: give weight 1 to the identity permutation 
-  Pval.MC = (1 + sum((T.b.MC>=TrueT) )) / (B+1)  # New: give weight 1 to the identity permutation 
-  Pval.MATCH = (Permutations.MATCH$P.W.IS0 + sum((T.b.MATCH>=TrueT) * Permutations.MATCH$P.W.IS)) / 
-    (Permutations.MATCH$P.W.IS0 + sum(Permutations.MATCH$P.W.IS))  # New: give weight 1 to the identity permutation 
-  Pval.MATCH0 = (0*Permutations.MATCH$P.W.IS0 + sum((T.b.MATCH>=TrueT) * Permutations.MATCH$P.W.IS)) / 
-    (0*Permutations.MATCH$P.W.IS0 + sum(Permutations.MATCH$P.W.IS))  # New: give weight 1 to the identity permutation 
-  Pval.MATCH.no.weights = mean(T.b.MATCH>=TrueT)
   
-  legend.vec <- apply(rbind(c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'Match', 'True'), rep(" CV=", 6),
-                      round(c(CV2, CV.D2, CV.U2, CV.MC2, CV.MATCH2, 0), 3), rep(" Pval=", 6),
-                            round(c(Pval.W, Pval.D, Pval.U, Pval.MC, Pval.MATCH, 0), 3)), 2, paste0, collapse="")
-#  for(j in c(1:length(legend.vec)))
-#    legend.vec[j] <- c(legend.vec[j], ", pval=", pval.method[j], ", CV=", cv.method[j])
   
-  plot(Permutations.MATCH$log.P.W, Permutations.MATCH$log.P.IS)
-  points(Permutations.MATCH$log.P.W[T.b.MATCH>=TrueT], Permutations.MATCH$log.P.IS[T.b.MATCH>=TrueT], col="green")
-  points(Permutations.MATCH$log.P.W0, Permutations.MATCH$log.P.IS0, col="red", pch=19, cex=2 )
-  points(Permutations.MATCH$log.P.W[89], Permutations.MATCH$log.P.IS[89], col="blue")
-  
-  plot(Permutations.MATCH$log.P.W - Permutations.MATCH$log.P.IS)
-  points(which(T.b.MATCH>=TrueT), Permutations.MATCH$log.P.W[T.b.MATCH>=TrueT] - Permutations.MATCH$log.P.IS[T.b.MATCH>=TrueT], col="green")
-  points(Permutations.MATCH$log.P.W0 - Permutations.MATCH$log.P.IS0, col="red", pch=19, cex=2 )
-  
-  if(plot.flag)
+  if(diagnostic.plot)
   {
-    y.lim <- c(0, max(T.b, T.b.U, T.b.D, T.b.MC, T.b.MATCH, TrueT))
-    x.lim <- c(min(Permutations$log.P.W-Permutations$log.P.W0, Permutations.D$log.P.W-Permutations$log.P.W0, 
-                   Permutations.MATCH$log.P.W-Permutations$log.P.W0), 
-               max(Permutations$log.P.W-Permutations$log.P.W0, Permutations.U$log.P.W-Permutations$log.P.W0, 
-                   Permutations.MC$log.P.W-Permutations$log.P.W0, Permutations.MATCH$log.P.W-Permutations$log.P.W0))
+    CV.IS <- zeros(num.IS,1)
+    PVAL.IS <- zeros(num.IS,1)
     
-    plot(Permutations$log.P.W-Permutations.U$log.P.W0, T.b, 
+    for(i in c(1:num.IS))
+    {
+      if(IS.methods[i] == "MCMC")
+      {
+        CV.IS[i] = 1
+        PVAL.IS[i] = (1 + sum(T.b.IS[i,]>=TrueT) ) /  (1+prms$B)
+      } else
+      {
+        CV.IS[i] =  var(perm.IS[[i]]$P.W.IS) / mean(perm.IS[[i]]$P.W.IS)^2
+        print(paste0("Pval ", i))
+        PVAL.IS[i] = (perm.IS[[i]]$P.W.IS0 + sum((T.b.IS[i,]>=TrueT) * perm.IS[[i]]$P.W.IS)) / 
+          (perm.IS[[i]]$P.W.IS0 + sum(perm.IS[[i]]$P.W.IS))  # New: give weight 1 to the identity permutation 
+      }
+    }    
+    
+    legend.vec <- apply(rbind(c(orig.IS.dist, IS.methods, "True"), rep(" CV=", num.IS+2),
+                              round(c(CV2, CV.IS, 0), 3), rep(" Pval=", num.IS+2),
+                              round(c(PVAL.IS, 0), 3)), 2, paste0, collapse="")
+
+    plot(Permutations$log.P.W, Permutations$log.P.IS, col=col.vec[1])
+    for(i in c(1:num.IS))
+    {
+      points(perm.IS[[i]]$log.P.W[T.b.IS[i,]>=TrueT], perm.IS[[i]]$log.P.IS[T.b.IS[i,]>=TrueT], col=col.vec[i+1])
+    }      
+    
+    
+    #    legend.vec <- apply(rbind(c(orig.IS.dist, 'monotone.d', 'uniform', 'MCMC', 'Match', 'True'), rep(" CV=", 6),
+    #                        round(c(CV2, CV.D2, CV.U2, CV.MC2, CV.MATCH2, 0), 3), rep(" Pval=", 6),
+    #                            round(c(Pval.W, Pval.D, Pval.U, Pval.MC, Pval.MATCH, 0), 3)), 2, paste0, collapse="")
+    #  for(j in c(1:length(legend.vec)))
+    #    legend.vec[j] <- c(legend.vec[j], ", pval=", pval.method[j], ", CV=", cv.method[j])
+    
+    #    plot(Permutations.MATCH$log.P.W, Permutations.MATCH$log.P.IS)
+    #    points(Permutations.MATCH$log.P.W[T.b.MATCH>=TrueT], Permutations.MATCH$log.P.IS[T.b.MATCH>=TrueT], col="green")
+    #    points(Permutations.MATCH$log.P.W0, Permutations.MATCH$log.P.IS0, col="red", pch=19, cex=2 )
+    #    points(Permutations.MATCH$log.P.W[89], Permutations.MATCH$log.P.IS[89], col="blue")
+    #  
+    #    plot(Permutations.MATCH$log.P.W - Permutations.MATCH$log.P.IS)
+    #    points(which(T.b.MATCH>=TrueT), Permutations.MATCH$log.P.W[T.b.MATCH>=TrueT] - Permutations.MATCH$log.P.IS[T.b.MATCH>=TrueT], col="green")
+    #    points(Permutations.MATCH$log.P.W0 - Permutations.MATCH$log.P.IS0, col="red", pch=19, cex=2 )
+
+    y.lim <- c(0, max(max(T.b), max(T.b.IS))) # , T.b.U, T.b.D, T.b.MC, T.b.MATCH, TrueT))
+    x.lim <- range(Permutations$log.P.W-Permutations$log.P.W0)
+    for(i in c(1:num.IS))
+    {
+      x.lim[1] <- min(x.lim[1],  min(perm.IS[[i]]$log.P.W-perm.IS[[i]]$log.P.W0))      
+      x.lim[2] <- max(x.lim[2],  max(perm.IS[[i]]$log.P.W-perm.IS[[i]]$log.P.W0))      
+    }
+    #    points(Permutations.MATCH$log.P.W0 - Permutations.MATCH$log.P.IS0, col="red", pch=19, cex=2 )
+
+    
+    #    x.lim <- c(min(Permutations$log.P.W-Permutations$log.P.W0, Permutations.D$log.P.W-Permutations$log.P.W0, 
+    #                   Permutations.MATCH$log.P.W-Permutations$log.P.W0), 
+    #               max(Permutations$log.P.W-Permutations$log.P.W0, Permutations.U$log.P.W-Permutations$log.P.W0, 
+    #                   Permutations.MC$log.P.W-Permutations$log.P.W0, Permutations.MATCH$log.P.W-Permutations$log.P.W0))
+    #    
+    plot(Permutations$log.P.W-Permutations$log.P.W0, T.b, col=col.vec[1], 
          xlim = x.lim, ylim = y.lim, main=expect.str, ylab="Statistic") # with/without inverse weighting stat 
-    points(Permutations.D$log.P.W-Permutations.D$log.P.W0, T.b.D, col="green") 
-    points(Permutations.U$log.P.W-Permutations.U$log.P.W0, T.b.U, col="blue") 
-    points(Permutations.MC$log.P.W-Permutations$log.P.W0, T.b.MC, col="orange") 
-    points(Permutations.MATCH$log.P.W-Permutations$log.P.W0, T.b.MATCH, col="pink") 
-    points(0, TrueT, col="red", pch=19, cex=2)
-      
+    for(i in c(1:num.IS))
+      points(perm.IS[[i]]$log.P.W-perm.IS[[i]]$log.P.W0, T.b.IS[i,], col=col.vec[i+1]) 
+    points(0, TrueT, col=col.vec[num.IS+2], pch=19, cex=2 ) # plot true point 
     
-    legend(-10, y.lim[2], legend=legend.vec, col=c('black', 'green', 'blue', 'orange', 'pink', 'red'), lwd=c(2,2,2,2,2), cex=0.6)
-  }
+    legend(-10, y.lim[2], legend=legend.vec, col=col.vec[1:(num.IS+2)] , lwd=rep(2, num.IS+2), cex=0.6)
+  } # if diagnostic plots 
   xxx = 132
   
   return(list(Pvalue= Pvalue, TrueT=TrueT, CV2=CV2, statistics.under.null=T.b, permuted.data = cbind(data[,1], data[Permutations$Permutations[,1],2])))
-}
+} 
 
 
 # New: Importance sampling for permutations
@@ -168,6 +206,9 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
     prms$importance.sampling.dist <- "uniform"
   Permutations = matrix(0, n, prms$B)
   log.w.mat <- log(w.mat)
+  
+  
+  print(paste0("Sample IS Dist: ", prms$importance.sampling.dist))
   
   switch(prms$importance.sampling.dist,
          'uniform'={
@@ -215,7 +256,7 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
            w.order <- order(  rowVars(log(w.mat)), decreasing=TRUE  )  # order by variance: first set as high the ones with high variance!! 
            log.w.sum.id.vec <- cumsum(diag(log.w.mat)[w.order]) # we want to get this sum 
            log.P.IS <- zeros(prms$B, 1)
-#           P.IS0 <- -sum(log(1:n)) # temp, use uniform distribution 
+           #           P.IS0 <- -sum(log(1:n)) # temp, use uniform distribution 
            sigma <- 2 # choose width of Gaussian for importance sampling. Can change to be preplexity
            preplex <- 8 #  effective number of possible choices at each step (not implemented yet)
            log.P.IS0 <- 0
