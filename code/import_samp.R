@@ -21,9 +21,10 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   diagnostic.plot=1   # try all types of importance sampling
   if(diagnostic.plot)
   {
-    IS.methods <- c("match.w", "MCMC", "monotone.w")
+    IS.methods <- c("match.w", "MCMC", "monotone.w", "sqrt.w")
     num.IS <- length(IS.methods)
     perm.IS <- c()
+    T.b.IS <- zeros(num.IS, prms$B)
     
     for(i in c(1:num.IS))
     {
@@ -35,7 +36,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
       {
         prms$importance.sampling.dist <- IS.methods[i]
         if(IS.methods[i] == "monotone.w")
-          prms$importance.sampling.decreasing <- TRUE
+          prms$importance.sampling.decreasing <- FALSE
         else
           prms$importance.sampling.decreasing <- FALSE
         perm.IS[[i]] <- PermutationsIS(w_fun_to_mat(data, w.fun), prms) 
@@ -43,9 +44,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
     }
     
   }
-  
-  print("Finished permutations")
-  
+
   inverse.weight = str_detect(test.type, "inverse_weight")
   if(inverse.weight)
     TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)$Statistic # no unique in grid-points 
@@ -53,8 +52,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   {
     # Compute expectations.table from permutations   
     expectations.table <- QuarterProbFromPermutations(data, Permutations$P, grid.points) #Permutations
-    print("Finished expectations")
-    
+
     if(diagnostic.plot)
     {
       expectations.IS <- c()
@@ -71,7 +69,6 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   #    expectations.table <- expectations.MATCH # MCMC # TEMP FOR DEBUG! DOES MCMC GIVE GOOD EXPECTATIONS AND CHANGES PVALUE?
   ###    print(sum((expectations.table-expectations.MCMC)^2))
 
-  print("Compute null stats now ")
   T.b <- matrix(0, prms$B, 1) # statistics under null 
   # T.b.U <- matrix(0, prms$B, 1)
   # T.b.D <- matrix(0, prms$B, 1)
@@ -79,7 +76,6 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
   # T.b.MATCH <- matrix(0, prms$B, 1)
   
   
-  T.b.IS <- zeros(num.IS, prms$B)
   for(b in 1:prms$B)
   {
 
@@ -137,9 +133,9 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
       }
     }    
     
-    legend.vec <- apply(rbind(c(orig.IS.dist, IS.methods, "True"), rep(" CV=", num.IS+2),
-                              round(c(CV2, CV.IS, 0), 3), rep(" Pval=", num.IS+2),
-                              round(c(PVAL.IS, 0), 3)), 2, paste0, collapse="")
+    legend.vec <- apply(rbind(c(orig.IS.dist, IS.methods, "True"), c(rep(" CV=", num.IS+1), ""),
+                              c(round(c(CV2, CV.IS), 3), ""), c(rep(" Pval=", num.IS+1), ""),
+                              c(round(c(Pvalue, PVAL.IS), 3), "")), 2, paste0, collapse="")
 
     plot(Permutations$log.P.W, Permutations$log.P.IS, col=col.vec[1])
     for(i in c(1:num.IS))
@@ -186,8 +182,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.type)
     
     legend(-10, y.lim[2], legend=legend.vec, col=col.vec[1:(num.IS+2)] , lwd=rep(2, num.IS+2), cex=0.6)
   } # if diagnostic plots 
-  xxx = 132
-  
+
   return(list(Pvalue= Pvalue, TrueT=TrueT, CV2=CV2, statistics.under.null=T.b, permuted.data = cbind(data[,1], data[Permutations$Permutations[,1],2])))
 } 
 
@@ -208,7 +203,7 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
   log.w.mat <- log(w.mat)
   
   
-  print(paste0("Sample IS Dist: ", prms$importance.sampling.dist))
+#  print(paste0("Sample IS Dist: ", prms$importance.sampling.dist))
   
   switch(prms$importance.sampling.dist,
          'uniform'={
@@ -270,7 +265,6 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
              log.P.IS0 <- log.P.IS0 + log(weights[w.order[j]])
              log.w.sum.rand <- log.w.sum.rand + log.w.mat[w.order[j], w.order[j]]
            }
-           
            for(b in 1:prms$B)  # sample permutations 
            {
              log.w.sum.rand <- 0
@@ -291,7 +285,56 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
              ###              print(paste0("P_W=", sum(log.w.mat[cbind(1:n, Permutations[,b])])))
              
            }     
+         }, 
+         "sqrt.w"={
+           log.P.IS <- zeros(prms$B, 1)
+           log.P.IS0 <- 0
+#           tmp.w.mat <- w.mat
+           w.col.sums <- colSums(w.mat)
+           for(j in 1:n)
+           {
+             weights <- w.mat[j,]
+             if(j>1)
+               weights[1:(j-1)] <- 0  
+             
+             weights[j:n] <- weights[j:n] / sqrt(sum(weights[j:n]))
+             weights[j:n] <- weights[j:n] / sqrt( w.col.sums[j:n]  )
+             weights <- weights / sum(weights)
+             
+             
+             log.P.IS0 <- log.P.IS0 + log(weights[j]) # Need to update also P_IS here                       
+             print(paste0("j=", j, " log-weight=", log(weights[j]), " log.p=", log.P.IS0))
+             w.col.sums <- pmax(0, w.col.sums - w.mat[j,])
+             w.col.sums[j] <- 0
+           }
            
+           for(b in 1:prms$B)  # sample permutations 
+           {
+ #            tmp.w.mat <- w.mat
+             w.col.sums <- colSums(w.mat)
+             for(j in 1:n)
+             {
+               weights <- w.mat[j,]
+               if(j>1)
+                 weights[Permutations[1:(j-1),b]] <- 0  
+               
+               weights[Permutations[j:n,b]] <- weights[Permutations[j:n,b]] / sqrt(sum(weights[Permutations[j:n,b]]))
+               weights[Permutations[j:n,b]] <- weights[Permutations[j:n,b]] / sqrt( w.col.sums[Permutations[j:n,b]]  )
+               
+#               0.5 * log ( sum(exp(weights))) - 0.5 * log(colSums(tmp.w.mat))  # row correction (not needed)              # multiply by column relative weights. Need to update also the zeros in the column !
+               weights <- weights / sum(weights)
+               
+#               print(paste0("j=", j, " min-col-sums: ", min(colSums(tmp.w.mat))))
+               Permutations[j,b] = sample(n, 1, prob = weights)
+               log.P.IS[b] <- log.P.IS[b] + log(weights[Permutations[j,b]]) # Need to update also P_IS here                       
+               
+               w.col.sums <- pmax(0, w.col.sums - w.mat[j,])
+               w.col.sums[Permutations[j,b]] <- 0
+               
+#               tmp.w.mat[j,] <- 0
+#               tmp.w.mat[, Permutations[j,b]] <- 0
+             }
+           }
            
          }
   ) # end switch on importance sampling distribution 

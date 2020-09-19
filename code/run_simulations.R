@@ -75,7 +75,7 @@ prms.rho <- run.params.mat[,5]
 ### test.type<- c('permutations','bootstrap') #c( 'permutations','permutations_inverse_weighting',
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
-test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling")
+test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling", 'match_importance_sampling', 'monotone_importance_sampling')
 # Official tests:
 #    test.type <- c('permutations',  'permutations_inverse_weighting', 'bootstrap', 'bootstrap_inverse_weighting',  'tsai', 
 #                   'monotone_importance_sampling', 'uniform_importance_sampling', 'match_importance_sampling', 'uniform_importance_sampling_inverse_weighting')  # official testing
@@ -90,7 +90,7 @@ num.tests <- length(test.type)
 
 if(run.flag == 1)
 {
-  iterations = 20 # official: 500
+  iterations = 200 # official: 500
   B = 100 # official:  1000
   sample.size = 301 #  official:  100
   run.dep <- c(8) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
