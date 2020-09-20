@@ -477,8 +477,8 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
   
   for(b in 1:prms$B)  # next, compute expectations P[i,j]
     P[cbind(1:n, Permutations[,b])] =  P[cbind(1:n, Permutations[,b])] + P.W.IS[b] 
-  P[cbind(1:n, 1:n)] <- P[cbind(1:n, 1:n)] + prms$include.ID*P.W.IS0 # new: add contribution from identity
-  P <- P / (prms$include.ID*P.W.IS0 + sum(P.W.IS)) # normalize P    
+  P[cbind(1:n, 1:n)] <- P[cbind(1:n, 1:n)] + min(1, prms$include.ID)*P.W.IS0 # new: add contribution from identity
+  P <- P / (min(1, prms$include.ID)*P.W.IS0 + sum(P.W.IS)) # normalize P    
   
   #    print(P[1:5,1:5])
   

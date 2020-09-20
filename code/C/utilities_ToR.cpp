@@ -1230,6 +1230,10 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	string importance_sampling_dist = "KouMcculough.w"; // set default (applicable also for truncation)
     if(prms.containsElementNamed("importance.sampling.dist"))  // set default uniform distribution 
       importance_sampling_dist = as<string>(prms["importance.sampling.dist"]);
+	double include_ID = 1.0; 
+	if (prms.containsElementNamed("include.ID"))
+		include_ID = prms["include.ID"];
+
 
 	NumericMatrix Permutations(n, long(B));
 
@@ -1515,8 +1519,11 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	NumericMatrix P(n, n);  // New!matrix with P[i] = j estimate
     for(b=0; b<B; b++)  // next, compute expectations P[i,j]
 		for(i=0; i<n; i++)
-			P(i, Permutations(i,b)) += P_W_IS[b];		
-    P = P * (0*P_W_IS0 + 1.0/sum(P_W_IS)); // normalize   (ignore contribution from the identity permuation)
+			P(i, Permutations(i,b)) += P_W_IS[b];	
+	include_ID = fmin(1, include_ID); // here add just one times P_W_IS0			
+	for(i=0; i<n; i++)
+		P(i, i) += include_ID*P_W_IS[b]; // add ID permutation contribution	
+    P = P * (1.0/(include_ID*P_W_IS0 + sum(P_W_IS))); // normalize   (ignore contribution from the identity permuation)
 
 	NumericVector P_sum = rowSums(P);
 
@@ -1618,8 +1625,11 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 			Tb[b] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
 	}
 
-	double Pvalue = P_W_IS0 * include_ID; //1; // P_W_IS0;  weight identity permutation by 1 
-	double NormalizingFactor = P_W_IS0 * include_ID; // 1; // P_W_IS0;
+	double ID_correction = P_W_IS0 * include_ID ;
+	if(include_ID == 2)  // take maximum of P_W/P_IS over sampled permtuations (should be 1 if Z is known)
+		ID_correction = max(P_W_IS);
+	double Pvalue = ID_correction; // P_W_IS0 * include_ID; //1; // P_W_IS0;  weight identity permutation by 1 
+	double NormalizingFactor = ID_correction; // P_W_IS0 * include_ID; // 1; // P_W_IS0;
 	for(b=0; b<B; b++)
 	{
 		Pvalue += (Tb[b]>=TrueT) * P_W_IS[b];	
