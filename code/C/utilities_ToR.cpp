@@ -1591,7 +1591,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	NumericMatrix expectations_table(grid_points.nrow(), 4);
 
 	double TrueT; // = ComputeStatistic_w_rcpp(data, data, w_fun); 
-	long j, b;
+	long i, j, b;
 	NumericVector pw(B); 
 	NumericVector Tb(B); 
 	IntegerVector perm(n);
@@ -1601,19 +1601,16 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 		grid_points = data;
 
 	long inverse_weight = !(test_stat.find("inverse") == string::npos);
-	Rcout << "Start IS Permute Inverse Weight: " << inverse_weight << " stat:" << test_stat << " Dim(Exp-Table)=" << expectations_table.nrow() << ", " << expectations_table.ncol() << endl; 
   	if(inverse_weight)
     	TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); // weights. no unique in grid-points 
 	else
 	{
-		NumericMatrix expectations_table =  QuarterProbFromPermutations_rcpp(data, P, grid_points); 
+		expectations_table =  QuarterProbFromPermutations_rcpp(data, P, grid_points); 
     	TrueT = ComputeStatistic_rcpp(data, grid_points, expectations_table); // no weights
 	}
-
 	for (b = 0; b < B; b++) 
 	{
 		perm = Permutations(_,b); //		perm = rand_perm(n);  // get a random permutation from the uniform disitribution
-
 		permuted_data(_, 0) = data(_, 0);
 		for (j = 0; j < n; j++)
 			permuted_data(j, 1) = data(perm[j], 1); // permute data 

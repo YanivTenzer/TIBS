@@ -77,7 +77,7 @@ prms.rho <- run.params.mat[,5]
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
 
-test.stat <- c("inverse_w_hoeffding") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
+test.stat <- c("adjusted_w_hoeffding") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
 test.method <- c("permutationsMCMC", "permutationsIS") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
 # IS.methods <- c("uniform", "match.w", "monotone.w", "sqrt.w", "KouMcculough.w")  # different methods for importance sampling of permutations
 IS.methods <- c("uniform", "match.w", "monotone.w", "monotone.grid.w")  # different methods for importance sampling of permutations
@@ -129,7 +129,7 @@ for(s in run.dep) # Run all on the farm
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
-                IS.methods=IS.methods, include.ID=2) # , sample.by.bootstrap=1) # set running parameters here ! 
+                IS.methods=IS.methods, include.ID=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
