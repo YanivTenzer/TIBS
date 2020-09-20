@@ -1219,6 +1219,7 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 // [[Rcpp::export]]
 List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle = NA)  # New: allow non - default burn - in
 {
+	double epsilon = 0.0000000000001;
 	long n = w_mat.nrow();
 	long i, j, k, b;
 
@@ -1226,7 +1227,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	long B = 1000;
 	if (prms.containsElementNamed("B")) //   ('B' % in % names(prms)))
 		B = prms["B"];
-	string importance_sampling_dist = "uniform";
+	string importance_sampling_dist = "KouMcculough.w"; // set default (applicable also for truncation)
     if(prms.containsElementNamed("importance.sampling.dist"))  // set default uniform distribution 
       importance_sampling_dist = as<string>(prms["importance.sampling.dist"]);
 
@@ -1263,8 +1264,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 			weights = w_mat(w_order[j],_);
 			for(k=0; k<j; k++)
                 weights[w_order[k]] = 0.0;     
-//			weights = weights * (1.0/sum(weights)); // normalize
-			log_P_IS0 += log(weights[w_order[j]] / sum(weights) );
+			log_P_IS0 += log(weights[w_order[j]] / sum(weights) ); // take normalized weight
 		}
 		for(b=0; b<B; b++)
 		{
@@ -1284,6 +1284,148 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 			}
 		}
 	}
+	if(importance_sampling_dist == "monotone.grid.w") // grid sort values by average of w
+	{
+		NumericVector w_mat_row_sums = rowSums(w_mat); 
+		IntegerVector w_order = sort_indexes_rcpp(w_mat_row_sums);	// sort in increasing order! (i.e. start with the small ones)
+
+		NumericVector weights(n), weights_cdf(n);
+		long num_grid_points = B/10;
+		long num_points_per_grid = 10;
+		NumericVector grid_vec(num_grid_points);
+		for(long g=0; g<num_grid_points; g++)
+			grid_vec[g] = g/(num_grid_points+1);
+
+		NumericMatrix w_mat_pow = w_mat;
+
+		for(long g=0; g<num_grid_points; g++)
+		{
+			for(i=0; i<n; i++)
+				for(j=0; j<n; j++)
+					w_mat_pow(i, j) = pow(w_mat(i, j), grid_vec[g]);
+			for(j=0; j<n; j++)
+			{				
+				weights = w_mat_pow(w_order[j],_);
+				for(k=0; k<j; k++)
+                	weights[w_order[k]] = 0.0;     
+				log_P_IS0 += log(weights[w_order[j]] / sum(weights) ); // take normalized weight
+			}
+			for(b=g*num_points_per_grid; b<(g+1)*num_points_per_grid; b++) // change indices 
+			{
+				for(j=0; j<n; j++)
+				{
+					weights = w_mat_pow(w_order[j],_);
+					for(k=0; k<j; k++)
+                  	 weights[Permutations(w_order[k], b)] = 0.0;     
+					weights = weights * (1.0/sum(weights)); // normalize
+					weights_cdf[0] = weights[0]; // compute cumsum
+					for(k=1; k<n; k++)
+						weights_cdf[k] = weights_cdf[k-1] + weights[k]; 	
+					Permutations(w_order[j],b) = weighted_rand_rcpp(1, weights_cdf)[0]; // IS this fucked up? 
+					if(weights[Permutations(w_order[j],b)] == 0)
+						Rcout << "Error! Chose Perm with PRob=0 !!! " << "Weights: " << weights_cdf << " ind: " << Permutations(w_order[j],b) << endl; 
+					log_P_IS[b] += log(weights[Permutations(w_order[j],b)]); // Need to update also log_P_IS here
+				}
+			}
+		}
+		log_P_IS0 /= num_grid_points;
+
+
+	}
+
+	if(importance_sampling_dist == "sqrt.w") // new: sample proportional to w(i,j) / (w(i,+)*w(+,j)) 
+	{
+		NumericVector weights(n), weights_cdf(n);;
+		NumericVector w_mat_col_sums = colSums(w_mat); 
+		for(j=0; j<n; j++)
+        {
+            weights = w_mat(j,_);
+            for(i=0; i<j; i++)
+				weights[i] = 0.0;  // set to zero       
+			for(i=j; i<n; i++)
+			{
+	             weights[i] /= sqrt(sum(weights));
+    	         weights[i] /= sqrt( w_mat_col_sums[i]  );
+			}
+            weights = weights / sum(weights);
+            log_P_IS0 += log(weights[j]); // Need to update also P_IS here                       
+            w_mat_col_sums = w_mat_col_sums - w_mat(j,_);
+			for(i=0; i<n; i++)
+				w_mat_col_sums[i] = fmax(0.0, w_mat_col_sums[i]); 
+             w_mat_col_sums[j] = 0;
+        }
+		for(b=0; b<B; b++)  // sample permutations 
+        {
+            w_mat_col_sums = colSums(w_mat);
+            for(j=0; j<n; j++)
+            {
+               	weights = w_mat(j,_);
+			   	for(i=0; i<j; i++)
+                 weights[Permutations(i,b)] = 0;  
+				for(i=j; i<n; i++)
+				{               
+	               weights[Permutations(i,b)] /= sqrt(sum(weights));
+	               weights[Permutations(i,b)] /= sqrt( w_mat_col_sums[Permutations(i,b)] );
+				}
+               	weights = weights / sum(weights); // normalize
+               	weights_cdf[0] = weights[0]; // compute cumsum
+			   	for(k=1; k<n; k++)
+			   		weights_cdf[k] = weights_cdf[k-1] + weights[k]; 	
+				Permutations(j,b) = weighted_rand_rcpp(1, weights_cdf)[0]; 
+              	log_P_IS[b] += log(weights[Permutations(j,b)]); // Need to update also P_IS here                       
+               
+			   	w_mat_col_sums = w_mat_col_sums - w_mat(j,_);
+			   	for(i=0; i<n; i++)
+				   w_mat_col_sums[i] = fmax(0.0, w_mat_col_sums[i]); 
+               	w_mat_col_sums[Permutations(j,b)] = 0;
+            }
+        }
+	}
+
+	if(importance_sampling_dist == "KouMcculough.w") // new: sample proportional to w(i,j) / (w(+,j)-w(i,j)) 
+	{
+		NumericVector weights(n), weights_cdf(n);;
+		NumericVector w_mat_col_sums = colSums(w_mat); 
+		for(j=0; j<n; j++)
+        {
+            weights = w_mat(j,_);
+            for(i=0; i<j; i++)
+				weights[i] = 0.0;  // set to zero       
+			for(i=j; i<n; i++)
+				weights[i] /=  fmax(epsilon, w_mat_col_sums[i] -weights[i]);
+            weights = weights / sum(weights);
+            log_P_IS0 += log(weights[j]); // Need to update also P_IS here                       
+            w_mat_col_sums = w_mat_col_sums - w_mat(j,_);
+			for(i=0; i<n; i++)
+				w_mat_col_sums[i] = fmax(0.0, w_mat_col_sums[i]); 
+             w_mat_col_sums[j] = 0;
+        }
+		for(b=0; b<B; b++)  // sample permutations 
+        {
+            w_mat_col_sums = colSums(w_mat);
+            for(j=0; j<n; j++)
+            {
+               	weights = w_mat(j,_);
+			   	for(i=0; i<j; i++)
+                 weights[Permutations(i,b)] = 0;  
+				for(i=j; i<n; i++)
+				   weights[Permutations(i,b)] /= fmax(epsilon, w_mat_col_sums[i] -weights[Permutations(i,b)]);             
+               	weights = weights / sum(weights); // normalize
+               	weights_cdf[0] = weights[0]; // compute cumsum
+			   	for(k=1; k<n; k++)
+			   		weights_cdf[k] = weights_cdf[k-1] + weights[k]; 	
+				Permutations(j,b) = weighted_rand_rcpp(1, weights_cdf)[0]; 
+              	log_P_IS[b] += log(weights[Permutations(j,b)]); // Need to update also P_IS here                       
+               
+			   	w_mat_col_sums = w_mat_col_sums - w_mat(j,_);
+			   	for(i=0; i<n; i++)
+				   w_mat_col_sums[i] = fmax(0.0, w_mat_col_sums[i]); 
+               	w_mat_col_sums[Permutations(j,b)] = 0;
+            }
+        }
+	}
+
+
 
 	if(importance_sampling_dist == "match.w") // new: try to match P_W of the original permutation 
 	{
@@ -1420,13 +1562,19 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 #############################################################
 **/
 // [[Rcpp::export]]
-List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun, List prms, string test_type) // NumericMatrix expectations_table, long counts_flag) 
+List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun, List prms, string test_stat) // NumericMatrix expectations_table, long counts_flag) 
 {
 	long  n = data.nrow();
 	long B = prms["B"];
 	long counts_flag = TRUE; 
 	if (prms.containsElementNamed("counts.flag"))
 		counts_flag = prms["counts.flag"];
+	long include_ID = 1; 
+	if (prms.containsElementNamed("include.ID"))
+		include_ID = prms["include.ID"];
+	string importance_sampling_dist = "KouMcculough.w";
+	if (prms.containsElementNamed("importance.sampling.dist"))
+		importance_sampling_dist = as<string>(prms["importance.sampling.dist"]);
 
 	List PermutationsList = PermutationsIS_rcpp(w_fun_to_mat_rcpp(data, w_fun), prms); //  sample permutations 	
 	NumericMatrix Permutations = as<NumericMatrix>(PermutationsList["Permutations"]);	
@@ -1445,7 +1593,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	if(grid_points.ncol() == 1) // no input grid
 		grid_points = data;
 
-	long inverse_weight = test_type.find("inverse_weight");
+	long inverse_weight = test_stat.find("inverse");
 //	Rcout << "Start IS Permute Inverse Weight: " << inverse_weight << " Dim(Exp-Table)=" << expectations_table.nrow() << ", " << expectations_table.ncol() << endl; 
   	if(inverse_weight)
     	TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); // weights. no unique in grid-points 
@@ -1467,8 +1615,8 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 			Tb[b] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table); // grid depends on permuted data. Compute weighted statistic! 
 	}
 
-	double Pvalue = P_W_IS0; //1; // P_W_IS0;  weight identity permutation by 1 
-	double NormalizingFactor = P_W_IS0; // 1; // P_W_IS0;
+	double Pvalue = P_W_IS0 * include_ID; //1; // P_W_IS0;  weight identity permutation by 1 
+	double NormalizingFactor = P_W_IS0 * include_ID; // 1; // P_W_IS0;
 	for(b=0; b<B; b++)
 	{
 		Pvalue += (Tb[b]>=TrueT) * P_W_IS[b];	
@@ -1725,16 +1873,31 @@ List TIBS_steps_rcpp(NumericMatrix data, string w_fun, NumericMatrix w_mat,
 # statistics_under_null - vector of statistics under the null
 ########################################################################
 **/
+// TIBS <- function(data, w.fun, prms, test.method, test.stat)
+
 // [[Rcpp::export]]
-List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
+List TIBS_rcpp(NumericMatrix data, string w_fun, List prms, string test_method, string test_stat)
 {
 	double epsilon = 0.00000000001;
 	long ctr;
-	double TrueT, NullT;
+	double TrueT; // , NullT;
 	List output; // contains all output information we need 
 //	Rcout << "Start TIBS " << endl; 
 
+
+
+
 	// Set defaults
+
+  	if((test_method == "tsai") || (test_method == "minP2"))
+    	test_stat = test_method; 
+  	if((test_stat == "tsai") || (test_stat == "minP2"))
+    	test_method = test_stat;   
+  	if( (test_stat==""))  // default test statistic
+    	test_stat = "adjusted_w_hoeffding";
+  	if(test_method=="")  // new: a flag for method for assigning p-value (and statistic) 
+    	test_method = "permutations";
+
 	long fast_bootstrap = FALSE;
 	if (prms.containsElementNamed("fast.bootstrap"))
 		fast_bootstrap = prms["fast.bootstrap"];
@@ -1755,6 +1918,9 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 	long counts_flag = TRUE; // use counts and not probabilities in inverse-weighting chi-square statsitic (default: TRUE)
 	if (prms.containsElementNamed("counts.flag"))
 		counts_flag = prms["counts.flag"];
+	long include_ID = 1;
+	if (prms.containsElementNamed("include.ID"))
+		include_ID = prms["include.ID"];
 
 
 //	if (!prms.containsElementNamed("delta"))
@@ -1801,6 +1967,7 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 
 //	Rcout << "Set TIBS grid points " << endl; 
 	// no switch (test_type) for strings in cpp
+	/**
 	if(test_type == "bootstrap_inverse_weighting") 
 	{
 		TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); //  compute true statistic before data is sorted 
@@ -1828,15 +1995,24 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		}
 		output["TrueT"] = TrueT;
 		output["statistics.under.null"] = statistics_under_null;
-	}
+	}  **/
 
-	if(test_type == "bootstrap") 
+	if(test_method == "bootstrap") 
 	{
+		
 		NumericMatrix w_mat(1, 1);
 		NumericMatrix expectations_table(1, 1);
-  
+
 		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
-		TrueT = TrueTList["Statistic"];
+		if(test_stat == "adjusted_w_hoeffding")
+		{
+			TrueT = TrueTList["Statistic"];
+		}
+		if(test_stat == "inverse_w_hoeffding")
+		{
+			TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); //  compute true statistic before data is sorted 
+			List marginals = EstimateMarginals_rcpp(data, w_fun);		
+		}
 //		NumericMatrix true_expectations_table = TrueTList["expectations_table"];
 
 	    // sort data: :
@@ -1844,7 +2020,6 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
     	data(_, 0) = data_temp.sort(); //  marginals["CDFs"];
     	data_temp = data(_, 1);
     	data(_, 1) = data_temp.sort(); //  marginals["CDFs"];        
-//		Rcout << "Computed TrueT TIBS RCPP Bootstrap" << endl;
     // Run tibs again
 		TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
 		List marginals = TrueTList["marginals"]; // marginals for true data (true data needs to be sorted for this)
@@ -1881,51 +2056,42 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		
 		for (ctr = 0; ctr < B; ctr++) // heavy loop : run on bootstrap
 			{
-//				Rcout << "Run Bootstrap B = " << ctr << endl;
-
-				// statistics_under_null[ctr] = TIBS_steps_rcpp(bootstrap_sample, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
-	////			if(ctr==0) // TEMP DEBUG CRUSH !!! 
-					bootstrap_sample = Bootstrap_rcpp(xy_sorted, CDFs_sorted /*marginals["CDFs"]*/, w_mat , prms, n); // draw new sample. Problem: which pdf and data ?
-				if (!fast_bootstrap) // re - estimate marginals for null expectation for each bootstrap sample
+				if(test_stat == "adjusted_w_hoeffding") // statistics_under_null[ctr] = TIBS_steps_rcpp(bootstrap_sample, w_fun, w_mat, grid_points, expectations_table, prms); // replace multiple steps by one function
 				{
-				  if (!new_bootstrap)
+					bootstrap_sample = Bootstrap_rcpp(xy_sorted, CDFs_sorted /*marginals["CDFs"]*/, w_mat , prms, n); // draw new sample. Problem: which pdf and data ?
+					if (!fast_bootstrap) // re - estimate marginals for null expectation for each bootstrap sample
 					{
-				    List NullT = TIBS_steps_rcpp(bootstrap_sample["sample"], w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
-				    List NullT_marginals = NullT["marginals"];
-						statistics_under_null[ctr] = NullT["Statistic"];
-					} else
-					{
-//						Rcout << "Organize Marginals B = " << ctr << endl;  
-						marginals_bootstrap_new = BootstrapOrganize_rcpp(marginals_sorted, bootstrap_sample, w_fun, prms); // here marginals AREN'T SORTED !!! 
-//						Rcout << "Get Null Distribution B = " << ctr << " xy : PDFs : CDFs " << endl;
+				  		if (!new_bootstrap)
+						{
+				    		List NullT = TIBS_steps_rcpp(bootstrap_sample["sample"], w_fun, NumericMatrix(1, 1), grid_points, NumericMatrix(1, 1), prms);
+				    		List NullT_marginals = NullT["marginals"];
+							statistics_under_null[ctr] = NullT["Statistic"];
+						} else
+						{
+							marginals_bootstrap_new = BootstrapOrganize_rcpp(marginals_sorted, bootstrap_sample, w_fun, prms); // here marginals AREN'T SORTED !!! 
 
-						null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new["PDFs"], w_mat); /// TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA! (NOT SORTED!)
-//						Rcout << "Compute Expected B = " << ctr << " xy : PDFs : CDFs " << endl;
-						expectations_table_new = double(n) * QuarterProbFromBootstrap_rcpp(
-							marginals_bootstrap_new["xy"], null_distribution_bootstrap_new["distribution"], grid_points);
-//						Rcout << "Compute Statistic Bootstrap B = " << ctr << " nrows= " << grid_points.nrow() << ", " << expectations_table_new.nrow() << endl;
-						statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table_new); //  NEW!Compute null statistic without recomputing the entire matrix 
-//						Rcout << "Finished Statistic Bootstrap B = " << ctr << " Out of " << B << endl;
-					}
-				} else // if fast bootstrap
-		//		Rcout << "Compute Bootstrap Statistic Under Null " << ctr << endl;
-					statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table);
+							null_distribution_bootstrap_new = GetNullDistribution_rcpp(marginals_bootstrap_new["PDFs"], w_mat); /// TrueTList["w_mat"]); // keep w_mat of ORIGINAL DATA! (NOT SORTED!)
+							expectations_table_new = double(n) * QuarterProbFromBootstrap_rcpp(
+								marginals_bootstrap_new["xy"], null_distribution_bootstrap_new["distribution"], grid_points);
+							statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table_new); //  NEW!Compute null statistic without recomputing the entire matrix 
+						}
+					} else // if fast bootstrap
+						statistics_under_null[ctr] = ComputeStatistic_rcpp(bootstrap_sample["sample"], grid_points, expectations_table);
+				}  // adjusted test statistic
+				if(test_stat == "inverse_w_hoeffding")
+				{
+					bootstrap_sample = Bootstrap_rcpp(xy_sorted, CDFs_sorted, w_mat,  prms, n); // draw new sample.Problem: which pdf and data ?
+					statistics_under_null[ctr] = ComputeStatistic_w_rcpp(bootstrap_sample["sample"], grid_points, w_fun, counts_flag); // should sample grid points again! 	
+				}
 			} // counter for bootstrap iterations
 		
-//		Rcout << "Finished all bootstraps " << B << endl;	
-//		Rcout << "End True T " << TrueT << endl;	
 		output["TrueT"] = TrueT;
-//		Rcout << "Now copy null stats " << endl;	
-//		Rcout << "Stat. null " << statistics_under_null << endl;
 		output["statistics.under.null"] = statistics_under_null;
-//		Rcout << "Ended Bootstrap " << endl;
 	} // end if bootstrap 
 	
-	if(test_type == "permutations")
+	if(test_method == "permutationsMCMC")
 	{
-//		Rcout << "Start permutations w_fun to mat" << endl; 
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
-//		Rcout << "Start permutations MCMC" << endl; 
 		List PermutationsList = PermutationsMCMC_rcpp(w_mat, prms);
 		NumericMatrix expectations_table(1,1);
 					
@@ -1933,15 +2099,20 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		NumericMatrix Permutations = PermutationsList["Permutations"];
 		NumericMatrix permuted_data(n, 2);
 
-//		Rcout << "Start permutations QuarterPRob" << endl; 
-		if(!(PL_expectation || naive_expectation))
-			expectations_table = QuarterProbFromPermutations_rcpp(data, P, grid_points);
-//		Rcout << "Start permutations TIBS-Steps" << endl; 
-		List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
-		TrueT = TrueTList["Statistic"];
-		permuted_data(_, 0) = data(_, 0);
-		for (i = 0; i < n; i++)
-			permuted_data(i, 1) = data(Permutations(i, 0)-1, 1); // save one example
+		if(test_stat == "adjusted_w_hoeffding")
+		{
+			if(!(PL_expectation || naive_expectation))
+				expectations_table = QuarterProbFromPermutations_rcpp(data, P, grid_points);
+			List TrueTList = TIBS_steps_rcpp(data, w_fun, w_mat, grid_points, expectations_table, prms); // new: replace multiple steps by one function
+			TrueT = TrueTList["Statistic"];
+			permuted_data(_, 0) = data(_, 0);
+			for (i = 0; i < n; i++)
+				permuted_data(i, 1) = data(Permutations(i, 0)-1, 1); // save one example
+		}
+		if(test_stat == "inverse_w_hoeffding")
+		{
+			TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); //  $Statistic
+		}
 
 		// Compute the statistics value for each permutation:
 		NumericVector statistics_under_null(B);
@@ -1949,17 +2120,19 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 //		Rcout << "Start permutations Compute Stat" << endl; 
 		for (ctr = 0; ctr < B; ctr++)
 		{
-
 			for (i = 0; i < n; i++)
 				permuted_data(i, 1) = data(Permutations(i, ctr)-1, 1); // subtract 1 (from R back to C indexing!)
-			statistics_under_null[ctr] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table);
+			if(test_stat == "adjusted_w_hoeffding")
+				statistics_under_null[ctr] = ComputeStatistic_rcpp(permuted_data, grid_points, expectations_table);
+			if(test_stat == "inverse_w_hoeffding")
+				statistics_under_null[ctr] = ComputeStatistic_w_rcpp(permuted_data, grid_points, w_fun, counts_flag);
 		}
 		output["TrueT"] = TrueT;
 		output["statistics.under.null"] = statistics_under_null;
 		output["Permutations"] = Permutations;
 		output["permuted.data"] = permuted_data;
 	} // end permutations test
-	/**/
+	/**
 	if(test_type == "permutations_inverse_weighting") // Use inverse-weighing Hoeffding's statistic, with MCMC to give pvalue
 	{
 		NumericMatrix w_mat = w_fun_to_mat_rcpp(data, w_fun);
@@ -1987,10 +2160,11 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 		output["Permutations"] = Permutations;
 	} // end permutations with inverse weighting test
 
-	/**/
-	if (test_type == "uniform_importance_sampling") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
-		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type);} // instead of w_fun we should give expectation table 
+	**/
+	if (test_method == "permutationsIS") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
+		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_stat);} // instead of w_fun we should give expectation table 
 
+	/**
 	if (test_type == "monotone_importance_sampling") { // Our modified Hoeffding's statistic with importance sampling uniform permutations test (not working yet)
 		prms["importance.sampling.dist"] = "monotone.w";
 		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type);} // instead of w_fun we should give expectation table 
@@ -2004,22 +2178,22 @@ List TIBS_rcpp(NumericMatrix data, string w_fun, string test_type, List prms)
 
 
 	if (test_type == "uniform_importance_sampling_inverse_weighting") { // inverse-weighting Hoeffding's statistic with importance sampling uniform permutations  
-//		NumericMatrix expectations_table(1, 1); // set empty (0) table 
 		output = IS_permute_rcpp(data, grid_points, w_fun, prms, test_type); // need to change!
 	} // w = function(x) { 1 }) {
-	if(test_type == "tsai") { cout << "Can't run Tsai's test from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}		
-	if(test_type == "minP2") { cout << "Can't run minP2 from cpp" << endl;} // minP2 test, relevant only for truncation W(x,y)=1_{x<=y}
+		**/
+
+	if(test_method == "tsai") { cout << "Can't run Tsai's test from cpp" << endl; } //   Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}		
+	if(test_method == "minP2") { cout << "Can't run minP2 from cpp" << endl;} // minP2 test, relevant only for truncation W(x,y)=1_{x<=y}
 
 	if (!(output.containsElementNamed("permuted.data")))
 		output["permuted.data"] = NULL;
 	if (!(output.containsElementNamed("Pvalue"))) //    ("Pvalue" % in % names(output))) // Compute empirical P - value
 	{
-//		output["Pvalue"] = length(which(output["statistics_under_null"] >= output["TrueT"])) / B;
-		double Pvalue = 1.0; // include id permutation! 
+		double Pvalue = fmin(include_ID, 1.0); // include id permutation! 
 		NumericVector statistics_under_null = as<NumericVector>(output["statistics.under.null"]);
 		for (i = 0; i < B; i++)
 			Pvalue += (statistics_under_null[i] >= as<double>(output["TrueT"]));
-		output["Pvalue"] = Pvalue / double(B+1); // include id permutation
+		output["Pvalue"] = Pvalue / double(B+fmin(include_ID,1.0)); // include id permutation
 //		Rcout << "Output Pvalue = " << Pvalue / double(B+1) << endl; 
 	}
 

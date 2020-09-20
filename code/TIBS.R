@@ -34,11 +34,11 @@ MarginalsBootstrapOrganized <- function(data.marginals, bootstrap, w.fun, prms)
     for(i in c(1:prms$sample.size))
       for(j in c(1:2))
         marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], j] <- 
-          marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], j] + 
-            marginals.bootstrap$PDFs[i, j] # NullT$marginals$PDFs[i,j]  # works for "Standard Marginals"
+    marginals.bootstrap.organized$PDFs[bootstrap$indices[i,j], j] + 
+    marginals.bootstrap$PDFs[i, j] # NullT$marginals$PDFs[i,j]  # works for "Standard Marginals"
   
   
-## NOT NEEDED!!!  marginals.bootstrap.organized$CDFs <- PDFToCDFMarginals(data.marginals$xy, marginals.bootstrap.organized$PDFs)  # here what happens if we duplicate? 
+  ## NOT NEEDED!!!  marginals.bootstrap.organized$CDFs <- PDFToCDFMarginals(data.marginals$xy, marginals.bootstrap.organized$PDFs)  # here what happens if we duplicate? 
   return(marginals.bootstrap.organized)  
 }
 
@@ -89,8 +89,8 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
     T <- ComputeStatistic(data, grid.points, expectations.table)$Statistic  # keep same grid points for bootstrap sample?
   }  
   
-#  print("expectations sum inside tibs.steps")
-#  print(rowSums(expectations.table))
+  #  print("expectations sum inside tibs.steps")
+  #  print(rowSums(expectations.table))
   return(list(Statistic=T, expectations.table=expectations.table, marginals=marginals, w.mat=w.mat, null.distribution=null.distribution))
 }
 
@@ -107,22 +107,37 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
 # TrueT - test statistic for the data
 # statistics.under.null - vector of statistics under the null 
 ########################################################################
-TIBS <- function(data, w.fun, test.type, prms)
+TIBS <- function(data, w.fun, prms, test.method, test.stat)
 {  
-#  print("Start TIBS")
-
-##  library(PerMallows) # distance between permutations 
-##  library(pracma)
-##  source('utilities.R')
-##  source('Tsai_test.R')
-##  source('simulate_biased_sample.R')
-##  source('marginal_estimation.R')
+  #  print("Start TIBS")
+  
+  ##  library(PerMallows) # distance between permutations 
+  ##  library(pracma)
+  ##  source('utilities.R')
+  ##  source('Tsai_test.R')
+  ##  source('simulate_biased_sample.R')
+  ##  source('marginal_estimation.R')
   
   epsilon <- 0.0000000001 # tolerance 
   
-#  print("called libraries TIBS")
+  #  print("called libraries TIBS")
+  
+  
   
   # Set defaults
+  # new! we separate test statistic and test method 
+  if(test.method %in% c('tsai', 'minP2'))
+    test.stat <- test.method 
+  if(test.stat %in% c('tsai', 'minP2'))
+    test.method <- test.stat 
+  
+  if(missing(test.stat) || is.na(test.stat) || (test.stat==""))  # new: a flag for the test statistic
+    test.stat <- "adjusted_w_hoeffding"
+  if(missing(test.method) || is.na(test.method) || (test.method==""))  # new: a flag for method for assigning p-value (and statistic) 
+    test.method <- "permutations"
+  
+  
+  
   if(!('use.cpp' %in% names(prms)))  # new: a flag for using c++ code 
     prms$use.cpp <- 0
   if(!('fast.bootstrap' %in% names(prms)))
@@ -137,22 +152,24 @@ TIBS <- function(data, w.fun, test.type, prms)
     prms$delta <- NA
   else
   {
-    if(!(test.type %in% c('tsai', 'minP2')))  # remove cenosred points
+    if(!(test.stat %in% c('tsai', 'minP2')))  # remove cenosred points
       data <- data[prms$delta==1,]
   }
   if(!is.numeric(data))   # unlist and keep dimensions for data 
     data <- array(as.numeric(unlist(data)), dim(data))  
-
-#  print("SET GRID")  
+  
+  #  print("SET GRID")  
   
   if(!('perturb.grid' %in% names(prms)))  # default: perturb grid to avoid ties 
     prms$perturb.grid <- TRUE
-  if(!('counts.flag' %in% names(prms)))  # new: a flag for using c++ code 
+  if(!('counts.flag' %in% names(prms)))  # new: a flag for using counts (not frequencies) in test statistic 
     prms$counts.flag <- 1 # default is counts statistic 
+  if(!('include.ID' %in% names(prms)))  # new: a flag for including ID permutation in p-value calculation  
+    prms$include.ID <- 1 # default is include 
   
-
+  
   prms$sample.size <- n <- dim(data)[1]
-
+  
   if(('grid.points' %in% names(prms)))  # new! enable input grid !  
   {
     grid.points <- prms$grid.points
@@ -165,102 +182,103 @@ TIBS <- function(data, w.fun, test.type, prms)
   }
   
   
-    
-#  print(paste0("RUN n=", n))
   
-#  if(!('w.max' %in% names(prms)))
-#    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
+  #  print(paste0("RUN n=", n))
   
-  if(prms$use.cpp && is.character(w.fun) && (!(test.type %in% c('tsai', 'minP2')))) # use cpp code for our hard-coded tests and w 
+  #  if(!('w.max' %in% names(prms)))
+  #    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
+  
+  if(prms$use.cpp && is.character(w.fun) && (!(test.stat %in% c('tsai', 'minP2')))) # use cpp code for our hard-coded tests and w 
   {
-#    print("Run TIBS CPP!!")
-#    library(Rcpp) # for some reason calling library causes sometimes crush of code 
-#    library(RcppArmadillo)
-#    Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+    #    print("Run TIBS CPP!!")
+    #    library(Rcpp) # for some reason calling library causes sometimes crush of code 
+    #    library(RcppArmadillo)
+    #    Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
     
-#    print("Call TIBS_RCPP")
-    TR <- TIBS_rcpp(data, w.fun, test.type, prms)
-#    print("Finished TIBS_RCPP")
-#    print("PVALUE:")
-#    print(TR$Pvalue)
-#    print("output names")
-#    print(names(TR))
+    #    print("Call TIBS_RCPP")
+    TR <- TIBS_rcpp(data, w.fun, prms, test.method, test.stat)
+    #    print("Finished TIBS_RCPP")
+    #    print("PVALUE:")
+    #    print(TR$Pvalue)
+    #    print("output names")
+    #    print(names(TR))
     return(TR)
-#    return(TIBS_rcpp(data, w.fun, test.type, prms)) # run all in cpp 
+    #    return(TIBS_rcpp(data, w.fun, test.type, prms)) # run all in cpp 
   } # else
-    # if(test.type == 'bootstrap')
-    #  prms$use.cpp = 0 # make sure everything runs in R (only for esitmate marginals)
+  # if(test.type == 'bootstrap')
+  #  prms$use.cpp = 0 # make sure everything runs in R (only for esitmate marginals)
   
   
- 
-  switch(test.type,
+  
+  switch(test.method,
          'bootstrap'={
-           TrueT <- TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)  # compute statistic 
-#           TrueT.cpp <- TIBS_steps_rcpp(data, w.fun, matrix(1, 1, 1), grid.points, matrix(1, 1, 1), prms)
-#
-#           print("DIFF: ")
-#           print(TrueT$Statistic - TrueT.cpp$Statistic)
+           
+           switch(test.stat, 
+                  "adjusted_w_hoeffding"={
+                    TrueT <- TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)  # compute statistic 
+                  }, 
+                  "inverse_w_hoeffding"={
+                    TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)
+                    if(prms$use.cpp)
+                      marginals <- EstimateMarginals_rcpp(data, w.fun)
+                    else 
+                      marginals <- EstimateMarginals(data, w.fun)
+                    w.mat <- w_fun_to_mat(marginals$xy, w.fun)
+                  })  # end switch on test stat          
+           
            statistics.under.null = matrix(0, prms$B, 1)
            #           null.distribution.bootstrap <- null.distribution
            for(ctr in 1:prms$B) # heavy loop: run on bootstrap 
            {
-             if(prms$use.cpp && !(is.function(w.fun)))  # here we must use sorted marginals 
-             {
-               bootstrap <- Bootstrap_rcpp(TrueT$marginals$xy, TrueT$marginals$CDFs, 
-                                           TrueT$w.mat, prms, dim(data)[1]) # TrueT$w.mat draw new sample. Problem: which pdf and data? 
-               bootstrap$indices <- bootstrap$indices + 1 # adjust from cpp to R
-             }
-             else
-               bootstrap <- Bootstrap(TrueT$marginals$xy, TrueT$marginals$PDFs, w.fun, prms, dim(data)[1]) 
-
-             if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
-             {
-                marginals.bootstrap.new <- MarginalsBootstrapOrganized(TrueT$marginals, bootstrap, w.fun, prms)
-                
-                if(prms$use.cpp)
-                {
-                  null.distribution.bootstrap.new <- GetNullDistribution_rcpp(marginals.bootstrap.new$PDFs, TrueT$w.mat) # TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
-                  expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap_rcpp(
-                        marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
-                  statistics.under.null[ctr] <- ComputeStatistic_rcpp(bootstrap$sample, grid.points, expectations.table.new) # NEW! Compute null statistic without recomputing the entire matrix !!              
-                }  else
-                {
-                    null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
-                    expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap(
-                      marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
-                    statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!          
-                }
-             }
-             else # use same expectation as original sample 
-             {
-               if(prms$use.cpp)
-                 statistics.under.null[ctr] <- ComputeStatistic_rcpp(bootstrap$sample, grid.points, TrueT$expectations.table)
-               else
-                 statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, TrueT$expectations.table)$Statistic  # keep same grid points for bootstrap sample?
-             }
+             switch(test.stat, 
+                    "adjusted_w_hoeffding"={
+                      
+                      if(prms$use.cpp && !(is.function(w.fun)))  # here we must use sorted marginals 
+                      {
+                        bootstrap <- Bootstrap_rcpp(TrueT$marginals$xy, TrueT$marginals$CDFs, 
+                                                    TrueT$w.mat, prms, dim(data)[1]) # TrueT$w.mat draw new sample. Problem: which pdf and data? 
+                        bootstrap$indices <- bootstrap$indices + 1 # adjust from cpp to R
+                      }
+                      else
+                        bootstrap <- Bootstrap(TrueT$marginals$xy, TrueT$marginals$PDFs, w.fun, prms, dim(data)[1]) 
+                      
+                      if(!prms$fast.bootstrap) # re-estimate marginals for null expectation for each bootstrap sample
+                      {
+                        marginals.bootstrap.new <- MarginalsBootstrapOrganized(TrueT$marginals, bootstrap, w.fun, prms)
+                        
+                        if(prms$use.cpp)
+                        {
+                          null.distribution.bootstrap.new <- GetNullDistribution_rcpp(marginals.bootstrap.new$PDFs, TrueT$w.mat) # TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
+                          expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap_rcpp(
+                            marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
+                          statistics.under.null[ctr] <- ComputeStatistic_rcpp(bootstrap$sample, grid.points, expectations.table.new) # NEW! Compute null statistic without recomputing the entire matrix !!              
+                        }  else
+                        {
+                          null.distribution.bootstrap.new <- GetNullDistribution(marginals.bootstrap.new$PDFs, TrueT$w.mat) # keep w_mat of ORIGINAL DATA! 
+                          expectations.table.new <- prms$sample.size * QuarterProbFromBootstrap(
+                            marginals.bootstrap.new$xy, null.distribution.bootstrap.new$distribution, grid.points)
+                          statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, expectations.table.new)$Statistic # NEW! Compute null statistic without recomputing the entire matrix !!          
+                        }
+                      }
+                      else # use same expectation as original sample 
+                      {
+                        if(prms$use.cpp)
+                          statistics.under.null[ctr] <- ComputeStatistic_rcpp(bootstrap$sample, grid.points, TrueT$expectations.table)
+                        else
+                          statistics.under.null[ctr] <- ComputeStatistic(bootstrap$sample, grid.points, TrueT$expectations.table)$Statistic  # keep same grid points for bootstrap sample?
+                      }
+                    }, 
+                    "inverse_w_hoeffding"={
+                      bootstrap <- Bootstrap(marginals$xy, marginals$PDFs, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
+                      statistics.under.null[ctr] <- ComputeStatistic.W(bootstrap$sample, grid.points, w.fun, prms$counts.flag)$Statistic
+                    }) # end switch test stat
+             
            }  # end loop on B bootstrap samples 
+           
+           
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
          },
-         'bootstrap_inverse_weighting'={
-           TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)
-           if(prms$use.cpp)
-             marginals <- EstimateMarginals_rcpp(data, w.fun)
-           else 
-             marginals <- EstimateMarginals(data, w.fun)
-           w.mat <- w_fun_to_mat(marginals$xy, w.fun)
-
-
-           statistics.under.null=matrix(0, prms$B, 1)
-           for(ctr in 1:prms$B) 
-           {
-#             if(mod(ctr,100)==0)
-#               print(paste0("Run Boots=", ctr))
-             bootstrap <- Bootstrap(marginals$xy, marginals$PDFs, w.fun, prms, dim(data)[1]) # draw new sample. Problem: which pdf and data? 
-             statistics.under.null[ctr] <- ComputeStatistic.W(bootstrap$sample, grid.points, w.fun, prms$counts.flag)$Statistic
-           }
-           output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
-         },
-         'permutations'={
+         'permutationsMCMC'={
            w.mat = w_fun_to_mat(data, w.fun)
            if(prms$use.cpp)
              Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
@@ -268,66 +286,46 @@ TIBS <- function(data, w.fun, test.type, prms)
              Permutations <- PermutationsMCMC(w.mat, prms)
            P=Permutations$P
            Permutations=Permutations$Permutations
-           if((!prms$naive.expectation) & (!prms$PL.expectation))
-           {
-             if(prms$use.cpp)
-               expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
-             else
-               expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
-           } else
-             expectations.table <- c()
-           TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
-           permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
+           switch(test.stat, 
+                  "adjusted_w_hoeffding"={
+                    if((!prms$naive.expectation) & (!prms$PL.expectation))
+                    {
+                      if(prms$use.cpp)
+                        expectations.table <- QuarterProbFromPermutations_rcpp(data, P, grid.points)  # Permutations
+                      else
+                        expectations.table <- QuarterProbFromPermutations(data, P, grid.points)
+                    } else
+                      expectations.table <- c()
+                    TrueT <- TIBS.steps(data, w.fun, w.mat, grid.points, expectations.table, prms)  # compute statistic. Use permutations for expected table 
+                    permuted.data <- cbind(data[,1], data[Permutations[,1],2]) # save one example 
+                  }, 
+                  "inverse_w_hoeffding"={
+                    TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)
+                  }) # end switch test.stat
            
            #Compute the statistics value for each permutation:
            statistics.under.null = matrix(0, prms$B, 1) # no need for new expectations.table 
            for(ctr in 1:prms$B)  
            {
-             if(prms$use.cpp)  # new: use cpp
-               statistics.under.null[ctr] <- ComputeStatistic_rcpp( # need to modify to calculate grid.points inside function!
-                 cbind(data[,1], data[Permutations[,ctr],2]), grid.points, TrueT$expectations.table)
-             else 
-               statistics.under.null[ctr] <- ComputeStatistic( # here calculate grid.points inside function ! 
-                 cbind(data[,1], data[Permutations[,ctr],2]), grid.points, TrueT$expectations.table)$Statistic
+             switch(test.stat, 
+                    "adjusted_w_hoeffding"={
+                      if(prms$use.cpp)  # new: use cpp
+                        statistics.under.null[ctr] <- ComputeStatistic_rcpp( # need to modify to calculate grid.points inside function!
+                          cbind(data[,1], data[Permutations[,ctr],2]), grid.points, TrueT$expectations.table)
+                      else 
+                        statistics.under.null[ctr] <- ComputeStatistic( # here calculate grid.points inside function ! 
+                          cbind(data[,1], data[Permutations[,ctr],2]), grid.points, TrueT$expectations.table)$Statistic
+                    }, 
+                    "inverse_w_hoeffding"={
+                      statistics.under.null[ctr] <- ComputeStatistic.W(cbind(data[,1], data[Permutations[,ctr],2]), grid.points, w.fun, prms$counts.flag)$Statistic # grid.points calculated inside function
+                    }) # end switch test stat
            }
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null, Permutations=Permutations)
          },  # end permutations test 
-         'permutations_inverse_weighting'={ # weighted Hoeffding statistic with Our MCMC permutations 
-           #             w.mat = w_fun_to_mat(data, w.fun)
-           TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)$Statistic
-           w.mat <- w_fun_to_mat(data, w.fun)
-           Permutations <- PermutationsMCMC(w.mat, prms) # burn.in=prms$burn.in, Cycle=prms$Cycle)
-           Permutations <- Permutations$Permutations
-           #Compute the statistics value for each permutation:
-           statistics.under.null = matrix(0, prms$B, 1)
-           for(ctr in 1:prms$B) 
-           {
-             statistics.under.null[ctr] <- ComputeStatistic.W(cbind(data[,1], data[Permutations[,ctr],2]), grid.points, w.fun, prms$counts.flag)$Statistic # grid.points calculated inside function
-             #             statistics.under.null.cpp <- ComputeStatistic_w_rcpp(cbind(data[,1], data[Permutations[,ctr],2]), grid.points, w.fun) # grid.points calculated inside function
-             #             print(paste0("should be zero ComputeStatisticW: ", max(abs(statistics.under.null.cpp - statistics.under.null[ctr] ))))
-           }
-           output<-list(TrueT=TrueT, statistics.under.null=statistics.under.null, Permutations=Permutations)
-         },  # end permutations with inverse weighting test 
-         'uniform_importance_sampling' = {  # new uniform importance sampling permutations test with our Hoeffding statistic - only for positive W 
-           output <- IS.permute(data, grid.points, w.fun, prms, test.type) # expectations.table) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
+         "permutationsIS" = {  # importance sampling. The IS distribution, and test statistic are encoded inside prms : prms$importance.sampling.dist, and test.stat 
+           output <- IS.permute(data, grid.points, w.fun, prms, test.stat)
          },
-         'uniform_importance_sampling_inverse_weighting' = {  # new uniform importance sampling permutations test with weighted Hoeffding statistic - only for positive W
-           output <- IS.permute(data, grid.points, w.fun, prms, test.type) # W)  # ComputeStatistic.W(dat, grid.points, w.fun)
-         }, 
-         'monotone_importance_sampling' = { # new!! use also monotone importance sampling 
-           prms$importance.sampling.dist = "monotone.w"
-           output <- IS.permute(data, grid.points, w.fun, prms, test.type)
-         },  
-          'monotone_importance_sampling_inverse_weighting' = { # new!! use also monotone importance sampling 
-            prms$importance.sampling.dist = "monotone.w"
-            output <- IS.permute(data, grid.points, w.fun, prms, test.type)
-          },  
-          'match_importance_sampling' = { # new!! use also monotone importance sampling 
-            prms$importance.sampling.dist = "match.w"
-          output <- IS.permute(data, grid.points, w.fun, prms, test.type)
-            },  
-
-          'tsai' = {
+         'tsai' = {
            if(!('delta' %in% names(prms)) || any(is.na(prms$delta)))  # new: Tsai with censoring
              result <- Tsai.test(data[,1], data[,2]) # TsaiTestTies  Tsai's test, relevant only for truncation W(x,y)=1_{x<=y}
            else
@@ -336,7 +334,7 @@ TIBS <- function(data, w.fun, test.type, prms)
          },
          'minP2' = { library(permDep) #MinP2 test, relevant only for truncation W(x,y)=1_{x<=y}
            require(survival)  
-            # use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
+           # use new library installed from github: https://github.com/stc04003/permDep (not CRAN)
            if(!any(is.na(prms$delta))) # when running minP we must have a delta parameter 
              dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = prms$delta))
            else
@@ -350,7 +348,8 @@ TIBS <- function(data, w.fun, test.type, prms)
     output$permuted.data <- permuted.data
   else
     output$permuted.data <- NA
+  prms$include.ID = as.numeric(prms$include.ID>0)  # set to zero or one
   if(!("Pvalue" %in% names(output))) # Compute empirical P-value
-    output$Pvalue <- (length(which(output$statistics.under.null>=output$TrueT))+1) / (prms$B+1) # new! include also id permutation. Pval between 1/(N+1) to N/(N+1)
+    output$Pvalue <- (length(which(output$statistics.under.null>=output$TrueT))+prms$include.ID) / (prms$B+prms$include.ID) # new! include also id permutation. Pval between 1/(N+1) to N/(N+1)
   return(output)
 }

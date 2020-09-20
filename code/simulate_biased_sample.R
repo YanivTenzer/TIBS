@@ -229,7 +229,7 @@ w_str_to_fun <- function(w.str)
 # Determine empirically  w_max for functions where we don't know it (this is approximate and may fail)
 set_w_max <- function(n=1000, dependence.type, w.fun, prms)
 {
-  xy <- SimulateSample(n, dependence.type, prms)
+  xy <- SimulateSample(n, dependence.type, prms)  # simulate from F_XY
   return(5 * (max(w_fun_eval(xy[,1], xy[,2], w.fun)) + 5 * std(w_fun_eval(xy[,1], xy[,2], w.fun)) + 1.0))     
 } 
 
@@ -240,6 +240,31 @@ set_w_max_sample <- function(data, w.fun)
   return(max(w_fun_to_mat(data, w.fun)) * (1+epsilon))
 }
 
+
+# Compute/estimate the mean and variance of log(w(x,y)) when (x,y) ~ [F_X F_Y]^(w)
+set_log_w_moments <- function(n=1000, dependence.type, w.fun, prms)
+{
+  xy <- SimulateBiasedSample(n, dependence.type, w,fun, prms)  # simulate from [F_XY]^(W). Parameters should be under independence: [F_X F_Y]^(w)
+
+  
+  w.log <- log(w_fun_eval(xy[,1], xy[,2], w.fun))
+  return(list(mu=mean(w.log), sigma2=var(w.log)))
+
+}
+  
+
+# Estimate P_W moments 
+log_P_w_moments <- function(n.sampling, sample.size, dependence.type, w.fun, prms) 
+{
+  log.w.moments <- set_log_w_moments(n.sampling, dependence.type, w.fun, prms)
+  
+  log.P.w.mean <- -sample.size*log.w.moments$sigma2/2 - sum(log(1:sample.size))
+  log.Z <- sample.size*log.w.moments$mu + (sample.size/2)*log.w.moments$sigma2 + sum(log(1:sample.size))
+  
+}
+
+  
+  
 
 # Determine if weighing function is positive 
 is_pos_w <- function(w.fun, data, mat.flag)
@@ -260,5 +285,19 @@ is_pos_w <- function(w.fun, data, mat.flag)
 }
 
 
-
+# Determine if F_XY(x,y) = F_XY(y,x)
+is_exchangable <- function(dependence.type)
+{
+  if(!is.function(dependence.type))
+  {
+    if(dependence.type %in% c("Gaussian", "UniformStrip", "Clayton", "Gumbel", "CLmix", "LogNormal"))
+      return(TRUE)
+  }
+  return(FALSE)
+}
+    
+    
+    
+    
+  
 

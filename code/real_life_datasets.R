@@ -102,7 +102,6 @@ ReadDataset <- function(data_str)
            Srv.C1 <- stepfun(KM$time,c(1,exp(-KM$cumhaz)))
            w.fun <- function(x,y){(x<y)*Srv.C1(y-x)}  # modify w.fun 
          }, # end Dementia
-         #           TIBS(data=csha.delta1, w.fun=w.fun1, B=1000, test.type='permutations',prms=c())
          'ChanningHouse'={ # Read Channing House dataset : FILL CODE
            library(survival)
            data("channing", package = "boot")
@@ -139,12 +138,13 @@ B = 100000 # number of permutations/bootstrap samples
 minP2.B = 10000 # for minP take a smaller value due to running time 
 plot.flag <- 1
 
-test.type <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
+test.method <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
+test.stat <- c("adjusted_w_hoeffding", "adjusted_w_hoeffding", "tsai", "minP2")
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
 # w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
 # w.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
 n.datasets <- length(datasets)
-n.tests <- length(test.type)
+n.tests <- length(test.method)
 Hyperplane.prms<-c(-1,1,0)
 test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performed
 test.time <- matrix(-0.01, n.datasets, n.tests) # -1 denotes test wasn't performed
@@ -169,30 +169,30 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
   prms$use.cpp <- 1 # New! enable one to run with c++ code (faster)
   for(t in 1:4) # n.tests) # run all tests 
   {
-    if(test.type[t] == 'minP2')  # smaller sample size for minP2 (slower)
+    if(test.method[t] == 'minP2')  # smaller sample size for minP2 (slower)
       prms$B = minP2.B
     else
       prms$B = B
     if(is.character(dat$w.fun))
-      if((!(dat$w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & (test.type[t] %in% c("tsai", 'minP2')))
+      if((!(dat$w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & (test.method[t] %in% c("tsai", 'minP2')))
         next  # these tests run only for truncation 
     if(is.character(dat$w.fun))
-      if((test.type[t] == 'bootstrap') & (dat$w.fun %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
+      if((test.method[t] == 'bootstrap') & (dat$w.fun %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
         next # can't run bootstrap because w can be zero 
-    if((test.type[t] == 'bootstrap') & (min(w_fun_eval(dat$input.data[,1], dat$input.data[,2], dat$w.fun))==0))  # check for icu that we can run it
+    if((test.method[t] == 'bootstrap') & (min(w_fun_eval(dat$input.data[,1], dat$input.data[,2], dat$w.fun))==0))  # check for icu that we can run it
       next # can't run bootstrap because w can be zero 
 
 
     set.seed(100)
     
-    print(paste0("Running ", datasets[d], ", ", test.type[t], ":"))
+    print(paste0("Running ", datasets[d], ", ", test.method[t], ":"))
     start.time <- Sys.time()
-    results.test <- TIBS(dat$input.data, dat$w.fun, test.type[t], prms)  # can also be cpp 
+    results.test <- TIBS(dat$input.data, dat$w.fun, prms, test.method[t], test.stat[t])  # can also be cpp 
     difftime(Sys.time() , start.time, units="secs")
     test.time[d,t] <- as.numeric(difftime(Sys.time() , start.time, units="secs")) # Sys.time() - start.time
     print(paste0("test time: ", test.time[d,t]))
     test.pvalue[d,t] <- results.test$Pvalue 
-    cat(datasets[d], ', ', test.type[t], ', Pvalue:', test.pvalue[d,t], '\n')
+    cat(datasets[d], ', ', test.method[t], ', Pvalue:', test.pvalue[d,t], '\n')
     if(plot.flag & (t==2)) # permutations
     {
       if(("delta" %in% names(prms)) && (length(prms$delta) == dim(dat$input.data)[1]))
@@ -220,12 +220,12 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
 results.table <- cbind(test.pvalue, test.time)
 rownames(test.pvalue) <- datasets
 rownames(test.time) <- datasets
-colnames(test.pvalue) <- test.type
-colnames(test.time) <- test.type
+colnames(test.pvalue) <- test.method
+colnames(test.time) <- test.method
 
 rownames(results.table) <- datasets
-# colnames(results.table) <- test.type
-save(test.pvalue, test.time, test.type, 
+# colnames(results.table) <- test.method
+save(test.pvalue, test.time, test.method, 
      file=paste0(path ,'/../docs/Tables/real_datasets_B_', B, '.Rdata'))
 # print(xtable(results.table, type = "latex"), 
 #      file = paste0(path ,'/../docs/Tables/real_datasets.tex')) # save also in latex format 

@@ -51,7 +51,8 @@ points(temp.data$data[,1], temp.data$data[,2], col='red')
 points(temp.data.sorted$data[,1], temp.data.sorted$data[,2], col='blue')
 prms$w.max <- max(prms$w.max, set_w_max_sample(biased.data$data, w.fun))
 
-test.type = "permutations"
+test.method = "permutationsMCMC"
+test.stat = "adjusted_w_hoeffding"
 data <- biased.data$data
 grid.points <- data
 p0 <-  TIBS.steps(data, w.fun, c(), grid.points, c(),  prms)
@@ -67,11 +68,13 @@ p0.new.cpp$Statistic
 
 
 #test.type = 'permutations'
-p.zero <- TIBS(biased.data$data, w.fun, test.type, prms)
+prms$use.cpp = FALSE
+p.zero <- TIBS(biased.data$data, w.fun, prms, test.method, test.stat)
 prms$new.bootstrap = FALSE
-p.zero.cpp <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
+prms$use.cpp = TRUE
+p.zero.cpp <- TIBS(biased.data$data, w.fun, prms, test.method, test.stat)
 prms$new.bootstrap = TRUE
-p.zero.cpp.new <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)
+p.zero.cpp.new <- TIBS(biased.data$data, w.fun, prms, test.method, test.stat)
 
 #points(biased.data$data[,1], biased.data$data[,2], col='green') # Problem: C code CHANGES the data !!!! 
 #points(temp.data$data[,1], temp.data$data[,2], col='orange') # Problem: C code CHANGES the data !!!! 
@@ -102,7 +105,7 @@ prms$B=200
 #    print(paste0("Run Iter ", iter))
 #    biased.data <- SimulateBiasedSample(prms$sample.size, dependence.type, w.fun, prms) 
 #    p.val[iter] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue
-#    p.val.cpp[iter] <- TIBS_rcpp(biased.data$data, w.fun, test.type, prms)$Pvalue
+#    p.val.cpp[iter] <- TIBS(biased.data$data, w.fun, test.type, prms)$Pvalue
 #  }
 #  plot(sort(p.val))
 #  points(sort(p.val.cpp), col="red")#
@@ -110,8 +113,6 @@ prms$B=200
 #  sum(p.val < 0.05)  # power at alpha=0.05
 #  sum(p.val.cpp < 0.05)
 #}
-  
-
 
 
 test.type = c("permutations" , "permutations_inverse_weighting") # check scaling for both 

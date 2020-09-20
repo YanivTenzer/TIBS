@@ -13,6 +13,7 @@ library(pracma)
 library(matrixStats)
 library(PerMallows) # distance between permutations 
 library(Matrix)
+library(rapport)
 
 
 isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
@@ -75,7 +76,13 @@ prms.rho <- run.params.mat[,5]
 ### test.type<- c('permutations','bootstrap') #c( 'permutations','permutations_inverse_weighting',
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
-test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling", 'match_importance_sampling', 'monotone_importance_sampling')
+
+test.stat <- c("inverse_w_hoeffding") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
+test.method <- c("permutationsMCMC", "permutationsIS") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
+# IS.methods <- c("uniform", "match.w", "monotone.w", "sqrt.w", "KouMcculough.w")  # different methods for importance sampling of permutations
+IS.methods <- c("uniform", "match.w", "monotone.w", "monotone.grid.w")  # different methods for importance sampling of permutations
+
+##test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling", 'match_importance_sampling', 'monotone_importance_sampling')
 # Official tests:
 #    test.type <- c('permutations',  'permutations_inverse_weighting', 'bootstrap', 'bootstrap_inverse_weighting',  'tsai', 
 #                   'monotone_importance_sampling', 'uniform_importance_sampling', 'match_importance_sampling', 'uniform_importance_sampling_inverse_weighting')  # official testing
@@ -86,11 +93,11 @@ test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importa
 #  'bootstrap_inverse_weighting', 
 #  'min_P2', 'Tsai')
 num.sim <- length(dependence.type)
-num.tests <- length(test.type)
+# num.tests <- length(test.type)
 
 if(run.flag == 1)
 {
-  iterations = 200 # official: 500
+  iterations = 50 # official: 500
   B = 100 # official:  1000
   sample.size = 301 #  official:  100
   run.dep <- c(8) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
@@ -121,7 +128,8 @@ for(s in run.dep) # Run all on the farm
   for(n in c(sample.size)) #seq(250, 400, 50))
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
-                use.cpp=0, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+                use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
+                IS.methods=IS.methods, include.ID=0) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
@@ -130,7 +138,11 @@ for(s in run.dep) # Run all on the farm
     print(paste("n=", prms$sample.size))
     if(const.seed)
       prms$seed <- 1141248 # 4524553
-    T.OUT <- simulate_and_test(dependence.type[[s]], prms.rho[[s]], w.fun[[s]], test.type, prms) # run all tests 
+    
+    # New: set applicible tests: 
+    test.comb <- GetTestCombinations(prms, w.fun[[s]], dependence.type[[s]], test.stat, test.method)
+    num.tests <- dim(test.comb)[1] # can change with s !! 
+    T.OUT <- simulate_and_test(dependence.type[[s]], prms.rho[[s]], w.fun[[s]], test.comb, prms) # run all tests on one type of simulatee data 
     
     # New: just create jobs strings 
     for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
@@ -142,18 +154,18 @@ for(s in run.dep) # Run all on the farm
 
 if(isRStudio)  # plot results in interactive mode
 {
-  test.legend <- paste(test.type, as.character(T.OUT$test.power))
-  col.vec <- c("blue", "black", "green", "orange", "gray", "pink", "yellow", "purple", "cyan")
+  test.legend <- apply(cbind(test.comb, T.OUT$test.power), 1, paste0, collapse=" ")#    paste(test.type, as.character(T.OUT$test.power))
+  col.vec <- c("blue", "black", "green", "orange", "gray", "pink",  "purple", "cyan", "brown", "yellow", "magenta", "darkgreen", "gold")
   i=1
-  plot(T.OUT$test.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20, main='differences')
-  for(i in 2:length(test.type))
-    points(T.OUT$test.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20)
-  legend(0, 200, test.legend, lwd=c(2,2), col=col.vec[1:length(test.type)], y.intersp=0.8, cex=0.6)
-  # points(T.OUT$test.stat[1,,]- rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
+  plot(T.OUT$test.true.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20, main='differences')
+  for(i in 2:dim(test.comb)[1])
+    points(T.OUT$test.true.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20)
+  legend(0, 200, test.legend, lwd=c(2,2), col=col.vec[1:num.tests], y.intersp=0.8, cex=0.6)
+  # points(T.OUT$test.true.stat[1,,]- rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
   
   
-  jpeg(paste0("../figs/check_valid_n_", n, "_B_", prms$B, "_dep_", dependence.type[s], "_w_",  w.fun[s], 
-              "_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
+  ##jpeg(paste0("../figs/check_valid_n_", n, "_B_", prms$B, "_dep_", dependence.type[s], "_w_",  w.fun[s], 
+  ##            "_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
   plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
        main=paste0("Tests pvals and power, n=", n, ", alpha=", prms$alpha, " pert=", prms$perturb.grid))
   valid.tests <- rep(0, num.tests)
@@ -166,12 +178,12 @@ if(isRStudio)  # plot results in interactive mode
     }
   }
   legend(prms$iterations*0.45, 0.25, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], y.intersp=0.8, cex=0.6)
-  dev.off()
+##  dev.off()
 }
 
 #library(matrixStats)
-#plot(T.OUT$test.stat[1,,], rowMeans(T.OUT$test.null.stat[1,1,,]))
-#plot(T.OUT$test.stat[1,,], rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
+#plot(T.OUT$test.true.stat[1,,], rowMeans(T.OUT$test.null.stat[1,1,,]))
+#plot(T.OUT$test.true.stat[1,,], rowMedians(T.OUT$test.null.stat[1,1,,]), col="blue")
 #lines(c(15000, 50000), c(15000, 50000), col="red")
 
 

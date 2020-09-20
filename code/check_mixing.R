@@ -23,14 +23,14 @@ prms$naive.expectation <- 0 # for 1 we get more stable statistic
 
 for (i in 1:50){  # Test 100 times the same data with a different permutation test randomization 
   print(c('Run', i, 'out of', 100))
-  T <- TIBS(data=dat, w.fun="truncation", test.type='permutations',prms=prms)
+  T <- TIBS(data=dat, w.fun="truncation", prms=prms, test.method='permutations', test.stat="adjusted_w_hoeffding")
   prep <- c(prep,T$Pvalue)
 }
 
 
 # Check permutations distances for last run 
 #first.distance=first.distance, mixing.distance=mixing.distance, random.distance=random.distance)  # templ for debug
-S <- TIBS(data=dat, w.fun="truncation", test.type='permutations',prms=prms) # sample again
+S <- TIBS(data=dat, w.fun="truncation", prms=prms, test.method='permutations', test.stat="adjusted_w_hoeffding") # sample again
 
 mixing.distance <- rep(0, prms$B)  # diagnostics for MCMC mixing
 first.distance <- rep(0, prms$B)

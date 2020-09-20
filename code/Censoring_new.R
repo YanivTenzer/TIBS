@@ -175,8 +175,6 @@ for(dependence in dependence.type)
       
       #TIBS, permutations:
       tibs1 <- TIBS(only.uncens, w.fun=w.fun1, test.type='permutations',Prms)
-      #tibs1 <- TIBS(data=only.uncens, w.fun=w.fun1, test.type='permutations',Prms)
-               #TIBS_rcpp(biased.data, w.fun, cur.test.type, running_prms)
       #TIBS, importance_sampling:
       tibs2<-TIBS(data=only.uncens, w.fun=w.fun1, 
                   test.type='uniform_importance_sampling',Prms)

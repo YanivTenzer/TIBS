@@ -1,3 +1,37 @@
+# Set the combinations of applicable test types and statistics for a particular distirbution
+GetTestCombinations <- function(prms, w.fun, dependence.type, test.stat, test.method)
+{
+  n.stats <- length(test.stat)
+  n.methods <- length(test.method)
+#  ctr <- 1
+  test.comb <- c()
+  for (i in c(1:n.methods))
+    for(j in c(1:n.stats))
+    {
+      if( (test.stat[i] %in% c("tsai", "minP2")) && !(test.method[j] %in% "permutationsMCMC"))
+          next
+      if( (test.stat[i] %in% c("inverse_w_hoeffding")) && !(is_pos_w(w.fun)) )
+          next
+      if((test.method[j] %in% "bootstrap") && (!  (is_pos_w(w.fun) || (is_exchangeble(dependence.type) && (w.fun %in% c("truncation", "Hyperplane_truncation"))))))
+        next
+
+      # new: allow different importance sampling distributions 
+      if(('IS.methods' %in% names(prms)) && (test.method[i] == "permutationsIS"))
+        for(k in 1:length(prms$IS.methods))
+          test.comb <- rbind(test.comb, c(test.method[i], test.stat[j], prms$IS.methods[k]))        
+      else
+          test.comb <- rbind(test.comb, c(test.method[i], test.stat[j], ""))        
+#      test.comb[ctr,1] <- test.stat[i]
+#      test.comb[ctr,2] <- test.method[j]
+#      ctr <- ctr+1
+      
+    }
+  return(test.comb)
+}
+  
+  
+
+
 
 ##################################################################################################
 # Compute the modified Hoeffding's test statistic, for the permutation test
