@@ -50,6 +50,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
   }
   
   inverse.weight = str_detect(test.stat, "inverse")
+  print(paste0("inverse-flag=", inverse.weight))
   if(inverse.weight)
     TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)$Statistic # no unique in grid-points 
   else    # new! here we also need to compute the expectatuibs table !!!  

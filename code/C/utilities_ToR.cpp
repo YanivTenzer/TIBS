@@ -1569,7 +1569,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	long counts_flag = TRUE; 
 	if (prms.containsElementNamed("counts.flag"))
 		counts_flag = prms["counts.flag"];
-	long include_ID = 1; 
+	double include_ID = 1.0; 
 	if (prms.containsElementNamed("include.ID"))
 		include_ID = prms["include.ID"];
 	string importance_sampling_dist = "KouMcculough.w";
@@ -1593,8 +1593,8 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	if(grid_points.ncol() == 1) // no input grid
 		grid_points = data;
 
-	long inverse_weight = test_stat.find("inverse");
-//	Rcout << "Start IS Permute Inverse Weight: " << inverse_weight << " Dim(Exp-Table)=" << expectations_table.nrow() << ", " << expectations_table.ncol() << endl; 
+	long inverse_weight = !(test_stat.find("inverse") == string::npos);
+	Rcout << "Start IS Permute Inverse Weight: " << inverse_weight << " stat:" << test_stat << " Dim(Exp-Table)=" << expectations_table.nrow() << ", " << expectations_table.ncol() << endl; 
   	if(inverse_weight)
     	TrueT = ComputeStatistic_w_rcpp(data, grid_points, w_fun, counts_flag); // weights. no unique in grid-points 
 	else
@@ -1606,9 +1606,12 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	for (b = 0; b < B; b++) 
 	{
 		perm = Permutations(_,b); //		perm = rand_perm(n);  // get a random permutation from the uniform disitribution
+
 		permuted_data(_, 0) = data(_, 0);
 		for (j = 0; j < n; j++)
 			permuted_data(j, 1) = data(perm[j], 1); // permute data 
+//		Rcout << "Compute b=" << b << " Permutation:" << endl;
+//		Rcout << perm << endl; 
 		if(inverse_weight)
 			Tb[b] = ComputeStatistic_w_rcpp(permuted_data, grid_points, w_fun, counts_flag); // grid depends on permuted data. Compute weighted statistic! 
 		else 
@@ -1621,6 +1624,8 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	{
 		Pvalue += (Tb[b]>=TrueT) * P_W_IS[b];	
 		NormalizingFactor += P_W_IS[b];
+//		Rcout << "b=" << b << " True=" << TrueT << " Tb=" << Tb[b] << " P_W_IS=" << P_W_IS[b] << " Pval=" << Pvalue << " Normalizing=" << NormalizingFactor << endl; 
+
 	}
 	Pvalue /= NormalizingFactor;
 
