@@ -1259,8 +1259,11 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	}
 	if(importance_sampling_dist == "monotone.w") // sort values by average of w
 	{
-		NumericVector w_mat_row_sums = rowSums(w_mat); 
-		IntegerVector w_order = sort_indexes_rcpp(w_mat_row_sums);	// sort in increasing order! (i.e. start with the small ones)
+		NumericVector w_mat_row_vars = rowVars_rcpp(log_w_mat); // Should be rowVars!!! order variables by variance of rho 
+		IntegerVector w_order = sort_indexes_rcpp(-w_mat_row_vars);  // sort by variance in DECREASING order!
+
+//		NumericVector w_mat_row_sums = rowSums(w_mat); 
+//		IntegerVector w_order = sort_indexes_rcpp(w_mat_row_sums);	// sort in increasing order! (i.e. start with the small ones)
 
 		NumericVector weights(n), weights_cdf(n);
 		for(j=0; j<n; j++)
@@ -1290,8 +1293,10 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	}
 	if(importance_sampling_dist == "monotone.grid.w") // grid sort values by average of w
 	{
-		NumericVector w_mat_row_sums = rowSums(w_mat); 
-		IntegerVector w_order = sort_indexes_rcpp(w_mat_row_sums);	// sort in increasing order! (i.e. start with the small ones)
+		NumericVector w_mat_row_vars = rowVars_rcpp(log_w_mat); // Should be rowVars!!! order variables by variance of rho 
+		IntegerVector w_order = sort_indexes_rcpp(-w_mat_row_vars);  // sort by variance in DECREASING order!
+//		NumericVector w_mat_row_sums = rowSums(w_mat); 
+//		IntegerVector w_order = sort_indexes_rcpp(w_mat_row_sums);	// sort in increasing order! (i.e. start with the small ones)
 
 		NumericVector weights(n), weights_cdf(n);
 		long num_grid_points = B/10;
@@ -1333,8 +1338,6 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 			}
 		}
 		log_P_IS0 /= num_grid_points;
-
-
 	}
 
 	if(importance_sampling_dist == "sqrt.w") // new: sample proportional to w(i,j) / (w(i,+)*w(+,j)) 
@@ -1407,26 +1410,43 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 		for(b=0; b<B; b++)  // sample permutations 
         {
             w_mat_col_sums = colSums(w_mat);
+//			Rcout << "Col Sums Start: " << w_mat_col_sums << endl; 
             for(j=0; j<n; j++)
             {
                	weights = w_mat(j,_);
 			   	for(i=0; i<j; i++)
-                 weights[Permutations(i,b)] = 0;  
-				for(i=j; i<n; i++)
-				   weights[Permutations(i,b)] /= fmax(epsilon, w_mat_col_sums[i] -weights[Permutations(i,b)]);             
+                 	weights[Permutations(i,b)] = 0;  // permutation isn't set yet!
+
+				for(i=0; i<n; i++) // normalize everything !! 
+				{	
+//					if((j==n-1) && (i==n-1))  // choose last 
+//						weights[Permutations(i,b)]=1;
+//					else
+					weights[i] /= fmax(epsilon, w_mat_col_sums[i] -weights[i]);             
+				}
+
+//				Rcout << "Weights: (non-normalized): " << weights << endl; 
+
                	weights = weights / sum(weights); // normalize
                	weights_cdf[0] = weights[0]; // compute cumsum
 			   	for(k=1; k<n; k++)
 			   		weights_cdf[k] = weights_cdf[k-1] + weights[k]; 	
 				Permutations(j,b) = weighted_rand_rcpp(1, weights_cdf)[0]; 
+				if(weights[Permutations(j,b)]==0)
+					Rcout << "Error! problem with weight " << j << " Perm-ind: " << Permutations(j,b) << endl;
+
+//				Rcout << "Add log-weight: log_P_IS=" << log_P_IS[b] << " weight=" << weights[Permutations(j,b)] << " log-weight=" << log(weights[Permutations(j,b)]) << endl; 					
               	log_P_IS[b] += log(weights[Permutations(j,b)]); // Need to update also P_IS here                       
                
 			   	w_mat_col_sums = w_mat_col_sums - w_mat(j,_);
 			   	for(i=0; i<n; i++)
-				   w_mat_col_sums[i] = fmax(0.0, w_mat_col_sums[i]); 
+				   	w_mat_col_sums[i] = fmax(0.0, w_mat_col_sums[i]); 
                	w_mat_col_sums[Permutations(j,b)] = 0;
             }
+//			Rcout << "KouMcculough b=" << b << " log_P_IS=" << log_P_IS[b] << endl;
         }
+//		Rcout << "KouMcculough log_P_IS0=" << log_P_IS0 << endl;
+
 	}
 
 
@@ -1434,7 +1454,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	if(importance_sampling_dist == "match.w") // new: try to match P_W of the original permutation 
 	{
 		NumericVector w_mat_row_vars = rowVars_rcpp(log_w_mat); // Should be rowVars!!! order variables by variance of rho 
-		IntegerVector w_order = sort_indexes_rcpp(-w_mat_row_vars);  // sort in DECREASING order!
+		IntegerVector w_order = sort_indexes_rcpp(-w_mat_row_vars);  // sort by variance in DECREASING order!
 
 		NumericVector log_w_sum_id_vec(n); 
 		log_w_sum_id_vec[0] = log_w_mat(w_order[0],w_order[0]); log_P_IS0 = -log(1);
@@ -1514,7 +1534,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 
 
 	// New: compute coefficient of variation: 
-	double CV2 = var_rcpp(P_W_IS) / pow(mean_rcpp(P_W_IS), 2); 
+	double CV = pow(var_rcpp(P_W_IS), 0.5) / mean_rcpp(P_W_IS); 
 
 	NumericMatrix P(n, n);  // New!matrix with P[i] = j estimate
     for(b=0; b<B; b++)  // next, compute expectations P[i,j]
@@ -1552,7 +1572,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 	ret["log.P.W0"] = log_P_W0;
 	ret["log.P.IS"] = log_P_IS;
 	ret["log.P.IS0"] = log_P_IS0;
-	ret["CV2"] = CV2;
+	ret["CV"] = CV;
 
 //	log.P.W=log.P.W, log.P.W0=log.P.W0, max.w=max.w, 
 //              log.P.IS=log.P.IS, log.P.IS0=log.P.IS0)
@@ -1591,7 +1611,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	NumericMatrix expectations_table(grid_points.nrow(), 4);
 
 	double TrueT; // = ComputeStatistic_w_rcpp(data, data, w_fun); 
-	long i, j, b;
+	long j, b;
 	NumericVector pw(B); 
 	NumericVector Tb(B); 
 	IntegerVector perm(n);
@@ -1635,8 +1655,8 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 
 	}
 	Pvalue /= NormalizingFactor;
-
-	double CV2 = var_rcpp(P_W_IS) / pow(mean_rcpp(P_W_IS), 2); // new: add coefficient of variation for importance sampling diagnostics. 
+//	Rcout << "final Pvalue=" << Pvalue << endl;
+	double CV = pow(var_rcpp(P_W_IS), 2) / mean_rcpp(P_W_IS); // new: add coefficient of variation for importance sampling diagnostics. 
 
 //	Rcout << "reject=" << reject << " denominator.weights=" <<  (pw0 + sum(pw)) << " pval=" << reject / (pw0 + sum(pw)) << endl; 
 	List ret; 
@@ -1646,7 +1666,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	ret["perm.weights"] = P_W_IS; // New! return also weight for each permutation !! 
 //	ret["pw.max"] = pw_max;
 	ret["id.perm.weight"] = P_W_IS0;
-	ret["CV2"] = CV2;
+	ret["CV"] = CV;
 	return(ret);
 }
 

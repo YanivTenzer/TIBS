@@ -77,10 +77,10 @@ prms.rho <- run.params.mat[,5]
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
 
-test.stat <- c("adjusted_w_hoeffding") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
-test.method <- c("permutationsMCMC", "permutationsIS") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
+test.stat <- c("inverse_w_hoeffding") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
+test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
 # IS.methods <- c("uniform", "match.w", "monotone.w", "sqrt.w", "KouMcculough.w")  # different methods for importance sampling of permutations
-IS.methods <- c("uniform", "match.w", "monotone.w", "monotone.grid.w")  # different methods for importance sampling of permutations
+IS.methods <- c("KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
 
 ##test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling", 'match_importance_sampling', 'monotone_importance_sampling')
 # Official tests:
@@ -97,9 +97,9 @@ num.sim <- length(dependence.type)
 
 if(run.flag == 1)
 {
-  iterations = 50 # official: 500
+  iterations = 10 # official: 500
   B = 100 # official:  1000
-  sample.size = 301 #  official:  100
+  sample.size = 500 #  official:  100
   run.dep <- c(8) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   
 } else  # run from command line 
@@ -137,7 +137,7 @@ for(s in run.dep) # Run all on the farm
     # Call function. # run simulations function 
     print(paste("n=", prms$sample.size))
     if(const.seed)
-      prms$seed <- 1141248 # 4524553
+      prms$seed <- 1149948 # 4524553
     
     # New: set applicible tests: 
     test.comb <- GetTestCombinations(prms, w.fun[[s]], dependence.type[[s]], test.stat, test.method)
@@ -154,8 +154,8 @@ for(s in run.dep) # Run all on the farm
 
 if(isRStudio)  # plot results in interactive mode
 {
-  test.legend <- apply(cbind(test.comb, T.OUT$test.power), 1, paste0, collapse=" ")#    paste(test.type, as.character(T.OUT$test.power))
-  col.vec <- c("blue", "black", "green", "orange", "gray", "pink",  "purple", "cyan", "brown", "yellow", "magenta", "darkgreen", "gold")
+  test.legend <- apply(cbind(test.comb[,c(1,3)], T.OUT$test.power), 1, paste0, collapse=" ")#    paste(test.type, as.character(T.OUT$test.power))
+  col.vec <- c("orange", "cyan", "navy", "dodgerblue3", "pink", "green", "black", "blue", "black", "green", "orange", "gray", "pink",  "purple", "brown", "yellow", "magenta", "darkgreen", "gold")
   i=1
   plot(T.OUT$test.true.stat[1,i,]- rowMeans(T.OUT$test.null.stat[1,i,,]), col=col.vec[i], pch=20, main='differences')
   for(i in 2:dim(test.comb)[1])
@@ -167,7 +167,8 @@ if(isRStudio)  # plot results in interactive mode
   ##jpeg(paste0("../figs/check_valid_n_", n, "_B_", prms$B, "_dep_", dependence.type[s], "_w_",  w.fun[s], 
   ##            "_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
   plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
-       main=paste0("Tests pvals and power, n=", n, ", alpha=", prms$alpha, " pert=", prms$perturb.grid))
+       main=TeX(paste0("Tests Cumulative Pvalues, $n=", n, ", \\alpha =", prms$alpha)), # , "$ pert=", prms$perturb.grid)), 
+       xlab="rank", ylab="Pvalue")
   valid.tests <- rep(0, num.tests)
   for(i in 1:num.tests)
   {
@@ -177,7 +178,14 @@ if(isRStudio)  # plot results in interactive mode
       valid.tests[i] <- 1
     }
   }
-  legend(prms$iterations*0.45, 0.25, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], y.intersp=0.8, cex=0.6)
+  for(i in 1:num.tests)
+  {
+    test.legend[i] <- str_remove(test.legend[i], "permutations")
+    test.legend[i] <- str_replace(test.legend[i], ".w", "")
+  }
+  grid(NULL,NULL, lwd=1)
+  legend(prms$iterations*0.45, 0.25, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], 
+         y.intersp=0.8, cex=0.6, box.lwd = 0,box.col = "white",bg = "white")
 ##  dev.off()
 }
 

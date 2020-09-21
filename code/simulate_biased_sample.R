@@ -264,7 +264,46 @@ log_P_w_moments <- function(n.sampling, sample.size, dependence.type, w.fun, prm
 }
 
   
+# estimate the partition function 
+estimate_Z <- function(w.mat) 
+{
   
+  log.Z <- EstimatePermanent(w.mat, 10, 1)
+  
+  print(paste0("logZ=", log.Z))
+  return(log.Z)
+}  
+  
+
+estimate_log_prob_typical <- function(w.mat)
+{
+  log.Z <- estimate_Z(w.mat)
+
+  print(log.Z)
+#  m <- max(w.mat)
+  
+  iters <- 50
+  r <- 0
+  log.add <- sum(log(1:n)) - log(iters) - log.Z
+  print(paste0("log.add=", log.add))
+  
+    tmp.w.mat <- w.mat # / m # normalize to avoid overflow 
+  for(i in 1:iters)  # sample permutations 
+  {
+    P=sample(n);
+    p <- prod(tmp.w.mat[cbind(1:n, P)])  
+#    print(p)
+    r <- r + p*log(p)
+  }
+  
+
+  
+  return( exp(log(r)  +  log.add))                   
+#  return(r *sum(log(1:n)))
+}
+
+
+
 
 # Determine if weighing function is positive 
 is_pos_w <- function(w.fun, data, mat.flag)

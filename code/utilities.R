@@ -31,6 +31,83 @@ GetTestCombinations <- function(prms, w.fun, dependence.type, test.stat, test.me
   
   
 
+# Use estimator by the determinant
+EstimatePermanent <- function(w.mat, iters=10, log.flag=0)
+{
+  w.mat.sqrt <- sqrt(w.mat)
+  n <- dim(w.mat)[1]
+  r <- 0
+  r_vec <- rep(0, iters)
+
+#  m <- max(abs(w.mat)) # *n / exp(1) # normalize factor 
+#  print(paste0("Normalizing factpr: ", m))
+#  w.mat.sqrt <- w.mat.sqrt / m
+  
+  
+  for(i in c(1:iters))
+  {
+    R <- matrix(rnorm(n*n), n, n)*w.mat.sqrt
+    
+    m <- max(abs(R))
+    d <- det(R/m)^2
+    print(paste0("det=", d))
+    
+    r_vec[i] <- log(d) + 2*n*log(m)
+#    r <- r + det(R*w.mat.sqrt)^2    
+#    lambda = log(eigen(R)$values)
+#    print(lambda)
+#      
+#    if(any(lambda ==0))
+#      r_vec[i] <- -9999999999999999999
+#    else
+#      r_vec[i] <- sum(log(lambda))
+    
+  }
+
+  if(log.flag)
+    return(sum(r_vec) - log(iters)) # 2*n*log(m) + log(r/iters))
+  else
+    return(mean(exp(r_vec)))
+    
+
+}
+
+# From stackoverflow: https://stackoverflow.com/questions/11095992/generating-all-distinct-permutations-of-a-list-in-r
+permutations <- function(n){
+  if(n==1){
+    return(matrix(1))
+  } else {
+    sp <- permutations(n-1)
+    p <- nrow(sp)
+    A <- matrix(nrow=n*p,ncol=n)
+    for(i in 1:n){
+      A[(i-1)*p+1:p,] <- cbind(i,sp+(sp>=i))
+    }
+    return(A)
+  }
+}
+
+ComputePermanent <- function(w.mat)
+{
+  n <- dim(w.mat)[1]
+  if(n>15)
+  {
+    print("n>15, too slow .. aborting")
+    return(NULL)
+  }
+    
+  P <- permutations(n)
+
+  r <- 0
+  for(i in 1:factorial(n))
+    r <- r + prod(w.mat[cbind(1:n, P[i,])])
+    
+  return(r)  
+  
+}
+  
+  
+
 
 
 ##################################################################################################
