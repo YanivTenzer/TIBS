@@ -175,7 +175,7 @@ w_fun_eval <- function(x, y, w.fun, prms) {  # no parameters optional?
                     rho <- 0
                   else
                     rho <- prms$w.rho
-                    exp((-x**2-y**2 +2*rho*x*y)/2)  # w is correlated Gaussian 
+                  exp((-x**2-y**2 +2*rho*x*y)/(2*(1-rho**2)))  # w is correlated Gaussian 
                   },
                 'exp'= {exp((-abs(x)-abs(y))/4)},
                 'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
