@@ -56,7 +56,7 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
       if(w.fun %in% c('truncation'))  # w(x,y)=1_{x<y}
         keep <- which(xy[,1] <= xy[,2])
       else       # w(x,y)>0 , use rejection sampling 
-        keep <- which(rand(n-k,1) < w_fun_eval(xy[,1], xy[,2], w.fun)/prms$w.max)  # rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max)
+        keep <- which(rand(n-k,1) < w_fun_eval(xy[,1], xy[,2], w.fun, prms)/prms$w.max)  # rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max)
       n.keep <- length(keep)
       if(prms$keep.all)
       {
@@ -155,11 +155,12 @@ SimulateSample <- function(n, dependence.type, prms)
   return(xy.mat)
 }
 
-  #######################################################################
+########################################################################
 # A set of biased sampling functions to be used 
 # Input: 
 # x, y - data 
 # w.fun - string indicating W type . We assume this is a vectorized function !!! 
+# prms - optional parameters for the function w.fun 
 # 
 # Output: 
 # The values of w evaluated at the (x,y) array 
@@ -173,7 +174,7 @@ w_fun_eval <- function(x, y, w.fun, prms) {  # no parameters optional?
                   if(missing(prms))
                     rho <- 0
                   else
-                    rho <- prms$rho
+                    rho <- prms$w.rho
                     exp((-x**2-y**2 +2*rho*x*y)/2)  # w is correlated Gaussian 
                   },
                 'exp'= {exp((-abs(x)-abs(y))/4)},
@@ -230,7 +231,7 @@ w_str_to_fun <- function(w.str)
 set_w_max <- function(n=1000, dependence.type, w.fun, prms)
 {
   xy <- SimulateSample(n, dependence.type, prms)  # simulate from F_XY
-  return(5 * (max(w_fun_eval(xy[,1], xy[,2], w.fun)) + 5 * std(w_fun_eval(xy[,1], xy[,2], w.fun)) + 1.0))     
+  return(5 * (max(w_fun_eval(xy[,1], xy[,2], w.fun, prms)) + 5 * std(w_fun_eval(xy[,1], xy[,2], w.fun, prms)) + 1.0))     
 } 
 
 # Set maximum value for a specific sample 
@@ -310,7 +311,7 @@ is_pos_w <- function(w.fun, data, mat.flag)
 {
   if(!is.function(w.fun))
   {
-    if(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const', 'naive'))
+    if(w.fun %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const', 'naive', 'gaussian'))
       return(TRUE)
     if(w.fun %in% c('truncation', 'Hyperplane_Truncation'))
       return(FALSE)

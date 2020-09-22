@@ -15,7 +15,6 @@ library(PerMallows) # distance between permutations
 library(Matrix)
 library(rapport)
 
-
 isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
 run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 if(isRStudio)
@@ -23,6 +22,7 @@ if(isRStudio)
   setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
   path = getwd()
 }
+# run.flag <- 0 # temp, just generate running scripts 
 args=commandArgs(trailingOnly = TRUE)
 Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
@@ -97,10 +97,10 @@ num.sim <- length(dependence.type)
 
 if(run.flag == 1)
 {
-  iterations = 10 # official: 500
+  iterations = 50 # official: 500
   B = 100 # official:  1000
-  sample.size = 500 #  official:  100
-  run.dep <- c(8) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  sample.size = 100 #  official:  100
+  run.dep <- c(9) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   
 } else  # run from command line 
 {
@@ -129,7 +129,7 @@ for(s in run.dep) # Run all on the farm
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
-                IS.methods=IS.methods, include.ID=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=0) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
@@ -137,16 +137,24 @@ for(s in run.dep) # Run all on the farm
     # Call function. # run simulations function 
     print(paste("n=", prms$sample.size))
     if(const.seed)
-      prms$seed <- 1149948 # 4524553
+      prms$seed <- 1234567890 # 4524553
     
     # New: set applicible tests: 
     test.comb <- GetTestCombinations(prms, w.fun[[s]], dependence.type[[s]], test.stat, test.method)
     num.tests <- dim(test.comb)[1] # can change with s !! 
-    T.OUT <- simulate_and_test(dependence.type[[s]], prms.rho[[s]], w.fun[[s]], test.comb, prms) # run all tests on one type of simulatee data 
     
-    # New: just create jobs strings 
-    for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
-      run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", prms)
+    
+    # new: separate into different rho values: 
+    if(run.flag==1)
+      T.OUT <- simulate_and_test(dependence.type[[s]], prms.rho[[s]], w.fun[[s]], test.comb, prms) # run all tests on one type of simulatee data 
+    else  # prepare job strungs 
+    {
+      # New: just create jobs strings 
+      for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
+        run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", test.comb, prms)
+    }
+      
+      
   }
 } # end loop on dependency types
 
@@ -168,9 +176,9 @@ if(isRStudio)  # plot results in interactive mode
   ##            "_perturb_grid_", prms$perturb.grid, ".jpg"), width = 400, height = 400)
   plot(c(0, prms$iterations), c(0,1), col="red", type="l", 
        main=TeX(paste0("Tests Cumulative Pvalues, $n=", n, ", \\alpha =", prms$alpha)), # , "$ pert=", prms$perturb.grid)), 
-       xlab="rank", ylab="Pvalue")
+       xlab="Rank", ylab="Pvalue")
   valid.tests <- rep(0, num.tests)
-  for(i in 1:num.tests)
+  for(i in c(1:4, 6:num.tests))
   {
     if(max(T.OUT$test.pvalue[1,i,])> -1)
     {
@@ -184,7 +192,7 @@ if(isRStudio)  # plot results in interactive mode
     test.legend[i] <- str_replace(test.legend[i], ".w", "")
   }
   grid(NULL,NULL, lwd=1)
-  legend(prms$iterations*0.45, 0.25, test.legend[which(valid.tests>0)], lwd=c(2,2), col=col.vec[which(valid.tests>0)], 
+  legend(prms$iterations*0.75, 0.18, test.legend[c(1:4,6:num.tests)], lwd=c(2,2), col=col.vec[c(1:4,6:num.tests)], 
          y.intersp=0.8, cex=0.6, box.lwd = 0,box.col = "white",bg = "white")
 ##  dev.off()
 }
