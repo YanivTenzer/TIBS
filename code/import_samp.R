@@ -55,7 +55,6 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
   }
   
   inverse.weight = str_detect(test.stat, "inverse")
-  print(paste0("inverse-flag=", inverse.weight))
   if(inverse.weight)
     TrueT <- ComputeStatistic.W(data, grid.points, w.fun, prms$counts.flag)$Statistic # no unique in grid-points 
   else    # new! here we also need to compute the expectatuibs table !!!  
@@ -472,7 +471,6 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
            w.col.sums <- colSums(w.mat)
            for(j in 1:n)
            {
-             print(paste0("j=", j))
              weights <- w.mat[j,]
              if(j>1)
                weights[1:(j-1)] <- 0  
@@ -485,27 +483,37 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
              w.col.sums <- pmax(0, w.col.sums - w.mat[j,])
              w.col.sums[j] <- 0
            }
-           
-           for(b in 1:prms$B)  # sample permutations 
+
+           b = 1           
+           while(b <= prms$B)  # sample permutations . Sometimes can fail for truncation 
            {
              w.col.sums <- colSums(w.mat)
              for(j in 1:n)
              {
+#               print(paste0("j inside=", j))
+               
                weights <- w.mat[j,]
                if(j>1)
                  weights[Permutations[1:(j-1),b]] <- 0  
-               # How do we know the permutations? they are not set yet!
+
+               if(max(weights)==0)  # here we failed to sample (can happen for truncation) 
+                 next
+                              # How do we know the permutations? they are not set yet!
                weights <- weights / max(epsilon, w.col.sums - weights)
+
 #               weights[Permutations[j:n,b]] <- weights[Permutations[j:n,b]] / max(epsilon, w.col.sums[Permutations[j:n,b]] - weights[Permutations[j:n,b]] )
                weights <- weights / sum(weights)
-               
+
                Permutations[j,b] = sample(n, 1, prob = weights)
+               if(weights[Permutations[j,b]]==0)
+                 print("Error! sampled zero weight!!")
                log.P.IS[b] <- log.P.IS[b] + log(weights[Permutations[j,b]]) # Need to update also P_IS here                       
                
                w.col.sums <- pmax(0, w.col.sums - w.mat[j,])
                w.col.sums[Permutations[j,b]] <- 0
                
              }
+             b = b+1
            }
          },
          "Tsai"={  # new: sample EXACTLY from the truncation distribution using Tsai's algorithm . We need the ordering of x,y !! x[i] <= y[i] (i.e. data[,2] >= data[,1])
