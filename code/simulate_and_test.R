@@ -72,6 +72,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     ##      iteration_result <- matrix(0, 4, B+1)
     if(prms$run.sim == 0)   # here we load pre-existing data 
     {
+      save.run.flag <- prms$run.flag
+      save.use.cpp <- prms$use.cpp
       if(file.exists(sim.file))
         load(sim.file)  # load simulations data file
       else
@@ -95,6 +97,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
         }
         save(all.biased.data, prms, file=sim.file)  
       }
+      prms$run.flag <- save.run.flag
+      prms$use.cpp <- save.use.cpp
     } 
     
     
@@ -113,8 +117,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     { 
       if(prms$run.sim == 0) # load simulated data from file 
       {
-        if(i==1)
-          load(sim.file)
+#        if(i==1)  # no need to load again
+#          load(sim.file)
         biased.data = all.biased.data[,,i]
       } else  # new simulation
       {
@@ -148,7 +152,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
            (test.method[t] %in% c('tsai', 'minP2')))
           next  # these tests run only for truncation 
         
-        if(((w.fun %in% c('truncation', 'Hyperplane_Truncation'))) & (test.method[t] == "permutationsIS"))  # no importance sampling for truncation (should add Chen&Liu method)
+        if(((w.fun %in% c('truncation', 'Hyperplane_Truncation'))) && (test.method[t] == "permutationsIS") && !(test.params[t] %in% c("Tsai", "KouMcculough.w")))  # no importance sampling for truncation (should add Chen&Liu method)
           next
         
         if( (!is_pos_w(w.fun)) && test.method[t] == "inverse_w_hoeffding" )  # run only for positive distributions 

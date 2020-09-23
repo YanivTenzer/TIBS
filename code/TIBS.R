@@ -344,9 +344,10 @@ TIBS <- function(data, w.fun, prms, test.method, test.stat)
            output <- list(Pvalue=results$p.valueMinp2)
          }
   )
-  if(exists("permuted.data"))
+  
+  if(!("permuted.data" %in% names(output)) && exists("permuted.data"))
     output$permuted.data <- permuted.data
-  else
+  if(!("permuted.data" %in% names(output)))
     output$permuted.data <- NA
   prms$include.ID = as.numeric(prms$include.ID>0)  # set to zero or one
   if(!("Pvalue" %in% names(output))) # Compute empirical P-value

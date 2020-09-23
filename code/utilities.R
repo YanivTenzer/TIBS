@@ -18,7 +18,11 @@ GetTestCombinations <- function(prms, w.fun, dependence.type, test.stat, test.me
       # new: allow different importance sampling distributions 
       if(('IS.methods' %in% names(prms)) && (test.method[i] == "permutationsIS"))
         for(k in 1:length(prms$IS.methods))
+        {
+          if((prms$IS.methods[k] == "Tsai") && !(w.fun %in% c("truncation", "Hyperplane_truncation")))  # Tsai sampling is only applicable for truncation 
+            next
           test.comb <- rbind(test.comb, c(test.method[i], test.stat[j], prms$IS.methods[k]))        
+        }
       else
           test.comb <- rbind(test.comb, c(test.method[i], test.stat[j], ""))        
 #      test.comb[ctr,1] <- test.stat[i]

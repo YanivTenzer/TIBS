@@ -23,10 +23,10 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
     prms$diagnostic.plot <- 0
   
   w.mat <- w_fun_to_mat(data, w.fun)
-  prob.typical <- estimate_log_prob_typical(w.mat)
+#  prob.typical <- estimate_log_prob_typical(w.mat)
   
-    orig.IS.dist <- prms$importance.sampling.dist
-  Permutations <- PermutationsIS(w.mat, prms)  # sample permutations 
+  orig.IS.dist <- prms$importance.sampling.dist
+  Permutations <- PermutationsIS(w.mat, prms, data)  # sample permutations 
   if(prms$diagnostic.plot)
   {
     IS.methods <- c("KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "MCMC") #   "sqrt.w", ) "match.w", 
@@ -268,7 +268,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
            lty=rep(NA, num.IS+2), pch=pch.vec[1:(num.IS+2)] ,  cex=rep(0.8), # c(rep(20, num.IS+1), 17)
            box.lwd = 0,box.col = "white",bg = "white") # bty="n")
     
-    prob.typical <- estimate_log_prob_typical(w.mat)
+#    prob.typical <- estimate_log_prob_typical(w.mat)
     
     
   } # if diagnostic plots 
@@ -279,7 +279,8 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
 
 # New: Importance sampling for permutations
 # orms$importance.sampling.dist - determines the distribution 
-PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
+# data - (optional). The x,y values 
+PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: allow non-default burn-in 
 { 
   epsilon <- 0.000000000000000001
   n <- dim(w.mat)[1];
@@ -471,6 +472,7 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
            w.col.sums <- colSums(w.mat)
            for(j in 1:n)
            {
+             print(paste0("j=", j))
              weights <- w.mat[j,]
              if(j>1)
                weights[1:(j-1)] <- 0  
@@ -505,7 +507,34 @@ PermutationsIS <- function(w.mat, prms) # burn.in=NA, Cycle=NA)  # New: allow no
                
              }
            }
-         }
+         },
+         "Tsai"={  # new: sample EXACTLY from the truncation distribution using Tsai's algorithm . We need the ordering of x,y !! x[i] <= y[i] (i.e. data[,2] >= data[,1])
+#            w01 <- as.numeric(w.mat>0)  # take binary values (truncation)
+            R.mat <- matrix(0, n,n)
+            for(i in 1:n)  # compute the set R_i for each i
+            {
+              for(j in 1:n)
+                if((data[j,1] <= data[i,2]) && (data[i,2] <= data[j,2]))
+                  R.mat[i,j] <- 1
+            }
+            
+            log.P.IS0 <- sum(log(rowSums(R.mat))) # these are on log-scale. Uniform probability over all legal permutations
+            log.P.IS <- rep(log.P.IS0, prms$B)  # get importance probabilities (up to a constant)
+            
+                        
+            for(b in c(1:B))  # go over permutations
+            {
+#              print(paste0("run b=", b))
+              Permutations[,b] <- 1:n
+              for(i in 1:n) # next, sample sequentially using R
+              {
+                j <- sample(n, 1, prob = R.mat[i,]/sum(R.mat[i,])) 
+                temp <- Permutations[i,b]                 # swap
+                Permutations[i,b] <- Permutations[j,b]
+                Permutations[j,b] <- temp
+              }
+            }
+         }  # end Tsai 
   ) # end switch on importance sampling distribution 
   
   # Next, compute importance weights, from P_I and P_W, and then use them to estimate P_ij 

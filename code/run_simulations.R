@@ -77,10 +77,10 @@ prms.rho <- run.params.mat[,5]
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
 
-test.stat <- c("inverse_w_hoeffding") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
+test.stat <- c("adjusted_w_hoeffding") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
 test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
 # IS.methods <- c("uniform", "match.w", "monotone.w", "sqrt.w", "KouMcculough.w")  # different methods for importance sampling of permutations
-IS.methods <- c("KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
+IS.methods <- c("Tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
 
 ##test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling", 'match_importance_sampling', 'monotone_importance_sampling')
 # Official tests:
@@ -97,10 +97,10 @@ num.sim <- length(dependence.type)
 
 if(run.flag == 1)
 {
-  iterations = 50 # official: 500
+  iterations = 500 # official: 500
   B = 100 # official:  1000
   sample.size = 100 #  official:  100
-  run.dep <- c(9) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  run.dep <- c(2) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   
 } else  # run from command line 
 {
@@ -129,7 +129,7 @@ for(s in run.dep) # Run all on the farm
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
-                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=0) # , sample.by.bootstrap=1) # set running parameters here ! 
+                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
@@ -153,8 +153,8 @@ for(s in run.dep) # Run all on the farm
       for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
         run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", test.comb, prms)
     }
-      
-      
+    
+    
   }
 } # end loop on dependency types
 
@@ -194,7 +194,7 @@ if(isRStudio)  # plot results in interactive mode
   grid(NULL,NULL, lwd=1)
   legend(prms$iterations*0.75, 0.18, test.legend[c(1:4,6:num.tests)], lwd=c(2,2), col=col.vec[c(1:4,6:num.tests)], 
          y.intersp=0.8, cex=0.6, box.lwd = 0,box.col = "white",bg = "white")
-##  dev.off()
+  ##  dev.off()
 }
 
 #library(matrixStats)
@@ -234,3 +234,57 @@ if(run.mcmc)
 overall.time <-  difftime(Sys.time() , overall.start.time, units="secs") 
 print(paste0("Overall simulations time (no min.p), B= ", prms$B, ", iters=", prms$iterations, ":"))
 print(overall.time)
+
+
+
+
+
+# Temp: samll test of product of Gaussian distribution 
+test.gaussian <- 0
+if(test.gaussian)
+{
+  rho <- 0.95
+  rho2 <- 0.7
+  Sigma.p <- matrix(c(1, rho, rho, 1), 2, 2)
+  Sigma.m <- matrix(c(1, -rho2, -rho2, 1), 2, 2)
+  mu <- c(0,0)
+  
+  
+  
+  x <- seq(-1,1,0.05)
+  y <- seq(-1,1,0.05)
+  n <- length(x)
+  xy.mat <- matrix(0, n, n)
+  for(i in 1:n)
+    for(j in 1:n)
+      xy.mat[i,j] <- dmvnorm(c(x[i], y[j]), mu, Sigma.m) * dmvnorm(c(x[i], y[j]), mu, Sigma.p)
+  
+  persp(x, y, xy.mat)
+  
+  
+  
+  rho <- 0.95
+  n <- 500
+  g.prms <- c()
+  g.prms$rho <- rho
+  g.prms$w.rho <- -rho
+  g.prms$w.max <- 1
+  xy <- SimulateBiasedSample(n, "Gaussian", "gaussian", g.prms)
+  g.prms$rho <- -rho
+  g.prms$w.rho <- rho
+  xy2 <- SimulateBiasedSample(n, "Gaussian", "gaussian", g.prms)
+  
+  
+  
+  plot(xy$data[,1], xy$data[,2])
+  cor(xy$data[,1], xy$data[,2])
+  points(xy2$data[,1], xy2$data[,2], col="red")
+  cor(xy2$data[,1], xy2$data[,2])
+  
+}
+
+
+
+
+
+

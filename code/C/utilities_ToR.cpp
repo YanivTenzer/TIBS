@@ -1217,12 +1217,14 @@ List PermutationsMCMC_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycl
 **/
 
 // [[Rcpp::export]]
-List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle = NA)  # New: allow non - default burn - in
+List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // burn.in = NA, Cycle = NA)  # New: allow non - default burn - in
 {
 	double epsilon = 0.0000000000001;
 	long n = w_mat.nrow();
 	long i, j, k, b;
-
+	double temp;
+	long ctr=0; 
+	
 	// Set IS default sampling parameters
 	long B = 1000;
 	if (prms.containsElementNamed("B")) //   ('B' % in % names(prms)))
@@ -1449,8 +1451,6 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 
 	}
 
-
-
 	if(importance_sampling_dist == "match.w") // new: try to match P_W of the original permutation 
 	{
 		NumericVector w_mat_row_vars = rowVars_rcpp(log_w_mat); // Should be rowVars!!! order variables by variance of rho 
@@ -1459,10 +1459,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 		NumericVector log_w_sum_id_vec(n); 
 		log_w_sum_id_vec[0] = log_w_mat(w_order[0],w_order[0]); log_P_IS0 = -log(1);
 		for(j=1; j<n; j++)
-		{
 			log_w_sum_id_vec[j] = log_w_sum_id_vec[j-1] + log_w_mat(w_order[j],w_order[j]); 	//	  cumsum(diag(log.w.mat)[w.order]) # we want to get this sum 
-		//	log_P_IS0 += (-log(j+1)); // TEMP! set as uniform distirbution 
-		}
 
 		double log_w_sum_rand = 0.0;
 		double sigma = 2.0; // set variance of importance sampling around true permutation 
@@ -1482,7 +1479,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
 			log_w_sum_rand = 0.0;
 			for(j=0; j<n; j++)
 			{
-				for(k=0; k<n; k++)
+				for(k=0; k<n; k++) // exponent is the heavy part
 	                weights[k] = exp(-pow(log_w_mat(w_order[j],k) + log_w_sum_rand - log_w_sum_id_vec[j], 2 ) / (2*sigma*sigma)); //  penalize deviations from probability
 				for(k=0; k<j; k++) // remove the ones we already occupied
 	                weights[w_order[k]] = 0.0;     	
@@ -1495,8 +1492,54 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms) // burn.in = NA, Cycle 
                 log_w_sum_rand += log_w_mat(w_order[j],Permutations(w_order[j],b));
 			}
 		}
-
 	}
+
+	if(importance_sampling_dist == "Tsai") // new: exact sampling from the uniform distribution under truncation 
+	{
+		NumericMatrix R_mat(n,n);
+		long i, j;
+
+		for(i=0; i<n; i++)
+		{
+			for(j=0; j<n; j++)
+            	if((data(j,0) <= data(i,1)) && (data(i,1) <= data(j,1)))
+					R_mat(i,j) = 1;
+		}
+
+		NumericVector R_sum = rowSums(R_mat);
+		NumericMatrix R_index_mat(n,n);
+		for(i=0; i<n; i++)
+		{
+			ctr = 0;
+			for(j=0; j<n; j++)
+				if(R_mat(i,j)==1)
+				{
+					R_index_mat(i,ctr)=j;
+					ctr++;
+				}
+		}
+		log_P_IS0 = sum(log(R_sum)); // sum of vector 
+		for(i=0; i<n; i++)
+			log_P_IS[i] = log_P_IS0;
+
+		for(b=0; b<B; b++)
+		{
+			for(i=0; i<n; i++)
+				Permutations(i,b) = i;
+			for(i=0; i<n; i++)
+			{
+				j = R_index_mat(i, floor(R_sum[i] * double(rand()+1.0) / (RAND_MAX+2.0)));	// sample uniformly
+
+				// Swap
+				temp = Permutations(i,b);
+				Permutations(i,b) = Permutations(j,b);
+				Permutations(j,b) = temp;	
+			}
+		}
+	}
+	
+	// Ended different sampling methods 
+
 
 
 //	Rcout << "log_P_IS, log_P_IS0: " << log_P_IS << endl << log_P_IS0 << endl; 
@@ -1603,7 +1646,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 	if (prms.containsElementNamed("importance.sampling.dist"))
 		importance_sampling_dist = as<string>(prms["importance.sampling.dist"]);
 
-	List PermutationsList = PermutationsIS_rcpp(w_fun_to_mat_rcpp(data, w_fun), prms); //  sample permutations 	
+	List PermutationsList = PermutationsIS_rcpp(w_fun_to_mat_rcpp(data, w_fun), prms, data); //  sample permutations 	
 	NumericMatrix Permutations = as<NumericMatrix>(PermutationsList["Permutations"]);	
 	NumericMatrix P = as<NumericMatrix>(PermutationsList["P"]);	
 	NumericVector P_W_IS = as<NumericVector>(PermutationsList["P.W.IS"]); // importance weights of permutations
@@ -1667,6 +1710,7 @@ List IS_permute_rcpp(NumericMatrix data, NumericMatrix grid_points, string w_fun
 //	ret["pw.max"] = pw_max;
 	ret["id.perm.weight"] = P_W_IS0;
 	ret["CV"] = CV;
+	ret["permuted.data"] = permuted_data; // return also a permutation 
 	return(ret);
 }
 
