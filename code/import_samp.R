@@ -518,7 +518,8 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
          },
          "Tsai"={  # new: sample EXACTLY from the truncation distribution using Tsai's algorithm . We need the ordering of x,y !! x[i] <= y[i] (i.e. data[,2] >= data[,1])
 #            w01 <- as.numeric(w.mat>0)  # take binary values (truncation)
-            R.mat <- matrix(0, n,n)
+           w.order <- order(data[,2])
+           R.mat <- matrix(0, n,n)
             for(i in 1:n)  # compute the set R_i for each i
             {
               for(j in 1:n)
@@ -529,18 +530,25 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
             log.P.IS0 <- sum(log(rowSums(R.mat))) # these are on log-scale. Uniform probability over all legal permutations
             log.P.IS <- rep(log.P.IS0, prms$B)  # get importance probabilities (up to a constant)
             
-                        
-            for(b in c(1:B))  # go over permutations
+            R.mat.ordered <- R.mat[w.order, w.order]
+            
+            for(b in c(1:prms$B))  # go over permutations
             {
-#              print(paste0("run b=", b))
-              Permutations[,b] <- 1:n
+              tmp.R.mat <- R.mat            
+              Permutations[,b] <- 1:n # need to initialize to deal with ties 
+              Q <- w.order
               for(i in 1:n) # next, sample sequentially using R
               {
-                j <- sample(n, 1, prob = R.mat[i,]/sum(R.mat[i,])) 
-                temp <- Permutations[i,b]                 # swap
-                Permutations[i,b] <- Permutations[j,b]
-                Permutations[j,b] <- temp
+                j <- sample(n, 1, prob = R.mat.ordered[i,]/sum(R.mat.ordered[i,])) 
+                Permutations[Q[j],b] <- w.order[i]                      # set pre-image 
+                # swap
+                temp <- Q[i]
+                Q[i] <- Q[j]
+                Q[j] <- temp
               }
+              if( min(data[Permutations[,b],2]-data[,1]) <0 )  # check Tsai's sampling
+                print("Erorr! permutation doesn't satisfy truncation!!!!")
+              
             }
          }  # end Tsai 
   ) # end switch on importance sampling distribution 
