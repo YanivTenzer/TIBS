@@ -490,21 +490,22 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
              w.col.sums <- colSums(w.mat)
              for(j in 1:n)
              {
-#               print(paste0("j inside=", j))
-               
+
                weights <- w.mat[j,]
                if(j>1)
                  weights[Permutations[1:(j-1),b]] <- 0  
 
                if(max(weights)==0)  # here we failed to sample (can happen for truncation) 
-                 next
+                 break
+
                               # How do we know the permutations? they are not set yet!
                weights <- weights / max(epsilon, w.col.sums - weights)
 
 #               weights[Permutations[j:n,b]] <- weights[Permutations[j:n,b]] / max(epsilon, w.col.sums[Permutations[j:n,b]] - weights[Permutations[j:n,b]] )
                weights <- weights / sum(weights)
 
-               Permutations[j,b] = sample(n, 1, prob = weights)
+               Permutations[j,b] = sample(n, 1, prob = weights) # need to fix for ties 
+
                if(weights[Permutations[j,b]]==0)
                  print("Error! sampled zero weight!!")
                log.P.IS[b] <- log.P.IS[b] + log(weights[Permutations[j,b]]) # Need to update also P_IS here                       
@@ -513,11 +514,11 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
                w.col.sums[Permutations[j,b]] <- 0
                
              }
-             b = b+1
+             if((j == n) && (Permutations[j,n]>0))
+               b = b+1
            }
          },
          "Tsai"={  # new: sample EXACTLY from the truncation distribution using Tsai's algorithm . We need the ordering of x,y !! x[i] <= y[i] (i.e. data[,2] >= data[,1])
-#            w01 <- as.numeric(w.mat>0)  # take binary values (truncation)
            w.order <- order(data[,2])
            R.mat <- matrix(0, n,n)
             for(i in 1:n)  # compute the set R_i for each i
@@ -526,7 +527,6 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
                 if((data[j,1] <= data[i,2]) && (data[i,2] <= data[j,2]))
                   R.mat[i,j] <- 1
             }
-            
             log.P.IS0 <- sum(log(rowSums(R.mat))) # these are on log-scale. Uniform probability over all legal permutations
             log.P.IS <- rep(log.P.IS0, prms$B)  # get importance probabilities (up to a constant)
             
@@ -534,7 +534,6 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
             
             for(b in c(1:prms$B))  # go over permutations
             {
-              tmp.R.mat <- R.mat            
               Permutations[,b] <- 1:n # need to initialize to deal with ties 
               Q <- w.order
               for(i in 1:n) # next, sample sequentially using R
@@ -548,7 +547,6 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
               }
               if( min(data[Permutations[,b],2]-data[,1]) <0 )  # check Tsai's sampling
                 print("Erorr! permutation doesn't satisfy truncation!!!!")
-              
             }
          }  # end Tsai 
   ) # end switch on importance sampling distribution 

@@ -14,14 +14,20 @@ source('simulate_biased_sample.R')
 source('marginal_estimation.R')
 source('Tsai_test.R')
 source('utilities.R') 
+source("import_samp.R")
 library(lubridate)
+library(stringr)
+library(mvtnorm)
+library(matrixStats)
 library(permDep)
 library(tictoc)
 library(xtable)
 library(ggplot2)
+library(pracma)
 library(Matrix)
 library(Rcpp)
 library(RcppArmadillo)
+load("Channing_run_IS.Rdata")
 
 
 datasets <- c('huji', 'AIDS', 'ICU', 'Infection',  'ChanningHouse')  # Run Channing and skipping Dementia. 
@@ -134,12 +140,19 @@ cppFunction('NumericVector timesTwo(NumericVector x) {
 }')
 
 
+# "Official parameters"
 B = 100000 # number of permutations/bootstrap samples 
 minP2.B = 10000 # for minP take a smaller value due to running time 
 plot.flag <- 1
 
-test.method <- c('bootstrap', 'permutations', 'tsai', 'minP2') # different tests to run 
-test.stat <- c("adjusted_w_hoeffding", "adjusted_w_hoeffding", "tsai", "minP2")
+# parameters for experimenting
+B = 1000
+minP2.B = 50
+plot.flag <- 0
+
+test.method <- c('bootstrap', 'permutationsMCMC', "permutationsIS", 'tsai', 'minP2') # different tests to run 
+test.stat <- c("adjusted_w_hoeffding", "adjusted_w_hoeffding", "adjusted_w_hoeffding", "tsai", "minP2")
+IS.method <- c("Tsai", "KouMcculough.w")
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
 # w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
 # w.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
@@ -167,7 +180,7 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
   
 #    max(w.max[d], max(w_fun_to_mat(dat$input.data, dat$w.fun))) # update max 
   prms$use.cpp <- 1 # New! enable one to run with c++ code (faster)
-  for(t in 1:4) # n.tests) # run all tests 
+  for(t in 1:5) # n.tests) # run all tests 
   {
     if(test.method[t] == 'minP2')  # smaller sample size for minP2 (slower)
       prms$B = minP2.B
@@ -187,6 +200,16 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     
     print(paste0("Running ", datasets[d], ", ", test.method[t], ":"))
     start.time <- Sys.time()
+    
+    if(test.method[t] == "permutationsIS")
+    {
+      if(!is_pos_w(dat$w.fun, dat$input.data, 1))
+        prms$importance.sampling.dist = "Tsai" # for truncation x2>=x1 or truncation + censoring
+      else
+        prms$importance.sampling.dist = "KouMcculough.w"
+    }
+    
+    save(dat, prms, test.method, test.stat, t, file="Channing_run_IS.Rdata")
     results.test <- TIBS(dat$input.data, dat$w.fun, prms, test.method[t], test.stat[t])  # can also be cpp 
     difftime(Sys.time() , start.time, units="secs")
     test.time[d,t] <- as.numeric(difftime(Sys.time() , start.time, units="secs")) # Sys.time() - start.time

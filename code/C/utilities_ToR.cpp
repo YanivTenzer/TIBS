@@ -1224,7 +1224,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 	long i, j, k, b;
 	double temp;
 	long ctr=0; 
-	
+
 	// Set IS default sampling parameters
 	long B = 1000;
 	if (prms.containsElementNamed("B")) //   ('B' % in % names(prms)))
@@ -1409,7 +1409,8 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 				w_mat_col_sums[i] = fmax(0.0, w_mat_col_sums[i]); 
              w_mat_col_sums[j] = 0;
         }
-		for(b=0; b<B; b++)  // sample permutations 
+		b=0;
+		while(b<B)  // sample permutations 
         {
             w_mat_col_sums = colSums(w_mat);
 //			Rcout << "Col Sums Start: " << w_mat_col_sums << endl; 
@@ -1418,6 +1419,8 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
                	weights = w_mat(j,_);
 			   	for(i=0; i<j; i++)
                  	weights[Permutations(i,b)] = 0;  // permutation isn't set yet!
+				 if(max(weights)==0)  // for some truncations we may fail to find a permutation
+					break;
 
 				for(i=0; i<n; i++) // normalize everything !! 
 				{	
@@ -1444,9 +1447,11 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 			   	for(i=0; i<n; i++)
 				   	w_mat_col_sums[i] = fmax(0.0, w_mat_col_sums[i]); 
                	w_mat_col_sums[Permutations(j,b)] = 0;
+				if(j == n-1) // sampled a valud permutation
+					b++;
             }
 //			Rcout << "KouMcculough b=" << b << " log_P_IS=" << log_P_IS[b] << endl;
-        }
+        } // end while 
 //		Rcout << "KouMcculough log_P_IS0=" << log_P_IS0 << endl;
 
 	}
@@ -1496,6 +1501,8 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 
 	if(importance_sampling_dist == "Tsai") // new: exact sampling from the uniform distribution under truncation 
 	{
+		IntegerVector w_order = sort_indexes_rcpp(data(_,1));  // sort by y[i] INCREASING order!
+		NumericVector Q(n); // helper permutation
 		NumericMatrix R_mat(n,n);
 		long i, j;
 
@@ -1503,8 +1510,9 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 		{
 			for(j=0; j<n; j++)
             	if((data(j,0) <= data(i,1)) && (data(i,1) <= data(j,1)))
-					R_mat(i,j) = 1;
+					R_mat(w_order[i],w_order[j]) = 1;
 		}
+
 
 		NumericVector R_sum = rowSums(R_mat);
 		NumericMatrix R_index_mat(n,n);
@@ -1512,9 +1520,9 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 		{
 			ctr = 0;
 			for(j=0; j<n; j++)
-				if(R_mat(i,j)==1)
+				if(R_mat(w_order[i],w_order[j])==1)
 				{
-					R_index_mat(i,ctr)=j;
+					R_index_mat(w_order[i],ctr)=w_order[j];
 					ctr++;
 				}
 		}
@@ -1524,16 +1532,19 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 
 		for(b=0; b<B; b++)
 		{
-			for(i=0; i<n; i++)
+			for(i=0; i<n; i++) // set ID
 				Permutations(i,b) = i;
+			for(i=0; i<n; i++) // set Q
+				Q[i] = w_order[i];
 			for(i=0; i<n; i++)
 			{
 				j = R_index_mat(i, floor(R_sum[i] * double(rand()+1.0) / (RAND_MAX+2.0)));	// sample uniformly
 
+				Permutations(Q[j],b) = w_order[i];    // set permutations from Q 
 				// Swap
-				temp = Permutations(i,b);
-				Permutations(i,b) = Permutations(j,b);
-				Permutations(j,b) = temp;	
+				temp = Q[i];
+				Q[i] = Q[j];
+				Q[j] = temp;	
 			}
 		}
 	}
