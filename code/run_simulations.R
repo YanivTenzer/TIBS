@@ -41,7 +41,7 @@ source('Tsai_test.R')
 print("Included sources ")
 isRStudio <- 0 # Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
 
-print(paste0("Now Rstudio=", isRStudio))
+#print(paste0("Now Rstudio=", isRStudio))
 
 cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
@@ -63,7 +63,7 @@ run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3)
 
 run.params.mat
 
-print(paste0("Again Rstudio=", isRStudio))
+#print(paste0("Again Rstudio=", isRStudio))
 
 dependence.type <- run.params.mat[,1]
 w.fun <- run.params.mat[,2]
@@ -72,7 +72,7 @@ exchange.type <- run.params.mat[,4]
 prms.rho <- run.params.mat[,5]
 
 
-print(paste0("Again2 Rstudio=", isRStudio))
+#print(paste0("Again2 Rstudio=", isRStudio))
 #dependence.type <- c('UniformStrip', 'Gaussian', 'Clayton', 'Gumbel', 
 #                     'LD', 'nonmonotone_nonexchangeable', 'CLmix', 'Gaussian',
 #                     'LogNormal', 'Gaussian') # The last one is log-normal 
@@ -97,7 +97,7 @@ IS.methods <- c("Tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.gri
 prms.file <- "sim/prms.sim"
 run.script.file <- "run.all.sim.sh"
 
-print(paste0("Again3 Rstudio=", isRStudio))
+#print(paste0("Again3 Rstudio=", isRStudio))
 ##test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling", 'match_importance_sampling', 'monotone_importance_sampling')
 # Official tests:
 #    test.type <- c('permutations',  'permutations_inverse_weighting', 'bootstrap', 'bootstrap_inverse_weighting',  'tsai', 
@@ -122,12 +122,16 @@ if(isRStudio == 1)
 } else  # run from command line 
 {
   print("inside else!!")
+  print(as.integer(args[1]))
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  print("set arg1")
+  
   iterations = as.integer(args[2])
+  print("set arg2")
   B = as.integer(args[3])
+  print("set arg3")
   sample.size = as.integer(args[4])
   print(paste0("run.dep:", run.dep, " iters:", iterations))
-  
 } # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
 
 print("Finished Setting parameters")
