@@ -14,7 +14,9 @@ library(matrixStats)
 library(PerMallows) # distance between permutations 
 library(Matrix)
 
+print("set R studio")
 isRStudio <- 0 # Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+print("set run flag")
 run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 if(isRStudio)
 {
@@ -106,6 +108,7 @@ if(isRStudio == 1)
   
 } else  # run from command line 
 {
+  print("inside else!!")
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   iterations = as.integer(args[2])
   B = as.integer(args[3])
