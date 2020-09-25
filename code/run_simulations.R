@@ -161,7 +161,7 @@ for(s in run.dep) # Run all on the farm
       for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
       {
 #        run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", test.comb, prms)
-        run_str[ctr] <- paste0("Rscript simulate_and_test ", dependence.type[[s]], " ", prms.rho[[s]][k], " ", w.fun[[s]], " ", "c()",  " ", 
+        run_str[ctr] <- paste0("Rscript simulate_and_test.R ", dependence.type[[s]], " ", prms.rho[[s]][k], " ", w.fun[[s]], " ", "c()",  " ", 
                                paste0(prms.file, '.', s, '.Rdata'), " > out/run.sim.s.", s, ".rho.",  prms.rho[[s]][k], ".out ", " &")  # test.comb,
         print(run_str[ctr])  # save all run strungs into a script file 
         ctr = ctr+1
