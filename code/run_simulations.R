@@ -13,7 +13,6 @@ library(pracma)
 library(matrixStats)
 library(PerMallows) # distance between permutations 
 library(Matrix)
-library(rapport)
 
 isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
 run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available

@@ -1,6 +1,35 @@
+rm(list=ls())
+gc()
+
+library(stringr)
+library(foreach)
+library(doSNOW)
+#library(parallel)
+library(doParallel)
+library(gdata)
+library(mvtnorm)
+library(ggplot2)  
+library(pracma)
+library(matrixStats)
+library(PerMallows) # distance between permutations 
+library(Matrix)
+
 library(latex2exp)
 library(xtable)
 library(binom)  # for binomial confidence intervals 
+
+
+args=commandArgs(trailingOnly = TRUE)
+Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+
+source('simulate_and_test.R')
+source('simulate_biased_sample.R')
+source('TIBS.R')
+source('marginal_estimation.R')
+source('utilities.R')
+source('import_samp.R')
+source('Tsai_test.R')
+
 
 
 # Function running for one dataset: simulate data and perform weighted independent test 
