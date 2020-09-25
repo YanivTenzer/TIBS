@@ -40,7 +40,7 @@ source('Tsai_test.R')
 
 print("Included sources ")
 isRStudio <- 0 # Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
-
+run.flag <- 1 # set again 
 #print(paste0("Now Rstudio=", isRStudio))
 
 cores=detectCores()
@@ -61,7 +61,6 @@ run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3)
                              'Gaussian', 'gaussian', TRUE, TRUE, list(seq(-0.9, 0.9, 0.1)) ), 5, 9)) # replace by CLmix / non-monotone and centered at zero 
 #  'Gaussian','exponent_minus_sum_abs', TRUE, TRUE, # not needed (w(x,y)=w(x)*w(y), not interesting)
 
-run.params.mat
 
 #print(paste0("Again Rstudio=", isRStudio))
 
