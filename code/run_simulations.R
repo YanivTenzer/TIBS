@@ -25,7 +25,10 @@ if(isRStudio)
 }
 run.flag <- 0 # temp, just generate running scripts 
 args=commandArgs(trailingOnly = TRUE)
+print("Compile C docode ")
 Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+
+print("Compiled C docode ")
 
 source('simulate_and_test.R')
 source('simulate_biased_sample.R')
@@ -34,6 +37,8 @@ source('marginal_estimation.R')
 source('utilities.R')
 source('import_samp.R')
 source('Tsai_test.R')
+
+print("Included sources ")
 
 cores=detectCores()
 cl<-makeCluster(cores[1]-1) #not to overload your computer registerDoSNOW(cl)
@@ -99,6 +104,7 @@ run.script.file <- "run.all.sim.sh"
 num.sim <- length(dependence.type)
 # num.tests <- length(test.type)
 
+print("Setting parameters")
 if(isRStudio == 1)
 {
   iterations = 5 # 00 # official: 500
@@ -116,6 +122,8 @@ if(isRStudio == 1)
   print(paste0("run.dep:", run.dep, " iters:", iterations))
   
 } # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
+
+print("Finished Setting parameters")
 
 #test.type<-c( 'permutations','permutations_inverse_weighting',
 #              #'uniform_importance_sampling',
