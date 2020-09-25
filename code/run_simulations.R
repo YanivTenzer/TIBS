@@ -22,7 +22,7 @@ if(isRStudio)
   setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
   path = getwd()
 }
-# run.flag <- 0 # temp, just generate running scripts 
+run.flag <- 0 # temp, just generate running scripts 
 args=commandArgs(trailingOnly = TRUE)
 Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
 
@@ -81,6 +81,9 @@ test.stat <- c("adjusted_w_hoeffding") # possible test statistics # "hoeffding",
 test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
 # IS.methods <- c("uniform", "match.w", "monotone.w", "sqrt.w", "KouMcculough.w")  # different methods for importance sampling of permutations
 IS.methods <- c("Tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
+prms.file <- "sim/prms.sim"
+run.script.file <- "run.all.sim.sh"
+
 
 ##test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling", 'match_importance_sampling', 'monotone_importance_sampling')
 # Official tests:
@@ -95,12 +98,12 @@ IS.methods <- c("Tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.gri
 num.sim <- length(dependence.type)
 # num.tests <- length(test.type)
 
-if(run.flag == 1)
+if(isRStudio == 1)
 {
-  iterations = 500 # official: 500
-  B = 100 # official:  1000
+  iterations = 5 # 00 # official: 500
+  B = 10 # 0 # official:  1000
   sample.size = 100 #  official:  100
-  run.dep <- c(2) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  run.dep <- c(1:9) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   
 } else  # run from command line 
 {
@@ -123,6 +126,8 @@ if(!isempty(intersect(run.dep, c(3,4,5,6,7)))) # %in% )
 
 overall.start.time <- Sys.time()
 
+run_str <- c()
+ctr=1
 for(s in run.dep) # Run all on the farm  
 {
   for(n in c(sample.size)) #seq(250, 400, 50))
@@ -142,6 +147,9 @@ for(s in run.dep) # Run all on the farm
     # New: set applicible tests: 
     test.comb <- GetTestCombinations(prms, w.fun[[s]], dependence.type[[s]], test.stat, test.method)
     num.tests <- dim(test.comb)[1] # can change with s !! 
+
+    
+    save(prms, test.comb, file=paste0(prms.file, '.', s, '.Rdata'))
     
     
     # new: separate into different rho values: 
@@ -151,16 +159,27 @@ for(s in run.dep) # Run all on the farm
     {
       # New: just create jobs strings 
       for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
-        run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", test.comb, prms)
+      {
+#        run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", test.comb, prms)
+        run_str[ctr] <- paste0("Rscript simulate_and_test ", dependence.type[[s]], " ", prms.rho[[s]][k], " ", w.fun[[s]], " ", "c()",  " ", 
+                               paste0(prms.file, '.', s, '.Rdata'), " > out/run.sim.s.", s, ".rho.",  prms.rho[[s]][k], ".out ", " &")  # test.comb,
+        print(run_str[ctr])  # save all run strungs into a script file 
+        ctr = ctr+1
+      }
+      
     }
-    
-    
   }
 } # end loop on dependency types
 
+if(run.flag==0)# Create running script
+{
+  run.script.ptr <- file(run.script.file)
+  writeLines(run_str, run.script.file)
+  close(run.script.ptr)
+}
 
 
-if(isRStudio)  # plot results in interactive mode
+if(run.flag && isRStudio)  # plot results in interactive mode
 {
   test.legend <- apply(cbind(test.comb[,c(1,3)], T.OUT$test.power), 1, paste0, collapse=" ")#    paste(test.type, as.character(T.OUT$test.power))
   col.vec <- c("orange", "cyan", "navy", "dodgerblue3", "pink", "green", "black", "blue", "black", "green", "orange", "gray", "pink",  "purple", "brown", "yellow", "magenta", "darkgreen", "gold")
@@ -224,8 +243,6 @@ if(run.mcmc)
   print(z_hat_u)
   
 }
-
-
 
 
 

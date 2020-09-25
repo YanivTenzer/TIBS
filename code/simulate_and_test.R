@@ -25,7 +25,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   }
   
   if(is.character(prms)) # new: enable reading parameters from a parameters file: 
-    load(prms)  # load parameters structure from file 
+    load(prms)  # load parameters structure from file. Can also contain test.comb 
   
   if('seed' %in% names(prms))
     set.seed(prms$seed)
