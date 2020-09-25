@@ -39,6 +39,8 @@ source('import_samp.R')
 source('Tsai_test.R')
 
 print("Included sources ")
+isRStudio <- 0 # Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+
 print(paste0("Now Rstudio=", isRStudio))
 
 cores=detectCores()
