@@ -122,6 +122,8 @@ if(isRStudio == 1)
 } else  # run from command line 
 {
   print("inside else!!")
+  args <- commandArgs(TRUE)
+  
   print(as.integer(args[1]))
   run.dep <- as.integer(args[1]) #  c(7) # 2:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   print("set arg1")
