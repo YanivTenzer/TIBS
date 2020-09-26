@@ -15,7 +15,7 @@ library(PerMallows) # distance between permutations
 library(Matrix)
 
 print("set R studio")
-isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+isRStudio <- 0 # Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
 print("set run flag")
 run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 if(isRStudio)
@@ -39,8 +39,8 @@ source('import_samp.R')
 source('Tsai_test.R')
 
 print("Included sources ")
-isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
-run.flag <- 0 # set again 
+isRStudio <- 0 #  Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+run.flag <- 1 # set again 
 #print(paste0("Now Rstudio=", isRStudio))
 
 cores=detectCores()
@@ -111,6 +111,8 @@ num.sim <- length(dependence.type)
 # num.tests <- length(test.type)
 
 print("Setting parameters")
+run.rho <- prms.rho
+  
 if(isRStudio == 1)
 {
   iterations = 5 # 00 # official: 500
@@ -132,6 +134,8 @@ if(isRStudio == 1)
   B = as.integer(args[3])
   print("set arg3")
   sample.size = as.integer(args[4])
+  
+  run.rho[[run.dep]] = as.numeric(args[5]) # new: run only on a single rho 
   print(paste0("run.dep:", run.dep, " iters:", iterations))
 } # 4  # 10 for minP2 which is very slow  # 00 # 500  # Number of simulated dataset. Shared by all simulations
 
@@ -156,7 +160,7 @@ for(s in run.dep) # Run all on the farm
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
-                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=0) # , sample.by.bootstrap=1) # set running parameters here ! 
+                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
@@ -182,15 +186,16 @@ for(s in run.dep) # Run all on the farm
     
     # new: separate into different rho values: 
     if(run.flag==1)
-      T.OUT <- simulate_and_test(dependence.type[[s]], prms.rho[[s]], w.fun[[s]], test.comb, prms) # run all tests on one type of simulatee data 
+      T.OUT <- simulate_and_test(dependence.type[[s]], run.rho[[s]], w.fun[[s]], test.comb, prms) # run all tests on one type of simulatee data 
     else  # prepare job strungs 
     {
       # New: just create jobs strings 
-      for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
+      for(k in c(1:length(run.rho[[s]])))  # run each parameter separately:
       {
-#        run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", test.comb, prms)
-        run_str[ctr] <- paste0("Rscript simulate_and_test.R ", dependence.type[[s]], " ", prms.rho[[s]][k], " ", w.fun[[s]], " ", "\"c()\"",  " ", 
-                               paste0(prms.file, '.', s, '.Rdata'), " > out/run.sim.s.", s, ".rho.",  prms.rho[[s]][k], ".out ", " &")  # test.comb,
+        run_str[ctr] <- paste0("Rscript run_simulations ", run.dep, " ", iterations, " ",  B, " ", sample.size, " ",  run.rho[[s]][k],  " > out/run.sim.s.", s, ".rho.",  run.rho[[s]][k], ".out ", " &")
+                          
+##        run_str[ctr] <- paste0("Rscript simulate_and_test.R ", dependence.type[[s]], " ", run.rho[[s]][k], " ", w.fun[[s]], " ", "\"c()\"",  " ", 
+##                               paste0(prms.file, '.', s, '.Rdata'), " > out/run.sim.s.", s, ".rho.",  prms.rho[[s]][k], ".out ", " &")  # test.comb,
         print(run_str[ctr])  # save all run strungs into a script file 
         ctr = ctr+1
       }

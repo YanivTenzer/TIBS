@@ -49,6 +49,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
                               #                              test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
                               prms) 
 {
+  print("included source files, start function")
+  
   if(is.character(prms)) # new: enable reading parameters from a parameters file: 
     load(prms)  # load parameters structure from file. Can also contain test.comb 
 
