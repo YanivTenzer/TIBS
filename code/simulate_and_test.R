@@ -5,33 +5,32 @@ library(latex2exp)
 library(xtable)
 library(binom)  # for binomial confidence intervals 
 
+library(stringr)
+library(foreach)
+library(doSNOW)
+library(doParallel)
+library(gdata)
+library(mvtnorm)
+library(ggplot2)  
+library(pracma)
+library(matrixStats)
+library(PerMallows) # distance between permutations 
+library(Matrix)
+
+args=commandArgs(trailingOnly = TRUE)
+Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
+
+
 source('simulate_biased_sample.R')
 source('TIBS.R')
 source("import_samp.R")
 source('utilities.R')
-
-## library(stringr)
-## library(foreach)
-## library(doSNOW)
-## library(doParallel)
-## library(gdata)
-## library(mvtnorm)
-## library(ggplot2)  
-## library(pracma)
-## library(matrixStats)
-## library(PerMallows) # distance between permutations 
-## library(Matrix)
-
-## args=commandArgs(trailingOnly = TRUE)
-## Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
-
-## source('simulate_and_test.R')
 ## source('simulate_biased_sample.R')
 ## source('TIBS.R')
-## source('marginal_estimation.R')
+source('marginal_estimation.R')
 ## source('utilities.R')
 ## source('import_samp.R')
-## source('Tsai_test.R')
+source('Tsai_test.R')
 
 
 
