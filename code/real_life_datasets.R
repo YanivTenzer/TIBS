@@ -152,7 +152,7 @@ plot.flag <- 0
 
 test.method <- c('bootstrap', 'permutationsMCMC', "permutationsIS", 'tsai', 'minP2') # different tests to run 
 test.stat <- c("adjusted_w_hoeffding", "adjusted_w_hoeffding", "adjusted_w_hoeffding", "tsai", "minP2")
-IS.method <- c("Tsai", "KouMcculough.w")
+IS.method <- c("tsai", "KouMcculough.w")
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
 # w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
 # w.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
@@ -204,7 +204,7 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     if(test.method[t] == "permutationsIS")
     {
       if(!is_pos_w(dat$w.fun, dat$input.data, 1))
-        prms$importance.sampling.dist = "Tsai" # for truncation x2>=x1 or truncation + censoring
+        prms$importance.sampling.dist = "tsai" # for truncation x2>=x1 or truncation + censoring
       else
         prms$importance.sampling.dist = "KouMcculough.w"
     }

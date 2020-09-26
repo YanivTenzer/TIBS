@@ -326,7 +326,7 @@ is_pos_w <- function(w.fun, data, mat.flag)
 
 
 # Determine if F_XY(x,y) = F_XY(y,x)
-is_exchangable <- function(dependence.type)
+is_exchangeable <- function(dependence.type)
 {
   if(!is.function(dependence.type))
   {

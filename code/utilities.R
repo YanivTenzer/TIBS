@@ -1,3 +1,5 @@
+source('simulate_biased_sample.R')
+
 # Set the combinations of applicable test types and statistics for a particular distirbution
 GetTestCombinations <- function(prms, w.fun, dependence.type, test.stat, test.method)
 {
@@ -8,19 +10,26 @@ GetTestCombinations <- function(prms, w.fun, dependence.type, test.stat, test.me
   for (i in c(1:n.methods))
     for(j in c(1:n.stats))
     {
-      if( (test.stat[i] %in% c("tsai", "minP2")) && !(test.method[j] %in% "permutationsMCMC"))
+      if((test.stat[j] %in% c("tsai", "minP2")) && !(test.method[i] == test.stat[j]))  # %in% "permutationsMCMC"))
           next
-      if( (test.stat[i] %in% c("inverse_w_hoeffding")) && !(is_pos_w(w.fun)) )
+      if((test.method[i] %in% c("tsai", "minP2")) && !(test.method[i] == test.stat[j]))  # %in% "permutationsMCMC"))
+        next
+      if( (test.stat[j] %in% c("inverse_w_hoeffding")) && !(is_pos_w(w.fun)) )
           next
-      if((test.method[j] %in% "bootstrap") && (!  (is_pos_w(w.fun) || (is_exchangeble(dependence.type) && (w.fun %in% c("truncation", "Hyperplane_truncation"))))))
+      if((test.method[i] %in% c("tsai", "minP2")) && (!(w.fun %in% c("truncation", "Hyperplane_truncation"))))
+        next
+      if((test.method[i] %in% "bootstrap") && (!  (is_pos_w(w.fun) || (is_exchangeable(dependence.type) && (w.fun %in% c("truncation", "Hyperplane_truncation"))))))
         next
 
       # new: allow different importance sampling distributions 
       if(('IS.methods' %in% names(prms)) && (test.method[i] == "permutationsIS"))
         for(k in 1:length(prms$IS.methods))
         {
-          if((prms$IS.methods[k] == "Tsai") && !(w.fun %in% c("truncation", "Hyperplane_truncation")))  # Tsai sampling is only applicable for truncation 
+          if((prms$IS.methods[k] == "tsai") && !(w.fun %in% c("truncation", "Hyperplane_truncation")))  # Tsai sampling is only applicable for truncation 
             next
+          if((prms$IS.methods[k] != "uniform") && (w.fun %in% c("truncation", "Hyperplane_truncation")))  # Only Tsai sampling is applicable for truncation 
+            next
+          
           test.comb <- rbind(test.comb, c(test.method[i], test.stat[j], prms$IS.methods[k]))        
         }
       else

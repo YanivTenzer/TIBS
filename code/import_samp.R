@@ -27,6 +27,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
   
   orig.IS.dist <- prms$importance.sampling.dist
   Permutations <- PermutationsIS(w.mat, prms, data)  # sample permutations 
+  Permutations.cpp <- PermutationsIS_rcpp(w.mat, prms, data) # TEMP - compare with cpp 
   if(prms$diagnostic.plot)
   {
     IS.methods <- c("KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "MCMC") #   "sqrt.w", ) "match.w", 
@@ -518,7 +519,7 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
                b = b+1
            }
          },
-         "Tsai"={  # new: sample EXACTLY from the truncation distribution using Tsai's algorithm . We need the ordering of x,y !! x[i] <= y[i] (i.e. data[,2] >= data[,1])
+         "tsai"={  # new: sample EXACTLY from the truncation distribution using Tsai's algorithm . We need the ordering of x,y !! x[i] <= y[i] (i.e. data[,2] >= data[,1])
            w.order <- order(data[,2])
            R.mat <- matrix(0, n,n)
             for(i in 1:n)  # compute the set R_i for each i
@@ -531,6 +532,7 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
             log.P.IS <- rep(log.P.IS0, prms$B)  # get importance probabilities (up to a constant)
             
             R.mat.ordered <- R.mat[w.order, w.order]
+            print(R.mat.ordered[1:10,1:10])
             
             for(b in c(1:prms$B))  # go over permutations
             {

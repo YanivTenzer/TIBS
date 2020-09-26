@@ -1223,7 +1223,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 	long n = w_mat.nrow();
 	long i, j, k, b;
 	double temp;
-	long ctr=0; 
+//	long ctr=0; 
 
 	// Set IS default sampling parameters
 	long B = 1000;
@@ -1344,7 +1344,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 
 	if(importance_sampling_dist == "sqrt.w") // new: sample proportional to w(i,j) / (w(i,+)*w(+,j)) 
 	{
-		NumericVector weights(n), weights_cdf(n);;
+		NumericVector weights(n), weights_cdf(n);
 		NumericVector w_mat_col_sums = colSums(w_mat); 
 		for(j=0; j<n; j++)
         {
@@ -1393,7 +1393,7 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 
 	if(importance_sampling_dist == "KouMcculough.w") // new: sample proportional to w(i,j) / (w(+,j)-w(i,j)) 
 	{
-		NumericVector weights(n), weights_cdf(n);;
+		NumericVector weights(n), weights_cdf(n);
 		NumericVector w_mat_col_sums = colSums(w_mat); 
 		for(j=0; j<n; j++)
         {
@@ -1450,6 +1450,8 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 				if(j == n-1) // sampled a valud permutation
 					b++;
             }
+//			Rcout << "Try b=" << b << endl;	
+
 //			Rcout << "KouMcculough b=" << b << " log_P_IS=" << log_P_IS[b] << endl;
         } // end while 
 //		Rcout << "KouMcculough log_P_IS0=" << log_P_IS0 << endl;
@@ -1499,47 +1501,84 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 		}
 	}
 
-	if(importance_sampling_dist == "Tsai") // new: exact sampling from the uniform distribution under truncation 
+	if(importance_sampling_dist == "tsai") // new: exact sampling from the uniform distribution under truncation 
 	{
-		IntegerVector w_order = sort_indexes_rcpp(data(_,1));  // sort by y[i] INCREASING order!
-		NumericVector Q(n); // helper permutation
-		NumericMatrix R_mat(n,n);
-		long i, j;
+		for(b=0; b<B; b++)
+			Permutations(_,b) = rand_perm(n);
 
+//		Rcout << "n=" << n << " data dim: " << data.nrow() << endl; 
+		NumericVector y(n); // = as<NumericVector>(data(_,1));
+		for(i=0; i<n; i++) 
+			y[i] = data(i,1); 
+
+		IntegerVector w_order = sort_indexes_rcpp(y);  // sort by y[i] INCREASING order!
+//		Rcout << "w_order: " << w_order << endl; 	
+
+		NumericVector Q(n); // helper permutation
+		NumericVector weights_cdf(n); // weights for randomization
+
+		NumericMatrix R_mat(n,n);
 		for(i=0; i<n; i++)
 		{
 			for(j=0; j<n; j++)
-            	if((data(j,0) <= data(i,1)) && (data(i,1) <= data(j,1)))
-					R_mat(w_order[i],w_order[j]) = 1;
+            	if((data(w_order[j],0) <= data(w_order[i],1)) && (data(w_order[i],1) <= data(w_order[j],1)))
+					R_mat(i,j) = 1; //					R_mat(w_order[i],w_order[j]) = 1;
 		}
 
-
+		// Print R_mat (compare it to R)
+//		Rcout << "R_mat_ordered:" << endl;
+//		for(i=0; i < 10; i++)
+//		{
+//			for(j=0; j<10; j++)
+//				Rcout << R_mat(i,j) << " ";
+//			Rcout << endl;
+//		}
 		NumericVector R_sum = rowSums(R_mat);
+		NumericMatrix R_cum_mat(n,n);
+		for(i=0; i<n; i++)
+		{
+			R_cum_mat(i,0) = R_mat(i,0);
+			for(j=1; j<n; j++)
+				R_cum_mat(i,j) = R_cum_mat(i,j-1) + R_mat(i,j); // get cumsum 
+			for(j=0; j<n; j++)
+				R_cum_mat(i,j) /= R_sum[i];
+		}
+
+/**
 		NumericMatrix R_index_mat(n,n);
 		for(i=0; i<n; i++)
 		{
 			ctr = 0;
 			for(j=0; j<n; j++)
-				if(R_mat(w_order[i],w_order[j])==1)
+//				if(R_mat(w_order[i],w_order[j])==1)
+				if(R_mat(i,j)==1)
 				{
-					R_index_mat(w_order[i],ctr)=w_order[j];
+//					R_index_max(i,ctr) = j; 
+					R_index_mat(w_order[i],ctr) = j; // w_order[j];
 					ctr++;
 				}
 		}
-		log_P_IS0 = sum(log(R_sum)); // sum of vector 
-		for(i=0; i<n; i++)
+		Rcout << "Init R_index_mat";
+**/
+
+		log_P_IS0 = 0.0; /*** debug sum(log(R_sum)); // sum of vector ***/
+		for(i=0; i<B; i++) // memory problem 
 			log_P_IS[i] = log_P_IS0;
+
 
 		for(b=0; b<B; b++)
 		{
+//			Rcout << "Run b=" << b << endl;
 			for(i=0; i<n; i++) // set ID
 				Permutations(i,b) = i;
 			for(i=0; i<n; i++) // set Q
 				Q[i] = w_order[i];
 			for(i=0; i<n; i++)
 			{
-				j = R_index_mat(i, floor(R_sum[i] * double(rand()+1.0) / (RAND_MAX+2.0)));	// sample uniformly
-
+//				weights_cdf = R_cum_mat(i,_);
+				j = weighted_rand_rcpp(1, R_cum_mat(i,_))[0]; // 
+//				j = R_index_mat(i, floor(R_sum[i] * double(rand()+1.0) / (RAND_MAX+2.0)));	// sample uniformly
+//				Rcout << "j=" << j << " ";
 				Permutations(Q[j],b) = w_order[i];    // set permutations from Q 
 				// Swap
 				temp = Q[i];
@@ -1547,11 +1586,12 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 				Q[j] = temp;	
 			}
 		}
-	}
-	
+//		Rcout << "Perms:" << endl; 
+//		for(i=0; i<n; i++)
+//			Rcout << Permutations(i,1) << " ";
+//		Rcout << endl;  
+	} // End Tsai 
 	// Ended different sampling methods 
-
-
 
 //	Rcout << "log_P_IS, log_P_IS0: " << log_P_IS << endl << log_P_IS0 << endl; 
 
@@ -1560,11 +1600,12 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 	double P_W_IS0 = -log_P_IS0; // log_P_IS0 on a log-scale 
 	for(i=0; i<n; i++)
 		P_W_IS0 += log_w_mat(i,i);
+//	Rcout << "P_W_IS0 - log: " << P_W_IS0 << endl; 
 	NumericVector P_W_IS = -log_P_IS;  // log_P_IS on a log scale 
 	for(b=0; b<B; b++)
 		for(i=0; i<n; i++)
 			P_W_IS[b] += log_w_mat(i, Permutations(i,b));
-//	Rcout << "P_W_IS_LOG: " << P_W_IS << endl; 
+//	Rcout << "P_W_IS - log: " << P_W_IS << endl; 
 
 	double max_log = max(P_W_IS);
 	max_log = max(max_log, P_W_IS0);
@@ -1580,15 +1621,28 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
  	double log_P_W0 = 0;
 	 for(i=0; i<n; i++)
 	 	log_P_W0 += log_w_mat(i, i);
+//	Rcout << "Computed log_P_W0: " << log_P_W0 << " B=" << B << " set log P_W" << endl; 
     NumericVector log_P_W(B); 
+//	Rcout << "Start loop: " << endl; 
     for(b=0; b<B; b++)
 	 	for(i=0; i<n; i++)
+		 {
+//			Rcout << "only: i=" << i << " b=" << b << endl; 
+//			Rcout << "i=" << i << " b=" << b << " Perm=" <<  Permutations(i,b) << 
+//			" log_w=" << log_w_mat(i, Permutations(i,b)) << endl; 
+			 if((Permutations(i,b)<0) || (Permutations(i,b)>=n))
+			 	Rcout << "Error: i=" << i << " b=" << b << " Perm=" <<  Permutations(i,b) << endl; 
     		log_P_W[b] += log_w_mat(i, Permutations(i,b));
+		 }
+//	Rcout << "Computed log_P_W: " << log_P_W << endl; 
+
+
 //  	double max_w = max(max(log_P_W), log_P_W0);
 
 
 	// New: compute coefficient of variation: 
 	double CV = pow(var_rcpp(P_W_IS), 0.5) / mean_rcpp(P_W_IS); 
+//	Rcout << "Computed CV: " << CV << endl; 
 
 	NumericMatrix P(n, n);  // New!matrix with P[i] = j estimate
     for(b=0; b<B; b++)  // next, compute expectations P[i,j]
@@ -1596,10 +1650,13 @@ List PermutationsIS_rcpp(NumericMatrix w_mat, List prms, NumericMatrix data) // 
 			P(i, Permutations(i,b)) += P_W_IS[b];	
 	include_ID = fmin(1, include_ID); // here add just one times P_W_IS0			
 	for(i=0; i<n; i++)
-		P(i, i) += include_ID*P_W_IS[b]; // add ID permutation contribution	
+		P(i, i) += include_ID*P_W_IS0; // add ID permutation contribution	
     P = P * (1.0/(include_ID*P_W_IS0 + sum(P_W_IS))); // normalize   (ignore contribution from the identity permuation)
 
+
+
 	NumericVector P_sum = rowSums(P);
+//	Rcout << "Computed P: " << P_sum << endl; 
 
 /**
 	Rcout << "P[i,j] matrix:" << endl;

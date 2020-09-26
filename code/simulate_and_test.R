@@ -5,6 +5,10 @@ library(latex2exp)
 library(xtable)
 library(binom)  # for binomial confidence intervals 
 
+source('simulate_biased_sample.R')
+source('TIBS.R')
+source("import_samp.R")
+source('utilities.R')
 
 ## library(stringr)
 ## library(foreach)
@@ -46,14 +50,15 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
                               #                              test.type=c('tsai', 'minP2', 'permutations', 'bootstrap', 'fast-bootstrap', 'naive-bootstrap', 'naive-permutations'), 
                               prms) 
 {
+  if(is.character(prms)) # new: enable reading parameters from a parameters file: 
+    load(prms)  # load parameters structure from file. Can also contain test.comb 
+
   if(prms$use.cpp)
   {
     library(Rcpp)
     library(RcppArmadillo)
   }
   
-  if(is.character(prms)) # new: enable reading parameters from a parameters file: 
-    load(prms)  # load parameters structure from file. Can also contain test.comb 
   
   if('seed' %in% names(prms))
     set.seed(prms$seed)
@@ -134,7 +139,17 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     test.true.stat <- array(-1, c(num.prms, num.tests, prms$iterations)) 
     test.null.stat <- array(-1, c(num.prms, num.tests, prms$iterations, prms$B)) 
     if((prms$run.flag != 1) && file.exists(paste0(output.file, '.Rdata')))
+    {
+      save.prms <- prms
       load(file=paste0(output.file, '.Rdata'))
+      if(!("run.sim" %in% names(prms)))
+        prms$run.sim = save.prms$run.sim
+      if(!("run.flag" %in% names(prms)))
+        prms$run.flag = save.prms$run.flag
+      if(!("w.rho" %in% names(prms)))
+        prms$w.rho = save.prms$w.rho
+      print(setdiff(names(save.prms), names(prms)))
+    }
     else
     {
       test.pvalue <- test.time <- test.true.stat <- array(-1, c(num.prms, num.tests, prms$iterations)) 

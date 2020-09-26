@@ -15,7 +15,7 @@ library(PerMallows) # distance between permutations
 library(Matrix)
 
 print("set R studio")
-isRStudio <- 0 # Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
 print("set run flag")
 run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 if(isRStudio)
@@ -39,8 +39,8 @@ source('import_samp.R')
 source('Tsai_test.R')
 
 print("Included sources ")
-isRStudio <- 0 # Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
-run.flag <- 1 # set again 
+isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+run.flag <- 0 # set again 
 #print(paste0("Now Rstudio=", isRStudio))
 
 cores=detectCores()
@@ -89,10 +89,10 @@ prms.rho <- run.params.mat[,5]
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
 
-test.stat <- c("adjusted_w_hoeffding") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
-test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
+test.stat <- c("adjusted_w_hoeffding", "inverse_w_hoeffding", "tsai") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
+test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap", "tsai") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
 # IS.methods <- c("uniform", "match.w", "monotone.w", "sqrt.w", "KouMcculough.w")  # different methods for importance sampling of permutations
-IS.methods <- c("Tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
+IS.methods <- c("tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
 prms.file <- "sim/prms.sim"
 run.script.file <- "run.all.sim.sh"
 
@@ -106,7 +106,7 @@ run.script.file <- "run.all.sim.sh"
 #  'uniform_importance_sampling_inverse_weighting',
 #  'bootstrap', 
 #  'bootstrap_inverse_weighting', 
-#  'min_P2', 'Tsai')
+#  'min_P2', 'tsai')
 num.sim <- length(dependence.type)
 # num.tests <- length(test.type)
 
@@ -156,7 +156,7 @@ for(s in run.dep) # Run all on the farm
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
-                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=0) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
@@ -168,6 +168,12 @@ for(s in run.dep) # Run all on the farm
     
     # New: set applicible tests: 
     test.comb <- GetTestCombinations(prms, w.fun[[s]], dependence.type[[s]], test.stat, test.method)
+    
+    if(s != 8) # get rid of all IS methods 
+    {
+      test.comb <- test.comb[test.comb[,1] != "permutationsIS",]
+      test.comb <- test.comb[test.comb[,2] != "inverse_w_hoeffding",]
+    }
     num.tests <- dim(test.comb)[1] # can change with s !! 
 
     
@@ -183,7 +189,7 @@ for(s in run.dep) # Run all on the farm
       for(k in c(1:length(prms.rho[[s]])))  # run each parameter separately:
       {
 #        run_str <- paste0("T.OUT <- simulate_and_test(", dependence.type[[s]], ", ", prms.rho[[s]][k], ", ", w.fun[[s]], ", ", test.comb, prms)
-        run_str[ctr] <- paste0("Rscript simulate_and_test.R ", dependence.type[[s]], " ", prms.rho[[s]][k], " ", w.fun[[s]], " ", "c()",  " ", 
+        run_str[ctr] <- paste0("Rscript simulate_and_test.R ", dependence.type[[s]], " ", prms.rho[[s]][k], " ", w.fun[[s]], " ", "\"c()\"",  " ", 
                                paste0(prms.file, '.', s, '.Rdata'), " > out/run.sim.s.", s, ".rho.",  prms.rho[[s]][k], ".out ", " &")  # test.comb,
         print(run_str[ctr])  # save all run strungs into a script file 
         ctr = ctr+1
@@ -196,11 +202,11 @@ for(s in run.dep) # Run all on the farm
 if(run.flag==0)# Create running script
 {
   run.script.ptr <- file(run.script.file)
-  writeLines(run_str, run.script.file)
+  writeLines(c("#!/bin/sh", run_str), run.script.file)
   close(run.script.ptr)
 }
 
-
+run.flag=0
 if(run.flag && isRStudio)  # plot results in interactive mode
 {
   test.legend <- apply(cbind(test.comb[,c(1,3)], T.OUT$test.power), 1, paste0, collapse=" ")#    paste(test.type, as.character(T.OUT$test.power))
@@ -325,5 +331,9 @@ if(test.gaussian)
 
 
 
-
-
+#all.test.comb <- c()
+#for(s in run.dep)
+#{
+#  load(paste0("sim/prms.sim.", s, ".Rdata"))
+#  all.test.comb[[s]] <- rbind(c(dependence.type[[s]], w.fun[[s]], ""),  test.comb)
+#}
