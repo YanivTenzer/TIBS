@@ -22,7 +22,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
   if(!('diagnostic.plot' %in% names(prms))) # set default
     prms$diagnostic.plot <- 0
   
-  w.mat <- w_fun_to_mat(data, w.fun)
+  w.mat <- w_fun_to_mat(data, w.fun, prms)
 #  prob.typical <- estimate_log_prob_typical(w.mat)
   
   orig.IS.dist <- prms$importance.sampling.dist
@@ -40,7 +40,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
     {
       if(IS.methods[i] == "MCMC")
       {
-        perm.IS[[i]] <- PermutationsMCMC(w_fun_to_mat(data, w.fun), prms)   # debug for comparison 
+        perm.IS[[i]] <- PermutationsMCMC(w_fun_to_mat(data, w.fun, prms), prms)   # debug for comparison 
         
       } else
       {
@@ -49,7 +49,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
           prms$importance.sampling.decreasing <- FALSE
         else
           prms$importance.sampling.decreasing <- FALSE
-        perm.IS[[i]] <- PermutationsIS(w_fun_to_mat(data, w.fun), prms) 
+        perm.IS[[i]] <- PermutationsIS(w_fun_to_mat(data, w.fun, prms), prms) 
       }
     }
     

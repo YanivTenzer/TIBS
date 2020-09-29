@@ -82,7 +82,7 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
     {
       marginals <- EstimateMarginals(data, use.w)
       if((!prms$naive.expectation) & (missing(w.mat) | isempty(w.mat)))
-        w.mat = w_fun_to_mat(marginals$xy, w.fun) # compute W again for augmented data
+        w.mat = w_fun_to_mat(marginals$xy, w.fun, prms) # compute W again for augmented data
       null.distribution <- GetNullDistribution(marginals$PDFs, w.mat)
       expectations.table <- prms$sample.size * QuarterProbFromBootstrap(marginals$xy, null.distribution$distribution, grid.points)             
     }
@@ -186,7 +186,7 @@ TIBS <- function(data, w.fun, prms, test.method, test.stat)
   #  print(paste0("RUN n=", n))
   
   #  if(!('w.max' %in% names(prms)))
-  #    prms$w.max <- max(w_fun_to_mat(data, w.fun)) # update max
+  #    prms$w.max <- max(w_fun_to_mat(data, w.fun, prms)) # update max
   
   if(prms$use.cpp && is.character(w.fun) && (!(test.stat %in% c('tsai', 'minP2')))) # use cpp code for our hard-coded tests and w 
   {
@@ -223,7 +223,7 @@ TIBS <- function(data, w.fun, prms, test.method, test.stat)
                       marginals <- EstimateMarginals_rcpp(data, w.fun)
                     else 
                       marginals <- EstimateMarginals(data, w.fun)
-                    w.mat <- w_fun_to_mat(marginals$xy, w.fun)
+                    w.mat <- w_fun_to_mat(marginals$xy, w.fun, prms)
                   })  # end switch on test stat          
            
            statistics.under.null = matrix(0, prms$B, 1)
@@ -279,7 +279,7 @@ TIBS <- function(data, w.fun, prms, test.method, test.stat)
            output<-list(TrueT=TrueT$Statistic, statistics.under.null=statistics.under.null)
          },
          'permutationsMCMC'={
-           w.mat = w_fun_to_mat(data, w.fun)
+           w.mat = w_fun_to_mat(data, w.fun, prms)
            if(prms$use.cpp)
              Permutations <- PermutationsMCMC_rcpp(w.mat, prms)
            else

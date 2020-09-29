@@ -13,14 +13,14 @@
 EstimateMarginals <- function(data, w.fun, prms=c())
 {
   if(!missing(prms))     # get marginal CDFs from PDFs
-    PDF.table <- iterative_marginal_estimation(data, w.fun)
+    PDF.table <- iterative_marginal_estimation(data, w.fun, prms)
 
   n <- dim(data)[1]
   
   indices <- cbind(c(1:n), c((n+1):(2*n)))
   if(is.function(w.fun) || is_pos_w(w.fun, data, 1)) #   %in% c('sum', 'sum_coordinates', 'exponent_minus_sum_abs', 'const'))) # for w(x,y)>0 cases 
   { #case 1: strictly positive W, use ML estimator
-    w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun)
+    w.inv <- 1/w_fun_eval(data[,1], data[,2], w.fun, prms)
     Fx <- Fy <- w.inv / sum(w.inv) # normalize
     PDF.table = cbind(Fx, Fy) # PDF for x and y is the same 
     CDF.table = PDFToCDFMarginals(data, PDF.table)
@@ -72,13 +72,13 @@ EstimateMarginals <- function(data, w.fun, prms=c())
 # Output: 
 # 
 ##############################################################################
-iterative_marginal_estimation <- function(data, w.fun)  
+iterative_marginal_estimation <- function(data, w.fun, prms)  
 {
   epsilon <- 0.00000001 # tolerance for convergence 
   iters <- 1000 
   f_x <- rep(0, n)
   f_y <- rep(0, n)
-  w.mat <- w_fun_to_mat(data[,1], data[,2], w.fun) # was w_fun_eval?
+  w.mat <- w_fun_to_mat(data[,1], data[,2], w.fun, prms) # was w_fun_eval?
   
   for(t in 1:iters)
   {

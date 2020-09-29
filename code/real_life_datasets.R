@@ -178,7 +178,7 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
       dat$input.data <- dat$input.data[,1:2]
   }
   
-#    max(w.max[d], max(w_fun_to_mat(dat$input.data, dat$w.fun))) # update max 
+#    max(w.max[d], max(w_fun_to_mat(dat$input.data, dat$w.fun, prms))) # update max 
   prms$use.cpp <- 1 # New! enable one to run with c++ code (faster)
   for(t in 1:5) # n.tests) # run all tests 
   {
@@ -192,7 +192,7 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     if(is.character(dat$w.fun))
       if((test.method[t] == 'bootstrap') & (dat$w.fun %in% c('truncation', 'Hyperplane_Truncation', 'huji')))
         next # can't run bootstrap because w can be zero 
-    if((test.method[t] == 'bootstrap') & (min(w_fun_eval(dat$input.data[,1], dat$input.data[,2], dat$w.fun))==0))  # check for icu that we can run it
+    if((test.method[t] == 'bootstrap') & (min(w_fun_eval(dat$input.data[,1], dat$input.data[,2], dat$w.fun, prms))==0))  # check for icu that we can run it
       next # can't run bootstrap because w can be zero 
 
 

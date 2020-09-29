@@ -15,7 +15,7 @@ library(PerMallows) # distance between permutations
 library(Matrix)
 
 print("set R studio")
-isRStudio <- 0 # Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
 print("set run flag")
 run.flag <- isRStudio # 1: run simulations inside R. -1: run simulations from outside command line.  0: load simulations results from file if they're available
 if(isRStudio)
@@ -23,7 +23,7 @@ if(isRStudio)
   setwd(dirname(rstudioapi::getActiveDocumentContext()$path)) # get path 
   path = getwd()
 }
-run.flag <- 0 # temp, just generate running scripts 
+run.flag <- 1 # temp, just generate running scripts 
 args=commandArgs(trailingOnly = TRUE)
 print("Compile C docode ")
 Rcpp::sourceCpp("C/utilities_ToR.cpp")  # all functions are here 
@@ -39,7 +39,7 @@ source('import_samp.R')
 source('Tsai_test.R')
 
 print("Included sources ")
-isRStudio <- 0 #  Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
+isRStudio <- Sys.getenv("RSTUDIO") == "1" # check if we run interactively or inside a script
 run.flag <- 1 # set again 
 #print(paste0("Now Rstudio=", isRStudio))
 
@@ -57,8 +57,8 @@ run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3)
                              'LD', 'truncation', TRUE, FALSE, list(c(0, 0.4)),
                              'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(seq(-0.9, 0.9, 0.1)),
                              'CLmix','truncation', FALSE, TRUE, list(0.5), 
-                             'LogNormal', 'sum', TRUE, TRUE,  list(c(0)),
-                             'Gaussian', 'gaussian', TRUE, TRUE, list(seq(-0.9, 0.9, 0.1)) ), 5, 9)) # replace by CLmix / non-monotone and centered at zero 
+                             'LogNormal', 'sum', TRUE, TRUE,  list(c(0, 0.2)),  # added also a signal 
+                             'Gaussian', 'gaussian', TRUE, TRUE, list(seq(0.3, 0.3, 0.1)) ), 5, 9)) # -0.9 - 0.9 replace by CLmix / non-monotone and centered at zero 
 #  'Gaussian','exponent_minus_sum_abs', TRUE, TRUE, # not needed (w(x,y)=w(x)*w(y), not interesting)
 
 
@@ -89,12 +89,20 @@ prms.rho <- run.params.mat[,5]
 ## test.type <- c('uniform_importance_sampling', 'uniform_importance_sampling_inverse_weighting') #c( 'permutations','permutations_inverse_weighting',
 
 
-test.stat <- c("adjusted_w_hoeffding", "inverse_w_hoeffding", "tsai") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
-test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap", "tsai") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
-# IS.methods <- c("uniform", "match.w", "monotone.w", "sqrt.w", "KouMcculough.w")  # different methods for importance sampling of permutations
+#################################################################################
+# Official parameters for long run:
+##test.stat <- c("adjusted_w_hoeffding", "inverse_w_hoeffding", "tsai") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
+##test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap", "tsai") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
 IS.methods <- c("tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
 prms.file <- "sim/prms.sim"
 run.script.file <- "run.all.sim.sh"
+#################################################################################
+# Temp parameters for experimentation
+test.stat <- c("adjusted_w_hoeffding")
+test.method <- c("permutationsMCMC")
+
+#################################################################################
+
 
 #print(paste0("Again3 Rstudio=", isRStudio))
 ##test.type <- c("uniform_importance_sampling_inverse_weighting", "uniform_importance_sampling", 'match_importance_sampling', 'monotone_importance_sampling')
@@ -115,10 +123,10 @@ run.rho <- prms.rho
   
 if(isRStudio == 1)
 {
-  iterations = 5 # 00 # official: 500
-  B = 10 # 0 # official:  1000
-  sample.size = 100 #  official:  100
-  run.dep <- c(1:9) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
+  iterations = 222 # 00 # official: 500
+  B = 111 # 0 # official:  1000
+  sample.size = 101 #  official:  100
+  run.dep <- c(9) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   
 } else  # run from command line 
 {
@@ -159,7 +167,7 @@ for(s in run.dep) # Run all on the farm
   for(n in c(sample.size)) #seq(250, 400, 50))
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
-                use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
+                use.cpp=0, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
                 IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
@@ -173,7 +181,7 @@ for(s in run.dep) # Run all on the farm
     # New: set applicible tests: 
     test.comb <- GetTestCombinations(prms, w.fun[[s]], dependence.type[[s]], test.stat, test.method)
     
-    if(s != 8) # get rid of all IS methods 
+    if(s < 8) # get rid of all IS methods 
     {
       test.comb <- test.comb[test.comb[,1] != "permutationsIS",]
       test.comb <- test.comb[test.comb[,2] != "inverse_w_hoeffding",]
@@ -192,7 +200,7 @@ for(s in run.dep) # Run all on the farm
       # New: just create jobs strings 
       for(k in c(1:length(run.rho[[s]])))  # run each parameter separately:
       {
-        run_str[ctr] <- paste0("Rscript run_simulations ", run.dep, " ", iterations, " ",  B, " ", sample.size, " ",  run.rho[[s]][k],  " > out/run.sim.s.", s, ".rho.",  run.rho[[s]][k], ".out ", " &")
+        run_str[ctr] <- paste0("Rscript run_simulations.R ", run.dep, " ", iterations, " ",  B, " ", sample.size, " ",  run.rho[[s]][k],  " > out/run.sim.s.", s, ".rho.",  run.rho[[s]][k], ".out ", " &")
                           
 ##        run_str[ctr] <- paste0("Rscript simulate_and_test.R ", dependence.type[[s]], " ", run.rho[[s]][k], " ", w.fun[[s]], " ", "\"c()\"",  " ", 
 ##                               paste0(prms.file, '.', s, '.Rdata'), " > out/run.sim.s.", s, ".rho.",  prms.rho[[s]][k], ".out ", " &")  # test.comb,
@@ -230,7 +238,7 @@ if(run.flag && isRStudio)  # plot results in interactive mode
        main=TeX(paste0("Tests Cumulative Pvalues, $n=", n, ", \\alpha =", prms$alpha)), # , "$ pert=", prms$perturb.grid)), 
        xlab="Rank", ylab="Pvalue")
   valid.tests <- rep(0, num.tests)
-  for(i in c(1:4, 6:num.tests))
+  for(i in c(1:num.tests)) # c(1:4, 6:num.tests))
   {
     if(max(T.OUT$test.pvalue[1,i,])> -1)
     {
@@ -244,8 +252,10 @@ if(run.flag && isRStudio)  # plot results in interactive mode
     test.legend[i] <- str_replace(test.legend[i], ".w", "")
   }
   grid(NULL,NULL, lwd=1)
-  legend(prms$iterations*0.75, 0.18, test.legend[c(1:4,6:num.tests)], lwd=c(2,2), col=col.vec[c(1:4,6:num.tests)], 
+  legend(prms$iterations*0.75, 0.18, test.legend[c(1:num.tests)], lwd=c(2,2), col=col.vec[c(1:num.tests)], 
          y.intersp=0.8, cex=0.6, box.lwd = 0,box.col = "white",bg = "white")
+#  legend(prms$iterations*0.75, 0.18, test.legend[c(1:4,6:num.tests)], lwd=c(2,2), col=col.vec[c(1:4,6:num.tests)], 
+#         y.intersp=0.8, cex=0.6, box.lwd = 0,box.col = "white",bg = "white")
   ##  dev.off()
 }
 
@@ -334,11 +344,9 @@ if(test.gaussian)
 }
 
 
-
-
-#all.test.comb <- c()
-#for(s in run.dep)
-#{
-#  load(paste0("sim/prms.sim.", s, ".Rdata"))
-#  all.test.comb[[s]] <- rbind(c(dependence.type[[s]], w.fun[[s]], ""),  test.comb)
-#}
+all.test.comb <- c()
+for(s in run.dep)
+{
+  load(paste0("sim/prms.sim.", s, ".Rdata"))
+  all.test.comb[[s]] <- rbind(c(dependence.type[[s]], w.fun[[s]], ""),  test.comb)
+}

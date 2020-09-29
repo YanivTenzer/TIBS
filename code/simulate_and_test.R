@@ -109,7 +109,13 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
       save.run.flag <- prms$run.flag
       save.use.cpp <- prms$use.cpp
       if(file.exists(sim.file))
+      {
+        B <- prms$B # save parameters
+        iterations <- prms$iterations
         load(sim.file)  # load simulations data file
+        prms$B <- B
+        prms$iterations <- iterations
+      }
       else
       {
         all.biased.data <- array(0, c(prms$sample.size, 2, prms$iterations)) # save a matrix for all data 
@@ -153,7 +159,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     }
     else
     {
-      test.pvalue <- test.time <- test.true.stat <- array(-1, c(num.prms, num.tests, prms$iterations)) 
+      if(i.prm == 1)  # first time 
+        test.pvalue <- test.time <- test.true.stat <- array(-1, c(num.prms, num.tests, prms$iterations)) 
     }
     
     
@@ -280,7 +287,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     test.output <- t(cbind(test.power, colSums(rowSums(test.time, dims=2))))
     colnames(test.output) <- test.method
     rownames(test.output) <- c(prms.rho, 'time') # [[s]]
-    test.output <- test.output[, test.time[1,,1]>=0, drop = FALSE] # take only relevant tests 
+##    test.output <- test.output[, test.time[1,,1]>=0, drop = FALSE] # take only relevant tests 
     
     if(prms$run.flag!=0)
     {
@@ -292,7 +299,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
               file = paste0(output.file, '.partial.tex'), size="\\tiny") # save in latex format
       } else #    if(i.prm == num.prms) # final loop 
       {
-        save(test.pvalue, test.time, test.power, prms.rho, prms, file=paste0(output.file, '.Rdata'))  
+        save(test.pvalue, test.time, test.power, prms.rho, prms, test.comb, w.fun, file=paste0(output.file, '.Rdata'))  
         if(dim(test.output)[2]>0)
           print(xtable(test.output, type = "latex", digits=3), 
                 file = paste0(output.file, '.tex'), size="\\tiny") # save in latex format 

@@ -38,7 +38,7 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
   {
     if(!exists('input.sample') | (is.na(input.sample)))
       input.sample <- SimulateSample(10^6, dependence.type, prms)  # draw a lot 
-    w.vec <- w_fun_eval(input.sample[,1], input.sample[,2], w.fun)
+    w.vec <- w_fun_eval(input.sample[,1], input.sample[,2], w.fun, prms)
     idx <- sample(dim(input.sample)[1], n, replace = TRUE, w.vec / sum(w.vec))   # sample with probabilities as normalized weights 
     data <- input.sample[idx,]
     all.data <- input.sample # if we want to return all
@@ -56,7 +56,7 @@ SimulateBiasedSample <- function(n, dependence.type, w.fun, prms, input.sample)
       if(w.fun %in% c('truncation'))  # w(x,y)=1_{x<y}
         keep <- which(xy[,1] <= xy[,2])
       else       # w(x,y)>0 , use rejection sampling 
-        keep <- which(rand(n-k,1) < w_fun_eval(xy[,1], xy[,2], w.fun, prms)/prms$w.max)  # rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun)/prms$w.max)
+        keep <- which(rand(n-k,1) < w_fun_eval(xy[,1], xy[,2], w.fun, prms)/prms$w.max)  # rbinom(1, 1, w_fun_eval(xy[1], xy[2], w.fun, prms)/prms$w.max)
       n.keep <- length(keep)
       if(prms$keep.all)
       {
@@ -172,10 +172,10 @@ w_fun_eval <- function(x, y, w.fun, prms) {  # no parameters optional?
                 'Hyperplane_Truncation'={as.numeric(x<y)},
                 'gaussian'= {  # allow params
                   if(missing(prms))
-                    rho <- 0
+                    w.rho <- 0
                   else
-                    rho <- prms$w.rho
-                  exp((-x**2-y**2 +2*rho*x*y)/(2*(1-rho**2)))  # w is correlated Gaussian 
+                    w.rho <- prms$w.rho
+                  exp((-x**2-y**2 +2*w.rho*x*y)/(2*(1-w.rho**2)))  # w is correlated Gaussian 
                   },
                 'exp'= {exp((-abs(x)-abs(y))/4)},
                 'exponent_minus_sum_abs'= { exp((-abs(x)-abs(y))/4)},
@@ -193,30 +193,31 @@ w_fun_eval <- function(x, y, w.fun, prms) {  # no parameters optional?
 
 
 #########################################################################
-#  Compute the n*n matrix of sampling weights:
+# Compute the n*n matrix of sampling weights:
 # Parameters: 
 # data - n*2 matrix with (x,y) sample
 # w.fun - biased sampling function W
+# NEed to add here parameters 
 #########################################################################
-w_fun_to_mat <- function(data, w.fun)
+w_fun_to_mat <- function(data, w.fun, prms=c())
 {
   n <- dim(data)[1]  # get sample size 
   w.mat = matrix(0,n,n)
   for(i in 1:n)
-    w.mat[i,] <- w_fun_eval(data[i,1], data[,2], w.fun)
+    w.mat[i,] <- w_fun_eval(data[i,1], data[,2], w.fun, prms)
   return (w.mat)
 }
 
 
 #######################################################################
-# New: return a function A set of biased sampling functions to be used 
+# Return a function A set of biased sampling functions to be used 
 # Input: 
 # w.fun - string indicating W type 
 # 
 # Output: 
 # w.fun - a real nonnegative function of two variables  
 ########################################################################
-w_str_to_fun <- function(w.str)
+w_str_to_fun <- function(w.str)  # need to add also parameters. (Function not used)
 {
   if(is.function(w.str))
     return(w.str)
@@ -235,10 +236,10 @@ set_w_max <- function(n=1000, dependence.type, w.fun, prms)
 } 
 
 # Set maximum value for a specific sample 
-set_w_max_sample <- function(data, w.fun)
+set_w_max_sample <- function(data, w.fun, prms=c())
 {
   epsilon <- 0.0001 # tolerance to avoid overflow over 1 
-  return(max(w_fun_to_mat(data, w.fun)) * (1+epsilon))
+  return(max(w_fun_to_mat(data, w.fun, prms)) * (1+epsilon))
 }
 
 
@@ -248,7 +249,7 @@ set_log_w_moments <- function(n=1000, dependence.type, w.fun, prms)
   xy <- SimulateBiasedSample(n, dependence.type, w,fun, prms)  # simulate from [F_XY]^(W). Parameters should be under independence: [F_X F_Y]^(w)
 
   
-  w.log <- log(w_fun_eval(xy[,1], xy[,2], w.fun))
+  w.log <- log(w_fun_eval(xy[,1], xy[,2], w.fun, prms))
   return(list(mu=mean(w.log), sigma2=var(w.log)))
 
 }
@@ -307,7 +308,7 @@ estimate_log_prob_typical <- function(w.mat)
 
 
 # Determine if weighing function is positive 
-is_pos_w <- function(w.fun, data, mat.flag)
+is_pos_w <- function(w.fun, data, mat.flag, prms=c())
 {
   if(!is.function(w.fun))
   {
@@ -319,9 +320,9 @@ is_pos_w <- function(w.fun, data, mat.flag)
   if(missing(mat.flag))  # default is checking matrix 
     mat.flag = TRUE
   if(!mat.flag)  # run and compute values 
-    return(min(w_fun_eval(data[,1], data[,2], w.fun)) > 0) # test only on sample points x_i, y_i
+    return(min(w_fun_eval(data[,1], data[,2], w.fun, prms)) > 0) # test only on sample points x_i, y_i
   else
-    return(min(w_fun_to_mat(data, w.fun)) > 0) # test all pairs x_i, y_j
+    return(min(w_fun_to_mat(data, w.fun, prms)) > 0) # test all pairs x_i, y_j
 }
 
 

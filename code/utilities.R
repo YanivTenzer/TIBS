@@ -190,7 +190,7 @@ ComputeStatistic <- function(data, grid.points, null.expectations.table)
 #   ------
 #   3 | 2
 ##################################################################################################
-ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1}, counts.flag)
+ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1}, counts.flag, prms=c())
 {
   # treat grid.points 
   if(missing(grid.points) || isempty(grid.points))
@@ -199,7 +199,7 @@ ComputeStatistic.W <- function(data, grid.points, w.fun=function(x){1}, counts.f
   if(missing(counts.flag) || isempty(counts.flag))
     counts.flag <- 1  # default: use counts in the statistic (not probabilities)
   
-  w.vec <- w_fun_eval(data[,1], data[,2], w.fun) # w_fun_to_mat(data, w.fun) # calculate w n*n matrix 
+  w.vec <- w_fun_eval(data[,1], data[,2], w.fun, prms) # w_fun_to_mat(data, w.fun, prms) # calculate w n*n matrix 
   n.w <- sum(1/w.vec)
   obs.table <- exp.table <- matrix(0, dim(grid.points)[1], 4)
   Obs <- Exp <- matrix(0,4,1) # observed & expected
@@ -344,13 +344,13 @@ Bootstrap <- function(data, pdfs, w.fun, prms, n=NULL)
     J <- sample(dim(pdfs)[1], n-k, prob=pdfs[,2], replace=TRUE)
     x <- data[I,1] # Sample X ~ Fx
     y <- data[J,2] # Sample Y ~ Fy
-    if(max(w_fun_eval(x, y, w.fun)/prms$w.max)>1)
+    if(max(w_fun_eval(x, y, w.fun, prms)/prms$w.max)>1)
     {
-      print(paste0("WTF MAX: ", max(w_fun_eval(x, y, w.fun)/prms$w.max)))
+      print(paste0("WTF MAX: ", max(w_fun_eval(x, y, w.fun, prms)/prms$w.max)))
       print(cbind(I, J))
     }
       
-    keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun)/prms$w.max)))
+    keep <- which(as.logical(rbinom(n-k, 1, w_fun_eval(x, y, w.fun, prms)/prms$w.max)))
     if(isempty(keep))
       next
     boot.sample[(1:length(keep))+k,] <- cbind(x[keep],y[keep]) 
