@@ -58,7 +58,7 @@ run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3)
                              'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(seq(-0.9, 0.9, 0.1)),
                              'CLmix','truncation', FALSE, TRUE, list(0.5), 
                              'LogNormal', 'sum', TRUE, TRUE,  list(c(0, 0.2)),  # added also a signal 
-                             'Gaussian', 'gaussian', TRUE, TRUE, list(seq(0.3, 0.3, 0.1)) ), 5, 9)) # -0.9 - 0.9 replace by CLmix / non-monotone and centered at zero 
+                             'Gaussian', 'gaussian', TRUE, TRUE, list(seq(-0.9, 0.9, 0.1)) ), 5, 9)) # -0.9 - 0.9 replace by CLmix / non-monotone and centered at zero 
 #  'Gaussian','exponent_minus_sum_abs', TRUE, TRUE, # not needed (w(x,y)=w(x)*w(y), not interesting)
 
 
@@ -91,15 +91,15 @@ prms.rho <- run.params.mat[,5]
 
 #################################################################################
 # Official parameters for long run:
-##test.stat <- c("adjusted_w_hoeffding", "inverse_w_hoeffding", "tsai") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
-##test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap", "tsai") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
+test.stat <- c("adjusted_w_hoeffding", "inverse_w_hoeffding", "tsai") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
+test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap", "tsai") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
 IS.methods <- c("tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
 prms.file <- "sim/prms.sim"
 run.script.file <- "run.all.sim.sh"
 #################################################################################
 # Temp parameters for experimentation
-test.stat <- c("adjusted_w_hoeffding")
-test.method <- c("permutationsMCMC")
+## test.stat <- c("adjusted_w_hoeffding")
+## test.method <- c("permutationsMCMC")
 
 #################################################################################
 
@@ -123,9 +123,9 @@ run.rho <- prms.rho
   
 if(isRStudio == 1)
 {
-  iterations = 222 # 00 # official: 500
-  B = 111 # 0 # official:  1000
-  sample.size = 101 #  official:  100
+  iterations = 500 # 00 # official: 500
+  B = 1000 # 0 # official:  1000
+  sample.size = 100 #  official:  100
   run.dep <- c(9) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
   
 } else  # run from command line 
@@ -167,7 +167,7 @@ for(s in run.dep) # Run all on the farm
   for(n in c(sample.size)) #seq(250, 400, 50))
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
-                use.cpp=0, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
+                use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
                 IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=1) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
