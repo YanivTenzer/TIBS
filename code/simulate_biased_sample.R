@@ -124,8 +124,11 @@ SimulateSample <- function(n, dependence.type, prms)
          'Clayton'={ library('copula')
            xy.mat <- qnorm(rCopula(n, claytonCopula(prms$rho)))
          }, 
-         'CLmix'={ library('copula') # choose from mixture for each point independently 
-          xy.mat <- rCopula(n, claytonCopula(0.5-rbinom(n, 1, 0.5)))
+         'CLmix'={ library('copula') # choose from mixture for each point independently
+          xy.pos <-  rCopula(n, claytonCopula(0.5))
+          xy.neg <-  rCopula(n, claytonCopula(-0.5))
+          r <- rbinom(n,1,  0.5)
+          xy.mat <- r*xy.pos + (1-r)*xy.neg
          }, 
 
          'Gumbel'= { # here rho must be > 1 
