@@ -13,7 +13,7 @@ run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3)
                              'Clayton','truncation', TRUE, TRUE, list(0.5),
                              'Gumbel', 'truncation', TRUE, TRUE, list(1.6),
                              'LD', 'truncation', TRUE, FALSE, list(c(0, 0.4)),
-                             'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(c(-0.9, -0.5, 0.0, 0.5, 0.9)),
+                             'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(c(0.9)), # list(c(-0.9, -0.5, 0.0, 0.5, 0.9)),
                              'CLmix','truncation', FALSE, TRUE, list(0.5), 
                              'LogNormal', 'sum', TRUE, TRUE,  list(c(0, 0.2, 0.5, 0.9)),  # added also a signal 
                              'Gaussian', 'gaussian', TRUE, TRUE, list(c(0.0, 0.5, 0.9)) ), 5, 9)) # no need for negatives # -0.9 - 0.9 replace by CLmix / non-monotone and centered at zero 
@@ -24,7 +24,7 @@ monotone.type <- run.params.mat[,3]
 exchange.type <- run.params.mat[,4]
 prms.rho <- run.params.mat[,5]
 
-run.dep <- c(2:9) # (1:8)
+run.dep <- c(6) # (1:8)
 
 to.sim = "LogNormal"
 ###################################################################
@@ -88,10 +88,12 @@ for(d in run.dep)
 } # loop on datasets 
 
 
-#plot(xy[,1], xy[,2])
-#points(xy.all[,1], xy.all[,2], col="red")
+plot(xy.all[,1], xy.all[,2], col="red")
+points(xy[,1], xy[,2])
+abline(0,1)
 
-
+plot(xy[,1], xy[,2])
+abline(0,1)
 
 
 #  if(to.sim == "Gumbel")

@@ -114,15 +114,18 @@ SimulateSample <- function(n, dependence.type, prms)
          }, 
          'nonmonotone_nonexchangeable'={ library(copula)  # y ~ weibull, x ~ Gaussian copula 
            GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
-           ranks<- rCopula(n, GaussianCop)
-           xy.mat <- cbind(qweibull(ranks[,1], shape = 0.5, scale = 2, lower.tail = TRUE, log.p = FALSE), 
-                           0.5 * (ranks[,2] * sample(c(-1,1), 1)+ 1))
+           ranks <- rCopula(n, GaussianCop)
+           scale = 4
+           shape = 0.5
+           mu = scale * gamma(1+1/shape)
+           xy.mat <- cbind(qweibull(ranks[,1], shape = shape, scale = scale, lower.tail = TRUE, log.p = FALSE), 
+                           0.5 * (ranks[,2] * sample(c(-1,1), n, replace=TRUE)+ 1)  * mu * 2  )
          },
          'Clayton'={ library('copula')
            xy.mat <- qnorm(rCopula(n, claytonCopula(prms$rho)))
          }, 
          'CLmix'={ library('copula') # choose from mixture for each point independently 
-          xy.mat <- rCopula(n, claytonCopula(0.5-rbinom(1, 1, 0.5)))
+          xy.mat <- rCopula(n, claytonCopula(0.5-rbinom(n, 1, 0.5)))
          }, 
 
          'Gumbel'= { # here rho must be > 1 
