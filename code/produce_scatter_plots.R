@@ -1,10 +1,13 @@
 source("simulate_biased_sample.R")
+source("TIBS.R")
 library(copula)
 library(ggplot2)
 library(tikzDevice)
 library(latex2exp)
 library(dplyr)
 
+
+# Which one changed: LD (5), nonmonotone_nonexxhagable (6)  (0.9, 0.7, ... -0.9), , CLmix (7) - should re-run them 
 
 
 # Same parameters of simulation, but here only subset that we want to plot
@@ -13,10 +16,10 @@ run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3)
                              'Clayton','truncation', TRUE, TRUE, list(0.5),
                              'Gumbel', 'truncation', TRUE, TRUE, list(1.6),
                              'LD', 'truncation', TRUE, FALSE, list(c(0, 0.4)),
-                             'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(c(0.9)), # list(c(-0.9, -0.5, 0.0, 0.5, 0.9)),
+                             'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(c(-0.9,-0.5,0,0.5,0.9)), # list(c(-0.9, -0.5, 0.0, 0.5, 0.9)),
                              'CLmix','truncation', FALSE, TRUE, list(0.5), 
                              'LogNormal', 'sum', TRUE, TRUE,  list(c(0, 0.2, 0.5, 0.9)),  # added also a signal 
-                             'Gaussian', 'gaussian', TRUE, TRUE, list(c(0.0, 0.5, 0.9)) ), 5, 9)) # no need for negatives # -0.9 - 0.9 replace by CLmix / non-monotone and centered at zero 
+                             'Gaussian', 'gaussian', TRUE, TRUE, list(c( 0.9)) ), 5, 9)) # no need for negatives # -0.9 - 0.9 replace by CLmix / non-monotone and centered at zero 
 
 dependence.type <- run.params.mat[,1]
 w.fun <- run.params.mat[,2]
@@ -24,7 +27,7 @@ monotone.type <- run.params.mat[,3]
 exchange.type <- run.params.mat[,4]
 prms.rho <- run.params.mat[,5]
 
-run.dep <- c(6) # (1:8)
+run.dep <- c(9) # (1:8)
 
 to.sim = "LogNormal"
 ###################################################################
@@ -32,6 +35,7 @@ to.sim = "LogNormal"
 ###################################################################
 n=400
 
+prms <- c()
 prms$keep.all=1
 
 for(d in run.dep)
@@ -43,6 +47,10 @@ for(d in run.dep)
     prms$w.rho <- -prms$rho
     
     dat <- SimulateBiasedSample(n, dependence.type[[d]], w.fun[[d]], prms)
+
+    prms$B = 100
+    T <- TIBS(dat$data, w.fun[[d]], prms, "permutationsMCMC", "adjusted_w_hoeffding")  # New: generate a permuted dataset 
+    
     xy <- as.data.frame(dat$data)
     xy.all <- as.data.frame(dat$all.data[1:n,])
     r <- range(xy.all)
@@ -68,6 +76,10 @@ for(d in run.dep)
       x.lim <- c(min(xy.all[,1], xy[,1]), max(xy.all[,1], xy[,1]))
       y.lim <- c(min(xy.all[,2], xy[,2]), max(xy.all[,2], xy[,2]))
     }
+    if(d==6)  # Cut tail of Weibull distribution 
+    {
+      x.lim[2] <- 40
+    }
     
     ggplot(xy.all, aes(x=xy.all[,1], y=xy.all[,2])) + 
       geom_point(data=xy.good, aes(x=xy.good[,1], y=xy.good[,2]), colour="red", size=2) + 
@@ -83,16 +95,24 @@ for(d in run.dep)
         axis.text.x = element_text(face="bold", size=12), 
         axis.text.y = element_text(face="bold", size=12),
       )
-    ggsave(paste('../figs/', dependence.type[[d]], '_', w.fun[[d]], '_', prms$rho, '.jpg', sep=''))
+##    ggsave(paste('../figs/', dependence.type[[d]], '_', w.fun[[d]], '_', prms$rho, '.jpg', sep=''))
   }  
 } # loop on datasets 
 
 
 plot(xy.all[,1], xy.all[,2], col="red")
 points(xy[,1], xy[,2])
+points(T$permuted.data[,1], T$permuted.data[,2], co="green")
 abline(0,1)
 
 plot(xy[,1], xy[,2])
+abline(0,1)
+
+
+plot(xy[,1], xy[,2])
+points(T$permuted.data[,1], T$permuted.data[,2], co="green")
+cor(xy[,1], xy[,2])
+cor(T$permuted.data[,1], T$permuted.data[,2])
 abline(0,1)
 
 

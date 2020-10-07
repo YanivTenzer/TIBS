@@ -1,3 +1,5 @@
+source("utilities.R")
+source("simulate_biased_sample.R")
 
 #' @export
 add.one.sqrt <- function(x) {
@@ -100,8 +102,9 @@ TIBS.steps <- function(data, w.fun, w.mat, grid.points, expectations.table, prms
 # Parameters: 
 # data - n*2 array of (x,y) samples (NOT LIST!)
 # w.fun - biased sampling function W 
-# test.type - test to perform 
 # prms - additional parameters (needed for bootstrap) including B - number of bootstrap/permutation samples to perform 
+# test.method - how to calculate p-value  
+# test.stat - test statistic 
 # 
 # Output:
 # TrueT - test statistic for the data
@@ -134,7 +137,7 @@ TIBS <- function(data, w.fun, prms, test.method, test.stat)
   if(missing(test.stat) || is.na(test.stat) || (test.stat==""))  # new: a flag for the test statistic
     test.stat <- "adjusted_w_hoeffding"
   if(missing(test.method) || is.na(test.method) || (test.method==""))  # new: a flag for method for assigning p-value (and statistic) 
-    test.method <- "permutations"
+    test.method <- "permutationsMCMC"
   
   
   
@@ -341,7 +344,7 @@ TIBS <- function(data, w.fun, prms, test.method, test.stat)
              dat <- data.frame(list(trun = data[,1], obs = data[,2], delta = rep(1, dim(data)[1])))
            results <- permDep(dat$trun, dat$obs, prms$B, dat$delta, nc = 4, minp2Only = TRUE, kendallOnly = FALSE) # set number of cores 
            ##                                      sampling = 'conditional') #  minp.eps= prms$minp.eps) # ,  new! set also min epsilon
-           output <- list(Pvalue=results$p.valueMinp2)
+           output <- list(Pvalue=results$p.valueMinp2, TrueT=results$obsTest2, statistics.under.null=results$permTest2)
          }
   )
   

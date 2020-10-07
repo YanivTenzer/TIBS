@@ -16,8 +16,8 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
     grid.points = data #  grid.points <- matrix(rnorm(2*n, 0, 1), n, 2) # TEMP DEBUG!!
   if(!('counts.flag' %in% names(prms))) # set default
     counts.flag <- 1  # default: use counts in the statistic (not probabilities)
-  if(!('importance.sampling.dist' %in% names(prms))) # set default KouMcculough.w distribution (works also for truncation!)
-    prms$importance.sampling.dist <- "KouMcculough.w"
+  if(!('importance.sampling.dist' %in% names(prms))) # set default KouMcCullagh.w distribution (works also for truncation!)
+    prms$importance.sampling.dist <- "KouMcCullagh.w"
   
   if(!('diagnostic.plot' %in% names(prms))) # set default
     prms$diagnostic.plot <- 0
@@ -30,7 +30,7 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
   Permutations.cpp <- PermutationsIS_rcpp(w.mat, prms, data) # TEMP - compare with cpp 
   if(prms$diagnostic.plot)
   {
-    IS.methods <- c("KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "MCMC") #   "sqrt.w", ) "match.w", 
+    IS.methods <- c("KouMcCullagh.w", "uniform", "monotone.w", "monotone.grid.w", "MCMC") #   "sqrt.w", ) "match.w", 
     IS.methods <- setdiff(IS.methods, prms$importance.sampling.dist)
     num.IS <- length(IS.methods)
     perm.IS <- c()
@@ -466,7 +466,7 @@ PermutationsIS <- function(w.mat, prms, data) # burn.in=NA, Cycle=NA)  # New: al
              }
            }
          },
-         "KouMcculough.w"={  # no ordering of variables 
+         "KouMcCullagh.w"={  # no ordering of variables 
            log.P.IS <- zeros(prms$B, 1)
            log.P.IS0 <- 0
            w.col.sums <- colSums(w.mat)

@@ -53,7 +53,7 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
   
   if(is.character(prms)) # new: enable reading parameters from a parameters file: 
     load(prms)  # load parameters structure from file. Can also contain test.comb 
-
+  
   if(prms$use.cpp)
   {
     library(Rcpp)
@@ -168,8 +168,8 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     { 
       if(prms$run.sim == 0) # load simulated data from file 
       {
-#        if(i==1)  # no need to load again
-#          load(sim.file)
+        #        if(i==1)  # no need to load again
+        #          load(sim.file)
         biased.data = all.biased.data[,,i]
       } else  # new simulation
       {
@@ -279,15 +279,17 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
     prms$title <- as.integer(dependence.type != 'UniformStrip') # s>1) 
     if(prms$plot.flag) # plot example 
       PlotBiasedData(dependence.type, biased.data, prms)
-    
     # New: save intermediate results also for latex format 
     # Compute power (this is also type-1-error alpha under the null)
     test.power <- apply(test.pvalue < prms$alpha, 1, rowMeans) 
     # Save results in one file per dataset 
-    test.output <- t(cbind(test.power, colSums(rowSums(test.time, dims=2))))
-    colnames(test.output) <- test.method
-    rownames(test.output) <- c(prms.rho, 'time') # [[s]]
-##    test.output <- test.output[, test.time[1,,1]>=0, drop = FALSE] # take only relevant tests 
+    if(num.tests>1)
+      test.output <- t(cbind(test.stat, test.comb[,3], round(test.power, 4), round(colSums(rowSums(test.time, dims=2)), 4)))
+    else
+      test.output <- t(cbind(test.stat, test.comb[,3], t(round(test.power, 4)), round(colSums(rowSums(test.time, dims=2)), 4)))
+    colnames(test.output) <- test.method  # here is method. We need to add also test stat
+    rownames(test.output) <- c("stat", "IS.dist", prms.rho, 'time') # [[s]]
+    ##    test.output <- test.output[, test.time[1,,1]>=0, drop = FALSE] # take only relevant tests 
     
     if(prms$run.flag!=0)
     {
@@ -295,18 +297,24 @@ simulate_and_test <- function(dependence.type='Gaussian', prms.rho=c(0.0), w.fun
       if(i.prm < num.prms) # intermediate loops 
       {
         save(test.pvalue, test.time, prms.rho, prms, file=paste0(output.file, '.partial.Rdata'))
+        if(dim(test.output)[2]==1)
+          test.output <- cbind(test.output, rep("", dim(test.output)[2]))
         print(xtable(test.output[c(1:i.prm, i.prm+2),], type = "latex", digits=3), 
               file = paste0(output.file, '.partial.tex'), size="\\tiny") # save in latex format
       } else #    if(i.prm == num.prms) # final loop 
       {
         save(test.pvalue, test.time, test.power, prms.rho, prms, test.comb, w.fun, file=paste0(output.file, '.Rdata'))  
         if(dim(test.output)[2]>0)
+        {
+          if(dim(test.output)[2]==1)
+            test.output <- cbind(test.output, rep("", dim(test.output)[2]))
           print(xtable(test.output, type = "latex", digits=3), 
                 file = paste0(output.file, '.tex'), size="\\tiny") # save in latex format 
+        }
       }
-    }    
+    } # and if run.flag    
   } # end simulation and testing for one dependency type (loop over i.prm)
-
+  
   return(list(test.power=test.power, test.output=test.output, test.pvalue=test.pvalue, 
               test.time=test.time, test.true.stat=test.true.stat, test.null.stat=test.null.stat))
   

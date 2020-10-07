@@ -36,6 +36,7 @@ w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'Hyp
 # Read real dataset 
 ReadDataset <- function(data_str)
 {
+  naive.w.fun = "const"
   switch(data_str,  # read dataset 
          'huji'={
            load('../data/APage_APtime.RData')
@@ -121,6 +122,7 @@ ReadDataset <- function(data_str)
            KM <- survfit(Surv(y-x,!delta) ~ 1, data=input.data)
            Srv.C <- stepfun(KM$time, c(1,KM$surv))
            w.fun <- function(x,y){(x<y)*Srv.C(y-x)}
+           naive.w.fun <- function(x,y){Srv.C(y-x)}
 #           return(list(input.data=input.data, w.fun=w.fun, delta=ch.data$delta)) # return also delta for censoring
            
          }
@@ -129,7 +131,7 @@ ReadDataset <- function(data_str)
   if(!is.numeric(input.data))   # unlist and keep dimensions for data 
     input.data <- array(as.numeric(unlist(input.data)), dim(input.data))  
   
-  return(list(input.data=input.data, w.fun=w.fun)) # new! return list with also w (also update for other datasets).  
+  return(list(input.data=input.data, w.fun=w.fun, naive.w.fun=naive.w.fun)) # new! return list with also w (also update for other datasets).  
 }
 
 
@@ -139,21 +141,25 @@ cppFunction('NumericVector timesTwo(NumericVector x) {
   return x * 2;
 }')
 
-
+########################################################
 # "Official parameters"
-B = 100000 # number of permutations/bootstrap samples 
-minP2.B = 10000 # for minP take a smaller value due to running time 
-plot.flag <- 1
-
-# parameters for experimenting
-B = 1000
-minP2.B = 50
-plot.flag <- 0
-
 test.method <- c('bootstrap', 'permutationsMCMC', "permutationsIS", 'tsai', 'minP2') # different tests to run 
 test.stat <- c("adjusted_w_hoeffding", "adjusted_w_hoeffding", "adjusted_w_hoeffding", "tsai", "minP2")
 IS.method <- c("tsai", "KouMcculough.w")
 exchange.type <- c(FALSE, FALSE, FALSE, FALSE, FALSE) # no reason to assume real data is exchangeable
+B = 100000 # number of permutations/bootstrap samples 
+minP2.B = 10000 # for minP take a smaller value due to running time 
+plot.flag <- 0
+########################################################
+
+# parameters for experimenting
+test.method <- c('permutationsMCMC') # different tests to run 
+test.stat <- c("adjusted_w_hoeffding")
+B = 99999
+minP2.B = 5
+plot.flag <- 0
+########################################################
+
 # w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
 # w.max <- c(65, 1, 1, -1) # -1 denotes calculate max of w from data  
 n.datasets <- length(datasets)
@@ -163,7 +169,7 @@ test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performe
 test.time <- matrix(-0.01, n.datasets, n.tests) # -1 denotes test wasn't performed
 
 overll.time <-  Sys.time()
-for(d in 1:n.datasets) # loop on datasets (last is dementia)
+for(d in 4:4) # temp just check channing 1:n.datasets) # loop on datasets (last is dementia)
 {
 #    if(datasets[d] %in% c('ICU', 'Infection'))  # these datasets are available by request. Uncomment this line if you don't have them 
 #      next
@@ -180,7 +186,7 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
   
 #    max(w.max[d], max(w_fun_to_mat(dat$input.data, dat$w.fun, prms))) # update max 
   prms$use.cpp <- 1 # New! enable one to run with c++ code (faster)
-  for(t in 1:5) # n.tests) # run all tests 
+  for(t in 1:n.tests) # run all tests 
   {
     if(test.method[t] == 'minP2')  # smaller sample size for minP2 (slower)
       prms$B = minP2.B
@@ -211,23 +217,24 @@ for(d in 1:n.datasets) # loop on datasets (last is dementia)
     
     save(dat, prms, test.method, test.stat, t, file="Channing_run_IS.Rdata")
     results.test <- TIBS(dat$input.data, dat$w.fun, prms, test.method[t], test.stat[t])  # can also be cpp 
+    naive.results.test <- TIBS(dat$input.data, dat$naive.w.fun, prms, test.method[t], test.stat[t])  # see the effect of w
     difftime(Sys.time() , start.time, units="secs")
     test.time[d,t] <- as.numeric(difftime(Sys.time() , start.time, units="secs")) # Sys.time() - start.time
     print(paste0("test time: ", test.time[d,t]))
     test.pvalue[d,t] <- results.test$Pvalue 
     cat(datasets[d], ', ', test.method[t], ', Pvalue:', test.pvalue[d,t], '\n')
-    if(plot.flag & (t==2)) # permutations
+    if(plot.flag & (test.method[t]=="permutationsMCMC")) # permutations
     {
       if(("delta" %in% names(prms)) && (length(prms$delta) == dim(dat$input.data)[1]))
         xy <- cbind(data.frame(dat$input.data[which(prms$delta==1),]), as.data.frame(results.test$permuted.data))
       else
         xy <- cbind(data.frame(dat$input.data), as.data.frame(results.test$permuted.data))
       ggplot(xy, aes(x=xy[,1], y=xy[,2])) + 
-        geom_point(aes(x=xy[,1], y=xy[,2], col="original")) + 
-        geom_point(shape=3, aes(x=xy[,3], y=xy[,4], col="permuted")) + 
-        ggtitle(datasets[d]) +
+        geom_point(aes(x=xy[,1], y=xy[,2]), col="red" , size=2) + 
+        geom_point(shape=3, aes(x=xy[,3], y=xy[,4]), col="black" , size=2) + 
+#        ggtitle(datasets[d]) +
         xlab("X") + ylab("Y") +
-        theme(plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
+        theme(# plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
               axis.title.y = element_text(face="bold", size=14),
               axis.title.x = element_text(face="bold", size = 14),
               axis.text.x = element_text(face="bold", size=12), 

@@ -3,6 +3,10 @@ source('simulate_biased_sample.R')
 # Set the combinations of applicable test types and statistics for a particular distirbution
 GetTestCombinations <- function(prms, w.fun, dependence.type, test.stat, test.method)
 {
+  
+  if(!('try.invalid' %in% names(prms)))  # run also tests not suitable for the distribution and w function
+    prms$try.invalid <- FALSE
+  
   n.stats <- length(test.stat)
   n.methods <- length(test.method)
 #  ctr <- 1
@@ -18,7 +22,7 @@ GetTestCombinations <- function(prms, w.fun, dependence.type, test.stat, test.me
           next
       if((test.method[i] %in% c("tsai", "minP2")) && (!(w.fun %in% c("truncation", "Hyperplane_truncation"))))
         next
-      if((test.method[i] %in% "bootstrap") && (!  (is_pos_w(w.fun) || (is_exchangeable(dependence.type) && (w.fun %in% c("truncation", "Hyperplane_truncation"))))))
+      if((test.method[i] %in% "bootstrap") && (!prms$try.invalid) && (!  (is_pos_w(w.fun) || (is_exchangeable(dependence.type) && (w.fun %in% c("truncation", "Hyperplane_truncation"))))))
         next
 
       # new: allow different importance sampling distributions 

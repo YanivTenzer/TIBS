@@ -109,8 +109,8 @@ SimulateSample <- function(n, dependence.type, prms)
          'LD'={ library(copula)  # y ~ Weibull, x ~ Exponential 
            GaussianCop <- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed
            ranks<- rCopula(n, GaussianCop)
-           xy.mat <- cbind(qweibull(ranks[,1], shape = 3, scale = 8.5, lower.tail = TRUE, log.p = FALSE), 
-                           qexp(ranks[,2], rate = 0.2))
+           xy.mat <- cbind(qexp(ranks[,2], rate = 0.2), 
+                           qweibull(ranks[,1], shape = 3, scale = 8.5, lower.tail = TRUE, log.p = FALSE))
          }, 
          'nonmonotone_nonexchangeable'={ library(copula)  # y ~ weibull, x ~ Gaussian copula 
            GaussianCop<- normalCopula(param=prms$rho, dim = 2, dispstr = "ex") # if needed

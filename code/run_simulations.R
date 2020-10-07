@@ -51,14 +51,14 @@ const.seed <- 1 # set constant seed
 
 # Vectors with different dependency settings : dependence-type, w, monotone, exchangable, rho
 run.params.mat <- t(matrix(c('UniformStrip', 'truncation', TRUE, TRUE, list(0.3), 
-                             'Gaussian', 'truncation', TRUE, TRUE, list(seq(-0.9,0.9,0.1)),
+                             'Gaussian', 'truncation', TRUE, TRUE, list(seq(-0.8,0.9,0.1)),
                              'Clayton','truncation', TRUE, TRUE, list(0.5),
                              'Gumbel', 'truncation', TRUE, TRUE, list(1.6),
-                             'LD', 'truncation', TRUE, FALSE, list(c(0, 0.4)),
-                             'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(seq(-0.9, 0.9, 0.1)),
+                             'LD', 'truncation', TRUE, FALSE, list(c(0, 0.4)), # , 0.4)),
+                             'nonmonotone_nonexchangeable', 'truncation', FALSE, FALSE, list(c(-0.9, -0.7, -0.5, -0.3, -0.1, 0, 0.1, 0.3, 0.5, 0.7, 0.9)), #     list(seq(-0.9, 0.9, 0.1)),
                              'CLmix','truncation', FALSE, TRUE, list(0.5), 
                              'LogNormal', 'sum', TRUE, TRUE,  list(c(0, 0.2)),  # added also a signal 
-                             'Gaussian', 'gaussian', TRUE, TRUE, list(seq(-0.9, 0.9, 0.1)) ), 5, 9)) # -0.9 - 0.9 replace by CLmix / non-monotone and centered at zero 
+                             'Gaussian', 'gaussian', TRUE, TRUE, list(seq(0.0, 0.9, 0.1)) ), 5, 9)) # no need for negatives # -0.9 - 0.9 replace by CLmix / non-monotone and centered at zero 
 #  'Gaussian','exponent_minus_sum_abs', TRUE, TRUE, # not needed (w(x,y)=w(x)*w(y), not interesting)
 
 
@@ -91,15 +91,15 @@ prms.rho <- run.params.mat[,5]
 
 #################################################################################
 # Official parameters for long run:
-test.stat <- c("adjusted_w_hoeffding", "inverse_w_hoeffding", "tsai") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
-test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap", "tsai") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
-IS.methods <- c("tsai", "KouMcculough.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
+##test.stat <- c("adjusted_w_hoeffding", "inverse_w_hoeffding", "tsai") # possible test statistics # "hoeffding", , "tsai", "minP2" "adjusted_w_hoeffding", 
+##test.method <- c("permutationsIS", "permutationsMCMC", "bootstrap", "tsai") # possible methods for computing the test statistic "fast-bootstrap", "bootstrap",  
+IS.methods <- c("tsai", "KouMcCullagh.w", "uniform", "monotone.w", "monotone.grid.w", "match.w") #  different methods for importance sampling of permutations
 prms.file <- "sim/prms.sim"
 run.script.file <- "run.all.sim.sh"
 #################################################################################
 # Temp parameters for experimentation
-## test.stat <- c("adjusted_w_hoeffding")
-## test.method <- c("permutationsMCMC")
+test.stat <- c("minP2")
+test.method <- c("minP2")
 
 #################################################################################
 
@@ -123,11 +123,10 @@ run.rho <- prms.rho
   
 if(isRStudio == 1)
 {
-  iterations = 500 # 00 # official: 500
-  B = 1000 # 0 # official:  1000
+  iterations = 100 #   500 # 500 # 00 # official: 500
+  B = 101 # 1000 # 0 # official:  1000  
   sample.size = 100 #  official:  100
-  run.dep <- c(9) #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
-  
+  run.dep <- c(5:7) # new simulations: only ones where distribution has changed #  official: 1:9 # c(8:num.sim) # 2 is only Gaussians (to compare to minP2 power) # 1 # Loop on different dependency types 
 } else  # run from command line 
 {
   print("inside else!!")
@@ -168,7 +167,7 @@ for(s in run.dep) # Run all on the farm
   {
     prms = list(B=B, sample.size=n, iterations=iterations, plot.flag=0, alpha=0.05, sequential.stopping=0, # pilot study 
                 use.cpp=1, keep.all=0, perturb.grid=1, simulate.once=0, new.bootstrap=1, diagnostic.plot=0, 
-                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=1) # , sample.by.bootstrap=1) # set running parameters here ! 
+                IS.methods=IS.methods, include.ID=1, run.sim=0, run.flag=1, try.invalid=TRUE) # , sample.by.bootstrap=1) # set running parameters here ! 
     #    if(run.flag != 1)
     #      prms.rho[[s]] = as.numeric(args[4]) # temp for loading from user 
     print(paste0("s=", s))
@@ -181,14 +180,13 @@ for(s in run.dep) # Run all on the farm
     # New: set applicible tests: 
     test.comb <- GetTestCombinations(prms, w.fun[[s]], dependence.type[[s]], test.stat, test.method)
     
-    if(s < 8) # get rid of all IS methods 
+    if((s < 8) && (dim(test.comb)[1]>1)) # get rid of all IS methods 
     {
       test.comb <- test.comb[test.comb[,1] != "permutationsIS",]
       test.comb <- test.comb[test.comb[,2] != "inverse_w_hoeffding",]
     }
     num.tests <- dim(test.comb)[1] # can change with s !! 
 
-    
     save(prms, test.comb, file=paste0(prms.file, '.', s, '.Rdata'))
     
     
