@@ -1,0 +1,28 @@
+# Run script for running all simulatios in R
+
+# ARguments are: (dep.type+w.type), iterations, B, sample.size
+# Output will be in "run_simulations.out"
+
+
+Rscript run_simulations.R 1 500 1000 100 > out/1.out &
+Rscript run_simulations.R 2 500 1000 100 > out/2.out &
+Rscript run_simulations.R 3 500 1000 100 > out/3.out &
+Rscript run_simulations.R 4 500 1000 100 > out/4.out &
+Rscript run_simulations.R 5 500 1000 100 > out/5.out &
+Rscript run_simulations.R 6 500 1000 100 > out/6.out &
+Rscript run_simulations.R 7 500 1000 100 > out/7.out &
+Rscript run_simulations.R 8 500 1000 100 > out/8.out &
+Rscript run_simulations.R 9 500 1000 100 > out/9.out &
+
+
+sbatch -M hm "Rscript run_simulations.R 1 5 200 100 > out/small.1.out" 
+
+R CMD BATCH run_simulations.R 1 500 1000 100 &
+R CMD BATCH run_simulations.R 2 500 1000 100 &
+R CMD BATCH run_simulations.R 3 500 1000 100 &
+R CMD BATCH run_simulations.R 4 500 1000 100 &
+R CMD BATCH run_simulations.R 5 500 1000 100 &
+R CMD BATCH run_simulations.R 6 500 1000 100 &
+R CMD BATCH run_simulations.R 7 500 1000 100 &
+R CMD BATCH run_simulations.R 8 500 1000 100 &
+R CMD BATCH run_simulations.R 9 500 1000 100 &

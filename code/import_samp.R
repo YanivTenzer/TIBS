@@ -136,10 +136,8 @@ IS.permute <- function(data, grid.points, w.fun=function(x){1}, prms, test.stat)
 #  }
   
     
-    
   if(prms$diagnostic.plot)
   {
-
     x.lim <- range(c(Permutations$log.P.W, Permutations$log.P.W0))  
     y.lim <- range(c(Permutations$log.P.IS, Permutations$log.P.IS0)) 
     plot(Permutations$log.P.W, Permutations$log.P.IS, col="black", pch=20, xlim=x.lim, ylim=y.lim, xlab="log(P_w)", ylab="log(P_IS)", main=orig.IS.dist)

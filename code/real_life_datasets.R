@@ -23,6 +23,7 @@ library(permDep)
 library(tictoc)
 library(xtable)
 library(ggplot2)
+library(ggmap)
 library(pracma)
 library(Matrix)
 library(Rcpp)
@@ -155,9 +156,9 @@ plot.flag <- 0
 # parameters for experimenting
 test.method <- c('permutationsMCMC') # different tests to run 
 test.stat <- c("adjusted_w_hoeffding")
-B = 99999
+B = 99
 minP2.B = 5
-plot.flag <- 0
+plot.flag <- 1
 ########################################################
 
 # w.fun <- c('huji', 'Hyperplane_Truncation', 'Hyperplane_Truncation', 'sum', 'sum') # last one is dementia (sum?)
@@ -169,7 +170,7 @@ test.pvalue <- matrix(-1, n.datasets, n.tests) # -1 denotes test wasn't performe
 test.time <- matrix(-0.01, n.datasets, n.tests) # -1 denotes test wasn't performed
 
 overll.time <-  Sys.time()
-for(d in 4:4) # temp just check channing 1:n.datasets) # loop on datasets (last is dementia)
+for(d in 5:5) # temp just check channing 1:n.datasets) # loop on datasets (last is dementia)
 {
 #    if(datasets[d] %in% c('ICU', 'Infection'))  # these datasets are available by request. Uncomment this line if you don't have them 
 #      next
@@ -223,25 +224,41 @@ for(d in 4:4) # temp just check channing 1:n.datasets) # loop on datasets (last 
     print(paste0("test time: ", test.time[d,t]))
     test.pvalue[d,t] <- results.test$Pvalue 
     cat(datasets[d], ', ', test.method[t], ', Pvalue:', test.pvalue[d,t], '\n')
-    if(plot.flag & (test.method[t]=="permutationsMCMC")) # permutations
+    if(plot.flag & (test.method[t] == "permutationsMCMC")) # permutations
     {
       if(("delta" %in% names(prms)) && (length(prms$delta) == dim(dat$input.data)[1]))
         xy <- cbind(data.frame(dat$input.data[which(prms$delta==1),]), as.data.frame(results.test$permuted.data))
       else
         xy <- cbind(data.frame(dat$input.data), as.data.frame(results.test$permuted.data))
+      
+      x.vec <- seq(min(xy[,1]), max(xy[,1]), (max(xy[,1])-min(xy[,1]))/100)
+      y.vec <- seq(min(xy[,2]), max(xy[,2]), (max(xy[,2])-min(xy[,2]))/100)
+      n <- length(x.vec)
+      z.mat <- matrix(0, n,n)
+      for(i in c(1:n))
+        for(j in c(1:n))
+          z.mat[i,j] <- w_fun_eval(x.vec[i], y.vec[j], dat$w.fun)
+      
+      image(x.vec, y.vec, z.mat, col=gray.colors(33), xlab="X", ylab="Y")
+      levelplot(z.mat)
+#      contour(x.vec, y.vec, z.mat)
+      image.plot(x.vec, y.vec, z.mat, col = gray(100:0/100), xlab="X", ylab="Y")
+      points(xy[,1], xy[,2], col="red", pch=16)
+      points(xy[,3], xy[,4], col="green", pch=3, cex=0.5)
+      
       ggplot(xy, aes(x=xy[,1], y=xy[,2])) + 
         geom_point(aes(x=xy[,1], y=xy[,2]), col="red" , size=2) + 
         geom_point(shape=3, aes(x=xy[,3], y=xy[,4]), col="black" , size=2) + 
 #        ggtitle(datasets[d]) +
         xlab("X") + ylab("Y") +
-        theme(# plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
+        theme( # plot.title = element_text(size=14, face="bold.italic", hjust=0.5),
               axis.title.y = element_text(face="bold", size=14),
               axis.title.x = element_text(face="bold", size = 14),
               axis.text.x = element_text(face="bold", size=12), 
               axis.text.y = element_text(face="bold", size=12), 
               legend.position = "none")
-      ggsave(paste(path, '/../figs/real_data/', datasets[d], '.png', sep=''),
-          width=5, height=5, dpi=300)
+##      ggsave(paste(path, '/../figs/real_data/', datasets[d], '.png', sep=''),
+##          width=5, height=5, dpi=300)
     }
   } # end loop on tests 
 } # end loop on datasets   
